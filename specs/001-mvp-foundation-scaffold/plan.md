@@ -10,11 +10,11 @@
 
 ## Technical Decisions
 
-1. Consume BaseLogin from the local sibling checkout when available using
-   `includeBuild("../BaseLogin")`, substituting `com.github.apptolast:baselogin`
-   with `:custom-login`.
-2. Keep the same dependency coordinate with the branch SHA as fallback version
-   for JitPack-style resolution if the local checkout is absent.
+1. Consume BaseLogin only as an external Gradle dependency through JitPack:
+   `com.github.apptolast.BaseLogin:baselogin`, pinned to commit
+   `35a5e15fc452157b887121dd464f8dc4f14f1ea9`.
+2. Do not include the sibling BaseLogin checkout as a Gradle composite build;
+   Fledge must not add the whole BaseLogin project to the IDE/build graph.
 3. Start Koin once from Fledge and load BaseLogin `loginModules(...)`, adding
    Fledge data/presentation/platform modules in the same graph.
 4. Keep the first foundation repository in memory. The data interface and models
@@ -33,7 +33,7 @@
 
 - Add JitPack and GitLive Maven repositories required by BaseLogin.
 - Add direct dependencies for Navigation Compose MP, Koin, serialization,
-  Turbine, coroutines test, and BaseLogin.
+  Turbine, coroutines test, and BaseLogin via JitPack.
 - Apply Kotlin serialization plugin.
 
 ### 2. Tests first
