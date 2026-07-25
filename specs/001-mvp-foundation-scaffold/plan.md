@@ -101,7 +101,7 @@ If ktlint is configured, run:
 | AC-01 | `FoundationTemplateCleanupTest` |
 | AC-02 | `FoundationRouteDecisionTest`, `AuthConfigTest` |
 | AC-03 | `FamilySetupViewModelTest`, `InMemoryFamilyFoundationRepositoryTest` |
-| AC-04 | `ChildProfileModelTest`, `ChildProfilesViewModelTest` |
+| AC-04 | `ChildProfileModelTest`, `InMemoryFamilyFoundationRepositoryTest` |
 | AC-05 | `FoundationRouteDecisionTest` |
 | AC-06 | `ChildPinViewModelTest`, `ParentalGateViewModelTest` |
 | AC-07 | `PairingViewModelTest` |
