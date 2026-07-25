@@ -3,6 +3,7 @@ package com.apptolast.fledge.di
 import com.apptolast.customlogin.di.loginModules
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupViewModel
@@ -24,6 +25,7 @@ val dataModule = module {
 }
 
 val presentationModule = module {
+    single { FoundationRouteDecider() }
     viewModelOf(::RoleSelectorViewModel)
     viewModelOf(::FamilySetupViewModel)
     viewModelOf(::ChildPinViewModel)
