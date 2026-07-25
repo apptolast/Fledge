@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name" translatable="false">Fledge</string>
+    <string name="onboarding_title">Banco familiar, dinero virtual</string>
+    <string name="onboarding_body">Fledge ayuda a padres e hijos a gestionar paga, tareas y objetivos sin mover dinero real dentro de la app.</string>
+    <string name="onboarding_primary">Empezar</string>
+    <string name="role_title">Quien usa el dispositivo?</string>
+    <string name="role_body">Elige modo padre para gestionar la familia o modo hijo para entrar con avatar y PIN.</string>
+    <string name="role_parent">Soy padre o madre</string>
+    <string name="role_child">Soy hijo</string>
+    <string name="role_child_demo">Entrar como Lucas</string>
+    <string name="family_setup_title">Configura tu familia</string>
+    <string name="family_name_label">Nombre de la familia</string>
+    <string name="currency_label">Divisa</string>
+    <string name="timezone_label">Zona horaria</string>
+    <string name="continue_action">Continuar</string>
+    <string name="parent_home_title">Panel familiar</string>
+    <string name="parent_home_balance">Saldo virtual</string>
+    <string name="parent_home_balance_zero">0,00 EUR</string>
+    <string name="parent_home_children">Hijos</string>
+    <string name="parent_home_setup">Siguientes pasos</string>
+    <string name="parent_home_add_child">Anadir hijo</string>
+    <string name="parent_home_pairing">Emparejar dispositivo</string>
+    <string name="parent_home_gate">Parental gate</string>
+    <string name="parent_home_gate_setup">Configurar parental gate</string>
+    <string name="child_pin_title">PIN infantil</string>
+    <string name="child_pin_body">Introduce el PIN de 4 digitos para abrir el modo hijo.</string>
+    <string name="child_pin_placeholder">PIN</string>
+    <string name="child_pin_unlock">Entrar</string>
+    <string name="child_pin_reset">Restablecer PIN</string>
+    <string name="pairing_title">Codigo de emparejamiento</string>
+    <string name="pairing_body">Usa este codigo temporal para enlazar el dispositivo del hijo sin crear una cuenta nueva.</string>
+    <string name="pairing_start">Generar codigo</string>
+    <string name="parental_gate_title">Confirmacion parental</string>
+    <string name="parental_gate_body">Confirma que eres el adulto responsable para continuar con esta accion.</string>
+    <string name="parental_gate_confirm">Confirmar</string>
+    <string name="child_home_title">Hola, Lucas</string>
+    <string name="child_home_body">Tus tareas, objetivos y saldo apareceran aqui cuando el MVP conecte ledger y aprobaciones.</string>
+    <string name="empty_children">Aun no hay perfiles infantiles.</string>
+</resources>

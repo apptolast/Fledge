@@ -14,6 +14,16 @@ pluginManagement {
     }
 }
 
+val baseLoginDir = file("../BaseLogin")
+if (baseLoginDir.exists()) {
+    includeBuild(baseLoginDir) {
+        dependencySubstitution {
+            substitute(module("com.github.apptolast:baselogin"))
+                .using(project(":custom-login"))
+        }
+    }
+}
+
 dependencyResolutionManagement {
     repositories {
         google {
@@ -24,6 +34,8 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        maven("https://jitpack.io")
+        maven("https://gitlive.github.io/firebase-kotlin-sdk/maven/")
     }
 }
 

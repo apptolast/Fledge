@@ -1,0 +1,82 @@
+package com.apptolast.fledge.data
+
+import app.cash.turbine.test
+import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
+import com.apptolast.fledge.domain.model.ChildProfile
+import com.apptolast.fledge.domain.model.CurrencyCode
+import com.apptolast.fledge.domain.model.TimeZoneId
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
+
+class InMemoryFamilyFoundationRepositoryTest {
+
+    @Test
+    fun `AC-03 parent creates family draft with currency and timezone`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+
+        // When / Then
+        repository.activeFamily.test {
+            assertEquals(null, awaitItem())
+
+            val family = repository.createFamily(
+                name = "Familia Garcia",
+                currency = CurrencyCode("EUR"),
+                timeZone = TimeZoneId("Europe/Madrid"),
+            )
+
+            assertEquals("Familia Garcia", family.name)
+            assertEquals(CurrencyCode("EUR"), family.currency)
+            assertEquals(TimeZoneId("Europe/Madrid"), family.timeZone)
+            assertEquals(family, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `AC-04 child profile has no account credentials`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val family = repository.createFamily(
+            name = "Familia Garcia",
+            currency = CurrencyCode("EUR"),
+            timeZone = TimeZoneId("Europe/Madrid"),
+        )
+
+        // When
+        val child = repository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            age = 9,
+            avatarKey = "rocket",
+        )
+
+        // Then
+        assertEquals("Lucas", child.displayName)
+        assertEquals(9, child.age)
+        assertFalse(ChildProfile::class.toString().contains("email"))
+        assertFalse(ChildProfile::class.toString().contains("password"))
+    }
+
+    @Test
+    fun `AC-07 pairing code belongs to profile and does not create account`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        val child = repository.addChildProfile(family.id, "Lucas", age = 9, avatarKey = "rocket")
+
+        // When
+        val firstPairing = repository.startPairing(child.id)
+        val secondPairing = repository.startPairing(child.id)
+
+        // Then
+        assertEquals(child.id, firstPairing.childProfileId)
+        assertEquals(6, firstPairing.code.value.length)
+        assertNotEquals(firstPairing.code, secondPairing.code)
+        assertTrue(repository.children.value.single().accountIdentity == null)
+    }
+}

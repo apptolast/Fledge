@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7FB0ED4330151C43005C066D /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = F1E000000000000000000003 /* FirebaseCore */; };
+		7FB0ED4430151C43005C066D /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = F1E000000000000000000004 /* FirebaseAuth */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BFAC376211805FEAB8B4B952 /* Fledge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fledge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,6 +46,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7FB0ED4430151C43005C066D /* FirebaseAuth in Frameworks */,
+				7FB0ED4330151C43005C066D /* FirebaseCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +92,8 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				F1E000000000000000000003 /* FirebaseCore */,
+				F1E000000000000000000004 /* FirebaseAuth */,
 			);
 			productName = iosApp;
 			productReference = BFAC376211805FEAB8B4B952 /* Fledge.app */;
@@ -114,6 +123,9 @@
 			);
 			mainGroup = D4577FF28A7BCD29C4C3E032;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F1E000000000000000000005 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FFE29DEB1D1990E329EF3E11 /* Products */;
 			projectDirPath = "";
@@ -368,6 +380,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F1E000000000000000000005 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = exactVersion;
+				version = 12.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F1E000000000000000000003 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F1E000000000000000000005 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		F1E000000000000000000004 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F1E000000000000000000005 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A6C052DDF439D899084B4648 /* Project object */;
 }
