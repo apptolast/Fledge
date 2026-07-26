@@ -39,6 +39,14 @@ value class ChildPin(val value: String) {
 
 @Serializable
 @JvmInline
+value class ChildPinHash(val value: String) {
+    init {
+        require(value.matches(Regex("[a-f0-9]{64}"))) { "Child PIN hash must be a SHA-256 hex digest." }
+    }
+}
+
+@Serializable
+@JvmInline
 value class PairingCode(val value: String) {
     init {
         require(value.matches(Regex("\\d{6}"))) { "Pairing code must contain exactly six digits." }
@@ -51,21 +59,16 @@ data class Family(
     val name: String,
     val currency: CurrencyCode,
     val timeZone: TimeZoneId,
-)
-
-@Serializable
-data class ChildAccountIdentity(
-    val providerUserId: String,
+    val moneySettingsLocked: Boolean = true,
 )
 
 @Serializable
 data class ChildProfile(
     val id: ChildProfileId,
     val displayName: String,
-    val age: Int,
+    val birthYear: Int,
     val avatarKey: String,
-    val pin: ChildPin? = null,
-    val accountIdentity: ChildAccountIdentity? = null,
+    val pinHash: ChildPinHash? = null,
 )
 
 @Serializable

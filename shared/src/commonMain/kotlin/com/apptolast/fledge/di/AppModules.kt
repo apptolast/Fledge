@@ -6,6 +6,7 @@ import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
+import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupViewModel
 import com.apptolast.fledge.presentation.foundation.pairing.PairingViewModel
@@ -29,6 +30,7 @@ val presentationModule = module {
     single { FoundationRouteDecider() }
     viewModelOf(::RoleSelectorViewModel)
     viewModelOf(::FamilySetupViewModel)
+    viewModelOf(::ChildProfileSetupViewModel)
     viewModelOf(::ChildPinViewModel)
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)

@@ -8,6 +8,7 @@ import com.apptolast.customlogin.domain.model.Credentials
 import com.apptolast.customlogin.domain.model.PhoneAuthResult
 import com.apptolast.customlogin.domain.model.SignUpData
 import com.apptolast.customlogin.domain.model.UserSession
+import com.apptolast.fledge.domain.security.Sha256
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -16,21 +17,31 @@ class InMemoryLoginAuthProvider : AuthProvider {
     override val id: String = PROVIDER_ID
 
     private val authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
+    private val accountsByEmail = mutableMapOf<String, ParentAccount>()
     private var currentSession: UserSession? = null
 
     override suspend fun signIn(credentials: Credentials): AuthResult = when (credentials) {
-        is Credentials.EmailPassword -> createSession(
-            email = credentials.email,
-            displayName = credentials.email.substringBefore("@").takeIf { it.isNotBlank() },
-        )
+        is Credentials.EmailPassword -> signInWithPassword(credentials)
         is Credentials.OAuthToken -> unsupportedProvider()
         is Credentials.RefreshToken -> refreshSession()
     }
 
-    override suspend fun signUp(data: SignUpData): AuthResult = createSession(
-        email = data.email,
-        displayName = data.displayName,
-    )
+    override suspend fun signUp(data: SignUpData): AuthResult {
+        val normalizedEmail = data.email.normalizedEmail()
+        if (accountsByEmail.containsKey(normalizedEmail)) {
+            return AuthResult.Failure(AuthError.EmailAlreadyInUse())
+        }
+
+        val account = ParentAccount(
+            userId = "parent-${normalizedEmail.toStableId()}",
+            email = normalizedEmail,
+            displayName = data.displayName?.takeIf { it.isNotBlank() },
+            passwordHash = hashPassword(normalizedEmail, data.password),
+            emailVerified = false,
+        )
+        accountsByEmail[normalizedEmail] = account
+        return authenticate(account)
+    }
 
     override suspend fun signOut(): Result<Unit> {
         currentSession = null
@@ -38,7 +49,12 @@ class InMemoryLoginAuthProvider : AuthProvider {
         return Result.success(Unit)
     }
 
-    override suspend fun sendPasswordResetEmail(email: String): AuthResult = AuthResult.PasswordResetSent
+    override suspend fun sendPasswordResetEmail(email: String): AuthResult =
+        if (accountsByEmail.containsKey(email.normalizedEmail())) {
+            AuthResult.PasswordResetSent
+        } else {
+            AuthResult.Failure(AuthError.UserNotFound())
+        }
 
     override suspend fun confirmPasswordReset(code: String, newPassword: String): AuthResult =
         AuthResult.PasswordResetSuccess
@@ -65,7 +81,13 @@ class InMemoryLoginAuthProvider : AuthProvider {
 
     override suspend fun updatePassword(newPassword: String): Result<Unit> = requireSession()
 
-    override suspend fun sendEmailVerification(): Result<Unit> = requireSession()
+    override suspend fun sendEmailVerification(): Result<Unit> {
+        val session = currentSession ?: return noActiveSession()
+        val email = session.email ?: return noActiveSession()
+        val account = accountsByEmail[email] ?: return noActiveSession()
+        accountsByEmail[email] = account.copy(emailVerificationSent = true)
+        return Result.success(Unit)
+    }
 
     override suspend fun reauthenticate(credentials: Credentials): AuthResult = signIn(credentials)
 
@@ -82,16 +104,29 @@ class InMemoryLoginAuthProvider : AuthProvider {
 
     override suspend fun signInWithMagicLink(email: String, link: String): AuthResult = unsupportedProvider()
 
-    private fun createSession(email: String, displayName: String?): AuthResult {
-        val normalizedEmail = email.normalizedEmail()
+    private fun signInWithPassword(credentials: Credentials.EmailPassword): AuthResult {
+        val normalizedEmail = credentials.email.normalizedEmail()
+        val account = accountsByEmail[normalizedEmail]
+            ?: return AuthResult.Failure(AuthError.UserNotFound())
+        return if (account.passwordHash == hashPassword(normalizedEmail, credentials.password)) {
+            authenticate(account)
+        } else {
+            AuthResult.Failure(AuthError.InvalidCredentials())
+        }
+    }
+
+    private fun authenticate(account: ParentAccount): AuthResult {
         val session = UserSession(
-            userId = "local-${normalizedEmail.toStableId()}",
-            email = normalizedEmail,
-            displayName = displayName?.takeIf { it.isNotBlank() },
-            isEmailVerified = true,
+            userId = account.userId,
+            email = account.email,
+            displayName = account.displayName,
+            isEmailVerified = account.emailVerified,
             providerId = PROVIDER_ID,
-            accessToken = "local-${normalizedEmail.toStableId()}",
-            metadata = mapOf("source" to "mvp-foundation-scaffold"),
+            accessToken = "local-${account.userId}",
+            metadata = mapOf(
+                "source" to "mvp-foundation-scaffold",
+                "emailVerification" to if (account.emailVerified) "verified" else "pending",
+            ),
         )
         currentSession = session
         authState.value = AuthState.Authenticated(session)
@@ -108,13 +143,19 @@ class InMemoryLoginAuthProvider : AuthProvider {
 
     private fun requireSession(): Result<Unit> =
         if (currentSession == null) {
-            Result.failure(IllegalStateException("No hay una sesión local activa."))
+            noActiveSession()
         } else {
             Result.success(Unit)
         }
 
+    private fun noActiveSession(): Result<Unit> =
+        Result.failure(IllegalStateException("No hay una sesión local activa."))
+
     private fun unsupportedProvider(): AuthResult =
         AuthResult.Failure(AuthError.OperationNotAllowed(DISABLED_PROVIDER_MESSAGE))
+
+    private fun hashPassword(email: String, password: String): String =
+        Sha256.hashHex("fledge-parent-password:$email:$password")
 
     private fun String.normalizedEmail(): String = trim().lowercase()
 
@@ -133,3 +174,12 @@ class InMemoryLoginAuthProvider : AuthProvider {
             "Este proveedor de autenticación todavía no está configurado."
     }
 }
+
+private data class ParentAccount(
+    val userId: String,
+    val email: String,
+    val displayName: String?,
+    val passwordHash: String,
+    val emailVerified: Boolean,
+    val emailVerificationSent: Boolean = false,
+)

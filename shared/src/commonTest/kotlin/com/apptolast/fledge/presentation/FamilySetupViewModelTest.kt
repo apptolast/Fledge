@@ -29,11 +29,12 @@ class FamilySetupViewModelTest {
             val ready = awaitItem()
             assertTrue(ready.canSubmit)
 
-            viewModel.submit()
+            assertTrue(viewModel.submit())
             val created = awaitItem().createdFamily
             assertEquals("Familia Garcia", created?.name)
             assertEquals(CurrencyCode("EUR"), created?.currency)
             assertEquals(TimeZoneId("Europe/Madrid"), created?.timeZone)
+            assertTrue(created?.moneySettingsLocked == true)
             cancelAndIgnoreRemainingEvents()
         }
     }

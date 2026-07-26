@@ -12,6 +12,13 @@
     <string name="currency_label">Currency</string>
     <string name="timezone_label">Time zone</string>
     <string name="continue_action">Continue</string>
+    <string name="child_setup_title">Create the first child profile</string>
+    <string name="child_setup_display_name_label">Name or nickname</string>
+    <string name="child_setup_birth_year_label">Birth year</string>
+    <string name="child_setup_avatar_label">Avatar</string>
+    <string name="child_setup_pin_label">4-digit PIN</string>
+    <string name="child_setup_error_missing_family">Create a family first.</string>
+    <string name="child_setup_error_invalid">Check name, birth year, and PIN.</string>
     <string name="parent_home_title">Family dashboard</string>
     <string name="parent_home_balance">Virtual balance</string>
     <string name="parent_home_balance_zero">EUR 0.00</string>

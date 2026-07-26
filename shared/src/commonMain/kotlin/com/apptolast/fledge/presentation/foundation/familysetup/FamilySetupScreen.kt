@@ -55,8 +55,9 @@ fun FamilySetupScreen(
         },
         onSubmit = {
             scope.launch {
-                viewModel.submit()
-                onFamilyCreated()
+                if (viewModel.submit()) {
+                    onFamilyCreated()
+                }
             }
         },
     )

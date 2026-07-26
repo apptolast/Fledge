@@ -147,7 +147,10 @@ private fun ChildProfileRow(
         ) {
             Column {
                 Text(text = child.displayName, style = MaterialTheme.typography.titleMedium)
-                Text(text = child.avatarKey, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = "${child.avatarKey} - ${child.birthYear}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             OutlinedButton(onClick = { onPairChild(child.id) }) {
                 Text(stringResource(Res.string.parent_home_pairing))
@@ -193,7 +196,7 @@ fun PreviewParentHomeContent() {
                     ChildProfile(
                         id = ChildProfileId("child-1"),
                         displayName = "Lucas",
-                        age = 9,
+                        birthYear = 2017,
                         avatarKey = "rocket",
                     )
                 )

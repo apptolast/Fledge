@@ -12,6 +12,9 @@ data object RoleSelectorRoute
 data object FamilySetupRoute
 
 @Serializable
+data object ChildProfileSetupRoute
+
+@Serializable
 data object ParentHomeRoute
 
 @Serializable

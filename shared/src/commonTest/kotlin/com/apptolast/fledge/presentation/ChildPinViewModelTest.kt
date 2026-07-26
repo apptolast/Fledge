@@ -19,7 +19,13 @@ class ChildPinViewModelTest {
         // Given
         val repository = InMemoryFamilyFoundationRepository()
         val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
-        val child = repository.addChildProfile(family.id, "Lucas", age = 9, avatarKey = "rocket")
+        val child = repository.addChildProfile(
+            family.id,
+            "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
         repository.setChildPin(child.id, ChildPin("1234"))
         val viewModel = ChildPinViewModel(repository)
 

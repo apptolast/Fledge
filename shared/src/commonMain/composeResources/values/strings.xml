@@ -13,6 +13,13 @@
     <string name="currency_label">Divisa</string>
     <string name="timezone_label">Zona horaria</string>
     <string name="continue_action">Continuar</string>
+    <string name="child_setup_title">Crea el primer perfil infantil</string>
+    <string name="child_setup_display_name_label">Nombre o apodo</string>
+    <string name="child_setup_birth_year_label">Ano de nacimiento</string>
+    <string name="child_setup_avatar_label">Avatar</string>
+    <string name="child_setup_pin_label">PIN de 4 digitos</string>
+    <string name="child_setup_error_missing_family">Primero crea una familia.</string>
+    <string name="child_setup_error_invalid">Revisa nombre, ano de nacimiento y PIN.</string>
     <string name="parent_home_title">Panel familiar</string>
     <string name="parent_home_balance">Saldo virtual</string>
     <string name="parent_home_balance_zero">0,00 EUR</string>

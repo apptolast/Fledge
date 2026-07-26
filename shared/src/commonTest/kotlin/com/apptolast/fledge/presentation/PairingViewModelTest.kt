@@ -2,6 +2,7 @@ package com.apptolast.fledge.presentation
 
 import app.cash.turbine.test
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
+import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.presentation.foundation.pairing.PairingViewModel
@@ -17,7 +18,7 @@ class PairingViewModelTest {
         // Given
         val repository = InMemoryFamilyFoundationRepository()
         val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
-        val child = repository.addChildProfile(family.id, "Lucas", age = 9, avatarKey = "rocket")
+        val child = repository.addChildProfile(family.id, "Lucas", birthYear = 2017, avatarKey = "rocket", pin = ChildPin("1234"))
         val viewModel = PairingViewModel(repository)
 
         // When / Then

@@ -26,8 +26,9 @@ interface FamilyFoundationRepository {
     suspend fun addChildProfile(
         familyId: FamilyId,
         displayName: String,
-        age: Int,
+        birthYear: Int,
         avatarKey: String,
+        pin: ChildPin,
     ): ChildProfile
 
     suspend fun setChildPin(childProfileId: ChildProfileId, pin: ChildPin)

@@ -1,6 +1,7 @@
 package com.apptolast.fledge.data.repository
 
 import com.apptolast.fledge.domain.model.ChildPin
+import com.apptolast.fledge.domain.model.ChildPinHash
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.CurrencyCode
@@ -12,6 +13,7 @@ import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.domain.security.Sha256
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +37,9 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
         currency: CurrencyCode,
         timeZone: TimeZoneId,
     ): Family {
+        require(mutableActiveFamily.value == null) {
+            "Family money settings are locked after creation."
+        }
         val family = Family(
             id = FamilyId("family-${familyCounter++}"),
             name = name.trim(),
@@ -48,15 +53,18 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
     override suspend fun addChildProfile(
         familyId: FamilyId,
         displayName: String,
-        age: Int,
+        birthYear: Int,
         avatarKey: String,
+        pin: ChildPin,
     ): ChildProfile {
         require(mutableActiveFamily.value?.id == familyId) { "Family does not exist." }
+        val childProfileId = ChildProfileId("child-${childCounter++}")
         val child = ChildProfile(
-            id = ChildProfileId("child-${childCounter++}"),
+            id = childProfileId,
             displayName = displayName.trim(),
-            age = age,
+            birthYear = birthYear,
             avatarKey = avatarKey,
+            pinHash = pin.hashFor(childProfileId.value),
         )
         mutableChildren.value = mutableChildren.value + child
         return child
@@ -64,7 +72,7 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
 
     override suspend fun setChildPin(childProfileId: ChildProfileId, pin: ChildPin) {
         mutableChildren.value = mutableChildren.value.map { child ->
-            if (child.id == childProfileId) child.copy(pin = pin) else child
+            if (child.id == childProfileId) child.copy(pinHash = pin.hashFor(child.id.value)) else child
         }
     }
 
@@ -89,4 +97,7 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
         mutableParentalGateRequest.value = null
         return action
     }
+
+    private fun ChildPin.hashFor(salt: String): ChildPinHash =
+        ChildPinHash(Sha256.hashHex("fledge-child-pin:$salt:$value"))
 }

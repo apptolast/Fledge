@@ -16,6 +16,7 @@ data class FamilySetupUiState(
     val createdFamily: Family? = null,
 ) {
     val canSubmit: Boolean = familyName.isNotBlank()
+    val isLocked: Boolean = createdFamily != null
 }
 
 class FamilySetupViewModel(
@@ -25,25 +26,30 @@ class FamilySetupViewModel(
     val uiState: StateFlow<FamilySetupUiState> = mutableUiState
 
     fun updateFamilyName(value: String) {
+        if (mutableUiState.value.isLocked) return
         mutableUiState.update { it.copy(familyName = value) }
     }
 
     fun updateCurrency(value: CurrencyCode) {
+        if (mutableUiState.value.isLocked) return
         mutableUiState.update { it.copy(currency = value) }
     }
 
     fun updateTimeZone(value: TimeZoneId) {
+        if (mutableUiState.value.isLocked) return
         mutableUiState.update { it.copy(timeZone = value) }
     }
 
-    suspend fun submit() {
+    suspend fun submit(): Boolean {
         val state = mutableUiState.value
-        if (!state.canSubmit) return
+        if (state.createdFamily != null) return true
+        if (!state.canSubmit) return false
         val family = repository.createFamily(
             name = state.familyName,
             currency = state.currency,
             timeZone = state.timeZone,
         )
         mutableUiState.update { it.copy(createdFamily = family) }
+        return true
     }
 }

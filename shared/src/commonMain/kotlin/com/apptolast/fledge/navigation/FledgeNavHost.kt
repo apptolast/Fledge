@@ -13,6 +13,7 @@ import androidx.navigation.toRoute
 import com.apptolast.customlogin.presentation.navigation.AuthRoutesFlow
 import com.apptolast.customlogin.presentation.navigation.authRoutesFlow
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupScreen
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeScreen
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinScreen
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupScreen
@@ -58,7 +59,10 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
             },
         )
         composable<FamilySetupRoute> {
-            FamilySetupScreen(onFamilyCreated = { navController.navigate(ParentHomeRoute) })
+            FamilySetupScreen(onFamilyCreated = { navController.navigate(ChildProfileSetupRoute) })
+        }
+        composable<ChildProfileSetupRoute> {
+            ChildProfileSetupScreen(onChildCreated = { navController.navigate(ParentHomeRoute) })
         }
         composable<ParentHomeRoute> {
             ParentHomeScreen(

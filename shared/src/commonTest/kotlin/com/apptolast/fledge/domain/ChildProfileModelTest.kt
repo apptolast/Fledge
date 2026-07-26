@@ -6,23 +6,22 @@ import com.apptolast.fledge.domain.model.ChildProfileId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
 
 class ChildProfileModelTest {
 
     @Test
-    fun `AC-04 child profile is not an account`() {
+    fun `FLE-11 child profile is not an account`() {
         // Given / When
         val profile = ChildProfile(
             id = ChildProfileId("child-1"),
             displayName = "Lucas",
-            age = 9,
+            birthYear = 2017,
             avatarKey = "rocket",
         )
 
         // Then
         assertEquals("Lucas", profile.displayName)
-        assertNull(profile.accountIdentity)
+        assertEquals(2017, profile.birthYear)
     }
 
     @Test
