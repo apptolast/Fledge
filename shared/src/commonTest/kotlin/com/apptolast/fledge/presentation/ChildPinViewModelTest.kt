@@ -9,6 +9,8 @@ import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -19,6 +21,7 @@ class ChildPinViewModelTest {
         // Given
         val repository = InMemoryFamilyFoundationRepository()
         val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
         val child = repository.addChildProfile(
             family.id,
             "Lucas",
@@ -38,5 +41,33 @@ class ChildPinViewModelTest {
             assertEquals(FoundationAction.ResetChildPin(child.id), state.parentalGateRequest?.action)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `FLE-13 child pin only unlocks with matching hash`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
+        val child = repository.addChildProfile(
+            family.id,
+            "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        val viewModel = ChildPinViewModel(repository)
+
+        // When
+        viewModel.updatePin("9999")
+        val wrongUnlock = viewModel.unlock(child.id)
+        viewModel.updatePin("1234")
+        val correctUnlock = viewModel.unlock(child.id)
+
+        // Then
+        assertFalse(wrongUnlock)
+        assertTrue(correctUnlock)
+        assertNotNull(viewModel.uiState.value.childSession)
+        assertEquals(15, viewModel.uiState.value.timeoutMinutes)
     }
 }

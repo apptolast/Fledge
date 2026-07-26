@@ -6,10 +6,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,12 +24,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.navigation.FoundationNavigationTarget
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
+import fledge.shared.generated.resources.role_child_card_subtitle
+import fledge.shared.generated.resources.role_child_profiles
+import fledge.shared.generated.resources.role_no_children
 import fledge.shared.generated.resources.role_body
-import fledge.shared.generated.resources.role_child_demo
 import fledge.shared.generated.resources.role_parent
 import fledge.shared.generated.resources.role_title
 import org.jetbrains.compose.resources.stringResource
@@ -41,15 +49,17 @@ fun RoleSelectorScreen(
     }
 
     RoleSelectorContent(
+        state = state,
         onParentSelected = viewModel::selectParentMode,
-        onChildSelected = { viewModel.selectChildMode(ChildProfileId("demo-child")) },
+        onChildSelected = viewModel::selectChildMode,
     )
 }
 
 @Composable
 fun RoleSelectorContent(
+    state: RoleSelectorUiState,
     onParentSelected: () -> Unit,
-    onChildSelected: () -> Unit,
+    onChildSelected: (ChildProfileId) -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -80,14 +90,69 @@ fun RoleSelectorContent(
             ) {
                 Text(stringResource(Res.string.role_parent))
             }
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onChildSelected,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-            ) {
-                Text(stringResource(Res.string.role_child_demo))
+            Spacer(Modifier.height(24.dp))
+            if (state.childProfiles.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.role_no_children),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    text = stringResource(Res.string.role_child_profiles),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.height(12.dp))
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 156.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(state.childProfiles, key = { it.id.value }) { child ->
+                        ChildRoleCard(
+                            child = child,
+                            onClick = { onChildSelected(child.id) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChildRoleCard(
+    child: ChildProfile,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(128.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = child.avatarKey.take(2).uppercase(),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Column {
+                Text(text = child.displayName, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = stringResource(Res.string.role_child_card_subtitle, child.birthYear),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -98,6 +163,22 @@ fun RoleSelectorContent(
 fun PreviewRoleSelectorContent() {
     FledgeTheme {
         RoleSelectorContent(
+            state = RoleSelectorUiState(
+                childProfiles = listOf(
+                    ChildProfile(
+                        id = ChildProfileId("child-1"),
+                        displayName = "Lucas",
+                        birthYear = 2017,
+                        avatarKey = "rocket",
+                    ),
+                    ChildProfile(
+                        id = ChildProfileId("child-2"),
+                        displayName = "Sofia",
+                        birthYear = 2015,
+                        avatarKey = "star",
+                    ),
+                )
+            ),
             onParentSelected = {},
             onChildSelected = {},
         )

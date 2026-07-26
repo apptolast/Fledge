@@ -27,6 +27,7 @@ import fledge.shared.generated.resources.child_setup_birth_year_label
 import fledge.shared.generated.resources.child_setup_display_name_label
 import fledge.shared.generated.resources.child_setup_error_invalid
 import fledge.shared.generated.resources.child_setup_error_missing_family
+import fledge.shared.generated.resources.child_setup_error_missing_consent
 import fledge.shared.generated.resources.child_setup_pin_label
 import fledge.shared.generated.resources.child_setup_title
 import fledge.shared.generated.resources.continue_action
@@ -120,6 +121,8 @@ fun ChildProfileSetupContent(
                     text = when (error) {
                         ChildProfileSetupError.MissingFamily ->
                             stringResource(Res.string.child_setup_error_missing_family)
+                        ChildProfileSetupError.MissingVirtualMoneyConsent ->
+                            stringResource(Res.string.child_setup_error_missing_consent)
                         ChildProfileSetupError.InvalidInput ->
                             stringResource(Res.string.child_setup_error_invalid)
                     },

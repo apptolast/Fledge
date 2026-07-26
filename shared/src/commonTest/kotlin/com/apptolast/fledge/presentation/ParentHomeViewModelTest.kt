@@ -18,6 +18,7 @@ class ParentHomeViewModelTest {
         // Given
         val repository = InMemoryFamilyFoundationRepository()
         val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
         repository.addChildProfile(family.id, "Lucas", birthYear = 2017, avatarKey = "rocket", pin = ChildPin("1234"))
         val viewModel = ParentHomeViewModel(repository)
 

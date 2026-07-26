@@ -5,7 +5,10 @@ import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.CurrencyCode
+import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.TimeZoneId
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -72,6 +75,7 @@ class InMemoryFamilyFoundationRepositoryTest {
             currency = CurrencyCode("EUR"),
             timeZone = TimeZoneId("Europe/Madrid"),
         )
+        repository.recordVirtualMoneyConsent()
 
         // When
         val child = repository.addChildProfile(
@@ -96,6 +100,7 @@ class InMemoryFamilyFoundationRepositoryTest {
         // Given
         val repository = InMemoryFamilyFoundationRepository()
         val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
         val child = repository.addChildProfile(
             family.id,
             "Lucas",
@@ -113,5 +118,103 @@ class InMemoryFamilyFoundationRepositoryTest {
         assertEquals(6, firstPairing.code.value.length)
         assertNotEquals(firstPairing.code, secondPairing.code)
         assertTrue(repository.children.value.single().pinHash != null)
+    }
+
+    @Test
+    fun `FLE-13 child pin validates hash and uses configurable timeout`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
+        val child = repository.addChildProfile(
+            family.id,
+            "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        repository.setChildPinTimeout(30)
+
+        // When
+        val wrongSession = repository.validateChildPin(child.id, ChildPin("9999"))
+        val session = repository.validateChildPin(child.id, ChildPin("1234"))
+
+        // Then
+        assertEquals(null, wrongSession)
+        assertNotNull(session)
+        assertEquals(child.id, session.childProfileId)
+        assertTrue(session.expiresAt > session.unlockedAt.plus(29.minutes))
+    }
+
+    @Test
+    fun `FLE-14 pairing lasts fifteen minutes and persists child device last seen`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
+        val child = repository.addChildProfile(
+            family.id,
+            "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+
+        // When
+        val pairing = repository.startPairing(child.id)
+        val device = repository.registerChildDevice(pairing.code, "Tablet salon")
+        val touched = repository.touchChildDevice(device.id)
+
+        // Then
+        assertEquals(child.id, device.childProfileId)
+        assertEquals(pairing.code, device.pairingCode)
+        assertTrue(pairing.expiresAt > Clock.System.now().plus(14.minutes))
+        assertEquals(device.id, touched?.id)
+        assertTrue(repository.childDevices.value.single().lastSeenAt >= device.lastSeenAt)
+    }
+
+    @Test
+    fun `FLE-15 protected actions are stored until parental confirmation`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+
+        // When
+        repository.requireParentalGate(FoundationAction.OpenParentZone)
+
+        // Then
+        assertEquals(FoundationAction.OpenParentZone, repository.parentalGateRequest.value?.action)
+        assertEquals(FoundationAction.OpenParentZone, repository.confirmParentalGate())
+        assertEquals(null, repository.parentalGateRequest.value)
+    }
+
+    @Test
+    fun `FLE-16 virtual money consent is recorded before child setup`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+
+        // When
+        val consent = repository.recordVirtualMoneyConsent()
+
+        // Then
+        assertEquals("virtual-money-v1", consent.disclosureVersion)
+        assertEquals(consent, repository.virtualMoneyConsent.value)
+    }
+
+    @Test
+    fun `FLE-16 child profile cannot be created before virtual money consent`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+
+        // When / Then
+        assertFailsWith<IllegalArgumentException> {
+            repository.addChildProfile(
+                familyId = family.id,
+                displayName = "Lucas",
+                birthYear = 2017,
+                avatarKey = "rocket",
+                pin = ChildPin("1234"),
+            )
+        }
     }
 }

@@ -12,6 +12,9 @@ data object RoleSelectorRoute
 data object FamilySetupRoute
 
 @Serializable
+data object VirtualMoneyConsentRoute
+
+@Serializable
 data object ChildProfileSetupRoute
 
 @Serializable
@@ -21,10 +24,13 @@ data object ParentHomeRoute
 data class ChildPinRoute(val childProfileId: String)
 
 @Serializable
+data class ChildPinResetRoute(val childProfileId: String)
+
+@Serializable
 data class PairingRoute(val childProfileId: String)
 
 @Serializable
 data object ParentalGateRoute
 
 @Serializable
-data object ChildHomeRoute
+data class ChildHomeRoute(val childProfileId: String)

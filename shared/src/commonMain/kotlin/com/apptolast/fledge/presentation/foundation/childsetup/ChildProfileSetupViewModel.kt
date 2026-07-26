@@ -24,6 +24,7 @@ data class ChildProfileSetupUiState(
 
 enum class ChildProfileSetupError {
     MissingFamily,
+    MissingVirtualMoneyConsent,
     InvalidInput,
 }
 
@@ -59,6 +60,10 @@ class ChildProfileSetupViewModel(
         val family = repository.activeFamily.value
         if (family == null) {
             mutableUiState.update { it.copy(error = ChildProfileSetupError.MissingFamily) }
+            return false
+        }
+        if (repository.virtualMoneyConsent.value == null) {
+            mutableUiState.update { it.copy(error = ChildProfileSetupError.MissingVirtualMoneyConsent) }
             return false
         }
 

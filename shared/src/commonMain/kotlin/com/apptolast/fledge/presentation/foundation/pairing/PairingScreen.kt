@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +26,13 @@ import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
 import fledge.shared.generated.resources.pairing_body
+import fledge.shared.generated.resources.pairing_default_device_label
+import fledge.shared.generated.resources.pairing_device_label
+import fledge.shared.generated.resources.pairing_device_linked
+import fledge.shared.generated.resources.pairing_error_missing
+import fledge.shared.generated.resources.pairing_expires
+import fledge.shared.generated.resources.pairing_qr_payload
+import fledge.shared.generated.resources.pairing_register_device
 import fledge.shared.generated.resources.pairing_start
 import fledge.shared.generated.resources.pairing_title
 import kotlin.time.Duration.Companion.minutes
@@ -39,11 +48,16 @@ fun PairingScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    val defaultDeviceLabel = stringResource(Res.string.pairing_default_device_label)
 
     PairingContent(
         state = state,
+        onDeviceLabelChange = viewModel::updateDeviceLabel,
         onStartPairing = {
             scope.launch { viewModel.startPairing(childProfileId) }
+        },
+        onRegisterDevice = {
+            scope.launch { viewModel.registerDevice(defaultDeviceLabel) }
         },
     )
 }
@@ -51,7 +65,9 @@ fun PairingScreen(
 @Composable
 fun PairingContent(
     state: PairingUiState,
+    onDeviceLabelChange: (String) -> Unit,
     onStartPairing: () -> Unit,
+    onRegisterDevice: () -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -78,6 +94,43 @@ fun PairingContent(
                 text = state.pairingSession?.code?.value.orEmpty(),
                 style = MaterialTheme.typography.displaySmall,
             )
+            state.pairingSession?.let { session ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(Res.string.pairing_expires),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(Res.string.pairing_qr_payload, session.code.value),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = state.deviceLabel,
+                onValueChange = onDeviceLabelChange,
+                label = { Text(stringResource(Res.string.pairing_device_label)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            state.error?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(Res.string.pairing_error_missing),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            state.pairedDevice?.let { device ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(Res.string.pairing_device_linked, device.label),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = onStartPairing,
@@ -86,6 +139,16 @@ fun PairingContent(
                     .height(56.dp),
             ) {
                 Text(stringResource(Res.string.pairing_start))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onRegisterDevice,
+                enabled = state.pairingSession != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+            ) {
+                Text(stringResource(Res.string.pairing_register_device))
             }
         }
     }
@@ -103,7 +166,9 @@ fun PreviewPairingContent() {
                     expiresAt = Clock.System.now().plus(10.minutes),
                 )
             ),
+            onDeviceLabelChange = {},
             onStartPairing = {},
+            onRegisterDevice = {},
         )
     }
 }

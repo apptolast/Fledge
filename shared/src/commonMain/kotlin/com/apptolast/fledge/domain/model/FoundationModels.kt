@@ -15,6 +15,10 @@ value class ChildProfileId(val value: String)
 
 @Serializable
 @JvmInline
+value class DeviceId(val value: String)
+
+@Serializable
+@JvmInline
 value class CurrencyCode(val value: String) {
     init {
         require(value.length == 3) { "Currency code must use ISO 4217 format." }
@@ -49,7 +53,7 @@ value class ChildPinHash(val value: String) {
 @JvmInline
 value class PairingCode(val value: String) {
     init {
-        require(value.matches(Regex("\\d{6}"))) { "Pairing code must contain exactly six digits." }
+        require(value.matches(Regex("[A-Z0-9]{6}"))) { "Pairing code must contain exactly six characters." }
     }
 }
 
@@ -72,10 +76,42 @@ data class ChildProfile(
 )
 
 @Serializable
+data class ChildPinPolicy(
+    val timeoutMinutes: Int = 15,
+) {
+    init {
+        require(timeoutMinutes in 1..240) { "Child PIN timeout must be between 1 and 240 minutes." }
+    }
+}
+
+@Serializable
+data class ChildSession(
+    val childProfileId: ChildProfileId,
+    val unlockedAt: Instant,
+    val expiresAt: Instant,
+)
+
+@Serializable
 data class PairingSession(
     val childProfileId: ChildProfileId,
     val code: PairingCode,
     val expiresAt: Instant,
+)
+
+@Serializable
+data class ChildDevice(
+    val id: DeviceId,
+    val childProfileId: ChildProfileId,
+    val label: String,
+    val pairingCode: PairingCode,
+    val pairedAt: Instant,
+    val lastSeenAt: Instant,
+)
+
+@Serializable
+data class VirtualMoneyConsent(
+    val acceptedAt: Instant,
+    val disclosureVersion: String,
 )
 
 @Serializable
@@ -91,6 +127,18 @@ sealed interface FoundationAction {
 
     @Serializable
     data class PairChildDevice(val childProfileId: ChildProfileId) : FoundationAction
+
+    @Serializable
+    data object ManageSettings : FoundationAction
+
+    @Serializable
+    data object StartPurchase : FoundationAction
+
+    @Serializable
+    data object OpenExternalLink : FoundationAction
+
+    @Serializable
+    data object OpenParentZone : FoundationAction
 }
 
 @Serializable

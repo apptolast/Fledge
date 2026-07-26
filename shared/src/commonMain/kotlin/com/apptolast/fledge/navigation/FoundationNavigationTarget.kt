@@ -15,7 +15,7 @@ class FoundationRouteDecider {
     ): FoundationNavigationTarget = when (role) {
         SharedDeviceRole.Parent -> FoundationNavigationTarget.ParentAuth
         SharedDeviceRole.Child -> FoundationNavigationTarget.ChildPin(
-            childProfileId ?: ChildProfileId("demo-child")
+            requireNotNull(childProfileId) { "Child mode requires a real child profile." }
         )
     }
 }

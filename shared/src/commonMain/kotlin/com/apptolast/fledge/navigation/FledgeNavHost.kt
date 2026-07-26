@@ -13,15 +13,18 @@ import androidx.navigation.toRoute
 import com.apptolast.customlogin.presentation.navigation.AuthRoutesFlow
 import com.apptolast.customlogin.presentation.navigation.authRoutesFlow
 import com.apptolast.fledge.domain.model.ChildProfileId
-import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupScreen
+import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeScreen
+import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetScreen
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinScreen
+import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupScreen
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupScreen
 import com.apptolast.fledge.presentation.foundation.onboarding.OnboardingScreen
 import com.apptolast.fledge.presentation.foundation.pairing.PairingScreen
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateScreen
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
+import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentScreen
 
 @Composable
 fun FledgeNavHost(modifier: Modifier = Modifier) {
@@ -59,7 +62,10 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
             },
         )
         composable<FamilySetupRoute> {
-            FamilySetupScreen(onFamilyCreated = { navController.navigate(ChildProfileSetupRoute) })
+            FamilySetupScreen(onFamilyCreated = { navController.navigate(VirtualMoneyConsentRoute) })
+        }
+        composable<VirtualMoneyConsentRoute> {
+            VirtualMoneyConsentScreen(onConsentRecorded = { navController.navigate(ChildProfileSetupRoute) })
         }
         composable<ChildProfileSetupRoute> {
             ChildProfileSetupScreen(onChildCreated = { navController.navigate(ParentHomeRoute) })
@@ -74,8 +80,19 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
             val route = backStackEntry.toRoute<ChildPinRoute>()
             ChildPinScreen(
                 childProfileId = ChildProfileId(route.childProfileId),
-                onUnlocked = { navController.navigate(ChildHomeRoute) },
+                onUnlocked = { navController.navigate(ChildHomeRoute(route.childProfileId)) },
                 onParentalGateRequired = { navController.navigate(ParentalGateRoute) },
+            )
+        }
+        composable<ChildPinResetRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ChildPinResetRoute>()
+            ChildPinResetScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                onPinSaved = {
+                    navController.navigate(ChildPinRoute(route.childProfileId)) {
+                        popUpTo(ChildPinResetRoute(route.childProfileId)) { inclusive = true }
+                    }
+                },
             )
         }
         composable<PairingRoute> { backStackEntry ->
@@ -83,10 +100,26 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
             PairingScreen(childProfileId = ChildProfileId(route.childProfileId))
         }
         composable<ParentalGateRoute> {
-            ParentalGateScreen(onConfirmed = { navController.popBackStack() })
+            ParentalGateScreen(
+                onConfirmed = { action ->
+                    when (action) {
+                        is FoundationAction.ResetChildPin -> {
+                            navController.navigate(ChildPinResetRoute(action.childProfileId.value)) {
+                                popUpTo(ParentalGateRoute) { inclusive = true }
+                            }
+                        }
+                        FoundationAction.OpenParentZone -> {
+                            navController.navigate(ParentHomeRoute) {
+                                popUpTo(ParentalGateRoute) { inclusive = true }
+                            }
+                        }
+                        else -> navController.popBackStack()
+                    }
+                }
+            )
         }
         composable<ChildHomeRoute> {
-            ChildHomeScreen()
+            ChildHomeScreen(onParentalGateRequired = { navController.navigate(ParentalGateRoute) })
         }
     }
 }

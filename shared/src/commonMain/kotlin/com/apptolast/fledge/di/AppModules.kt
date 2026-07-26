@@ -6,6 +6,8 @@ import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
+import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
+import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetViewModel
 import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupViewModel
@@ -13,6 +15,7 @@ import com.apptolast.fledge.presentation.foundation.pairing.PairingViewModel
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateViewModel
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
+import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
 import org.koin.core.context.loadKoinModules
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -30,8 +33,11 @@ val presentationModule = module {
     single { FoundationRouteDecider() }
     viewModelOf(::RoleSelectorViewModel)
     viewModelOf(::FamilySetupViewModel)
+    viewModelOf(::VirtualMoneyConsentViewModel)
     viewModelOf(::ChildProfileSetupViewModel)
     viewModelOf(::ChildPinViewModel)
+    viewModelOf(::ChildPinResetViewModel)
+    viewModelOf(::ChildHomeViewModel)
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)
     viewModelOf(::ParentHomeViewModel)

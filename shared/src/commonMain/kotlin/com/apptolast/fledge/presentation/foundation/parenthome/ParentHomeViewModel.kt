@@ -3,6 +3,7 @@ package com.apptolast.fledge.presentation.foundation.parenthome
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.apptolast.fledge.domain.model.ChildProfile
+import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.SetupAction
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,7 @@ data class ParentHomeUiState(
 )
 
 class ParentHomeViewModel(
-    repository: FamilyFoundationRepository,
+    private val repository: FamilyFoundationRepository,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(
         ParentHomeUiState(children = repository.children.value)
@@ -29,6 +30,10 @@ class ParentHomeViewModel(
                 mutableUiState.update { it.copy(children = children) }
             }
         }
+    }
+
+    suspend fun requestProtectedAction(action: FoundationAction) {
+        repository.requireParentalGate(action)
     }
 }
 

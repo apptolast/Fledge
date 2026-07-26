@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -25,57 +23,42 @@ import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
-import fledge.shared.generated.resources.child_pin_body
 import fledge.shared.generated.resources.child_pin_error_invalid
 import fledge.shared.generated.resources.child_pin_placeholder
-import fledge.shared.generated.resources.child_pin_reset
-import fledge.shared.generated.resources.child_pin_timeout
-import fledge.shared.generated.resources.child_pin_title
-import fledge.shared.generated.resources.child_pin_unlock
+import fledge.shared.generated.resources.child_pin_reset_body
+import fledge.shared.generated.resources.child_pin_reset_save
+import fledge.shared.generated.resources.child_pin_reset_title
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun ChildPinScreen(
+fun ChildPinResetScreen(
     childProfileId: ChildProfileId,
-    onUnlocked: () -> Unit,
-    onParentalGateRequired: () -> Unit,
-    viewModel: ChildPinViewModel = koinViewModel(),
+    onPinSaved: () -> Unit,
+    viewModel: ChildPinResetViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(state.requiresParentalGate) {
-        if (state.requiresParentalGate) {
-            onParentalGateRequired()
-        }
-    }
-
-    ChildPinContent(
+    ChildPinResetContent(
         state = state,
         onPinChange = viewModel::updatePin,
-        onUnlock = {
+        onSubmit = {
             scope.launch {
-                if (viewModel.unlock(childProfileId)) {
-                    onUnlocked()
+                if (viewModel.submit(childProfileId)) {
+                    onPinSaved()
                 }
-            }
-        },
-        onReset = {
-            scope.launch {
-                viewModel.requestPinReset(childProfileId)
             }
         },
     )
 }
 
 @Composable
-fun ChildPinContent(
-    state: ChildPinUiState,
+fun ChildPinResetContent(
+    state: ChildPinResetUiState,
     onPinChange: (String) -> Unit,
-    onUnlock: () -> Unit,
-    onReset: () -> Unit,
+    onSubmit: () -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -88,31 +71,25 @@ fun ChildPinContent(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                text = stringResource(Res.string.child_pin_title),
+                text = stringResource(Res.string.child_pin_reset_title),
                 style = MaterialTheme.typography.headlineMedium,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(Res.string.child_pin_body),
+                text = stringResource(Res.string.child_pin_reset_body),
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = stringResource(Res.string.child_pin_timeout, state.timeoutMinutes),
-                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(24.dp))
             OutlinedTextField(
-                value = state.enteredPin,
+                value = state.newPin,
                 onValueChange = onPinChange,
                 label = { Text(stringResource(Res.string.child_pin_placeholder)) },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (state.error == ChildPinError.InvalidPin) {
+            if (state.error == ChildPinResetError.InvalidPin) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = stringResource(Res.string.child_pin_error_invalid),
@@ -120,24 +97,15 @@ fun ChildPinContent(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
             Button(
-                onClick = onUnlock,
+                onClick = onSubmit,
                 enabled = state.canSubmit,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
             ) {
-                Text(stringResource(Res.string.child_pin_unlock))
-            }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onReset,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-            ) {
-                Text(stringResource(Res.string.child_pin_reset))
+                Text(stringResource(Res.string.child_pin_reset_save))
             }
         }
     }
@@ -145,13 +113,12 @@ fun ChildPinContent(
 
 @Preview
 @Composable
-fun PreviewChildPinContent() {
+fun PreviewChildPinResetContent() {
     FledgeTheme {
-        ChildPinContent(
-            state = ChildPinUiState(enteredPin = "1234"),
+        ChildPinResetContent(
+            state = ChildPinResetUiState(newPin = "9876"),
             onPinChange = {},
-            onUnlock = {},
-            onReset = {},
+            onSubmit = {},
         )
     }
 }

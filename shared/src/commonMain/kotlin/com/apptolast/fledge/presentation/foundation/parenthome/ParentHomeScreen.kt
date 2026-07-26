@@ -20,11 +20,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.SetupAction
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -38,6 +40,7 @@ import fledge.shared.generated.resources.parent_home_gate_setup
 import fledge.shared.generated.resources.parent_home_pairing
 import fledge.shared.generated.resources.parent_home_setup
 import fledge.shared.generated.resources.parent_home_title
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -48,11 +51,17 @@ fun ParentHomeScreen(
     viewModel: ParentHomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
 
     ParentHomeContent(
         state = state,
         onPairChild = onPairChild,
-        onRequireParentalGate = onRequireParentalGate,
+        onRequireParentalGate = { action ->
+            scope.launch {
+                viewModel.requestProtectedAction(action)
+                onRequireParentalGate()
+            }
+        },
     )
 }
 
@@ -60,7 +69,7 @@ fun ParentHomeScreen(
 fun ParentHomeContent(
     state: ParentHomeUiState,
     onPairChild: (ChildProfileId) -> Unit,
-    onRequireParentalGate: () -> Unit,
+    onRequireParentalGate: (FoundationAction) -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -162,7 +171,7 @@ private fun ChildProfileRow(
 @Composable
 private fun SetupActionRow(
     action: SetupAction,
-    onRequireParentalGate: () -> Unit,
+    onRequireParentalGate: (FoundationAction) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -172,7 +181,7 @@ private fun SetupActionRow(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(text = setupActionLabel(action), style = MaterialTheme.typography.bodyLarge)
-            Button(onClick = onRequireParentalGate) {
+            Button(onClick = { onRequireParentalGate(FoundationAction.ManageSettings) }) {
                 Text(stringResource(Res.string.parent_home_gate))
             }
         }
