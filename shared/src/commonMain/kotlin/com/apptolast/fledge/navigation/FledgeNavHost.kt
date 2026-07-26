@@ -1,6 +1,11 @@
 package com.apptolast.fledge.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -18,12 +23,16 @@ import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
 
 @Composable
-fun FledgeNavHost() {
+fun FledgeNavHost(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
         startDestination = OnboardingRoute,
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding(),
     ) {
         composable<OnboardingRoute> {
             OnboardingScreen(onContinue = { navController.navigate(RoleSelectorRoute) })
