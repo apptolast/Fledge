@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /families/{familyId} {
+      allow read, write: if signedIn();
+
+      match /allowanceRules/{ruleId} {
+        allow read, write: if signedIn();
+      }
+
+      match /settlements/{settlementId} {
+        allow read, write: if signedIn();
+      }
+
+      match /ledgerTransactions/{transactionId} {
+        allow read, create: if signedIn();
+        allow update, delete: if false;
+      }
+    }
+  }
+}
