@@ -14,6 +14,8 @@ import com.apptolast.customlogin.presentation.navigation.AuthRoutesFlow
 import com.apptolast.customlogin.presentation.navigation.authRoutesFlow
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleScreen
+import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestScreen
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeScreen
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetScreen
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinScreen
@@ -21,6 +23,7 @@ import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetup
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupScreen
 import com.apptolast.fledge.presentation.foundation.onboarding.OnboardingScreen
 import com.apptolast.fledge.presentation.foundation.pairing.PairingScreen
+import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentScreen
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateScreen
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
@@ -73,7 +76,33 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
         composable<ParentHomeRoute> {
             ParentHomeScreen(
                 onPairChild = { childId -> navController.navigate(PairingRoute(childId.value)) },
+                onConfigureAllowance = { childId -> navController.navigate(AllowanceRuleRoute(childId.value)) },
+                onAdjustChild = { childId -> navController.navigate(ManualAdjustmentRoute(childId.value)) },
                 onRequireParentalGate = { navController.navigate(ParentalGateRoute) },
+            )
+        }
+        composable<AllowanceRuleRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<AllowanceRuleRoute>()
+            AllowanceRuleScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+            )
+        }
+        composable<ManualAdjustmentRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ManualAdjustmentRoute>()
+            ManualAdjustmentScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+            )
+        }
+        composable<CashOutRequestRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<CashOutRequestRoute>()
+            CashOutRequestScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
             )
         }
         composable<ChildPinRoute> { backStackEntry ->
@@ -118,8 +147,13 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 }
             )
         }
-        composable<ChildHomeRoute> {
-            ChildHomeScreen(onParentalGateRequired = { navController.navigate(ParentalGateRoute) })
+        composable<ChildHomeRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ChildHomeRoute>()
+            ChildHomeScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                onRequestCashOut = { childId -> navController.navigate(CashOutRequestRoute(childId.value)) },
+                onParentalGateRequired = { navController.navigate(ParentalGateRoute) },
+            )
         }
     }
 }

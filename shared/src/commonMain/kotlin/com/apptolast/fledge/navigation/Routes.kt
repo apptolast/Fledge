@@ -21,6 +21,15 @@ data object ChildProfileSetupRoute
 data object ParentHomeRoute
 
 @Serializable
+data class AllowanceRuleRoute(val childProfileId: String)
+
+@Serializable
+data class ManualAdjustmentRoute(val childProfileId: String)
+
+@Serializable
+data class CashOutRequestRoute(val childProfileId: String)
+
+@Serializable
 data class ChildPinRoute(val childProfileId: String)
 
 @Serializable

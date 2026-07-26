@@ -24,20 +24,41 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.apptolast.fledge.domain.model.CashOutSettlement
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.domain.model.LedgerConcept
+import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.BalanceCents
+import com.apptolast.fledge.domain.model.SettlementId
+import com.apptolast.fledge.domain.model.SettlementReminderAudience
+import com.apptolast.fledge.domain.model.SettlementReminderLevel
+import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.SetupAction
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
+import fledge.shared.generated.resources.cash_out_mark_paid
+import fledge.shared.generated.resources.cash_out_parent_reminder_fourteen_days
+import fledge.shared.generated.resources.cash_out_parent_reminder_seven_days
+import fledge.shared.generated.resources.cash_out_status_confirmed
+import fledge.shared.generated.resources.cash_out_status_paid_by_parent
+import fledge.shared.generated.resources.cash_out_status_requested
 import fledge.shared.generated.resources.empty_children
+import fledge.shared.generated.resources.parent_home_adjustment
+import fledge.shared.generated.resources.parent_home_allowance
 import fledge.shared.generated.resources.parent_home_balance
 import fledge.shared.generated.resources.parent_home_balance_zero
 import fledge.shared.generated.resources.parent_home_children
 import fledge.shared.generated.resources.parent_home_add_child
+import fledge.shared.generated.resources.parent_home_goal_balance
 import fledge.shared.generated.resources.parent_home_gate
 import fledge.shared.generated.resources.parent_home_gate_setup
+import fledge.shared.generated.resources.parent_home_main_balance
 import fledge.shared.generated.resources.parent_home_pairing
+import fledge.shared.generated.resources.parent_home_settlements_empty
+import fledge.shared.generated.resources.parent_home_settlements_title
 import fledge.shared.generated.resources.parent_home_setup
 import fledge.shared.generated.resources.parent_home_title
 import kotlinx.coroutines.launch
@@ -47,6 +68,8 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun ParentHomeScreen(
     onPairChild: (ChildProfileId) -> Unit,
+    onConfigureAllowance: (ChildProfileId) -> Unit,
+    onAdjustChild: (ChildProfileId) -> Unit,
     onRequireParentalGate: () -> Unit,
     viewModel: ParentHomeViewModel = koinViewModel(),
 ) {
@@ -56,6 +79,13 @@ fun ParentHomeScreen(
     ParentHomeContent(
         state = state,
         onPairChild = onPairChild,
+        onConfigureAllowance = onConfigureAllowance,
+        onAdjustChild = onAdjustChild,
+        onMarkSettlementPaid = { settlementId ->
+            scope.launch {
+                viewModel.markSettlementPaid(settlementId)
+            }
+        },
         onRequireParentalGate = { action ->
             scope.launch {
                 viewModel.requestProtectedAction(action)
@@ -69,6 +99,9 @@ fun ParentHomeScreen(
 fun ParentHomeContent(
     state: ParentHomeUiState,
     onPairChild: (ChildProfileId) -> Unit,
+    onConfigureAllowance: (ChildProfileId) -> Unit,
+    onAdjustChild: (ChildProfileId) -> Unit,
+    onMarkSettlementPaid: (SettlementId) -> Unit,
     onRequireParentalGate: (FoundationAction) -> Unit,
 ) {
     Surface(
@@ -106,7 +139,47 @@ fun ParentHomeContent(
                 }
             } else {
                 items(state.children, key = { it.id.value }) { child ->
-                    ChildProfileRow(child = child, onPairChild = onPairChild)
+                    ChildProfileRow(
+                        child = child,
+                        mainBalance = state.mainBalances[child.id] ?: BalanceCents(0),
+                        goalBalance = state.goalBalances[child.id] ?: BalanceCents(0),
+                        currencyCode = state.currencyCode,
+                        onPairChild = onPairChild,
+                        onConfigureAllowance = onConfigureAllowance,
+                        onAdjustChild = onAdjustChild,
+                    )
+                }
+            }
+            item {
+                Text(
+                    text = stringResource(Res.string.parent_home_settlements_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
+            if (state.pendingSettlements.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(Res.string.parent_home_settlements_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                items(
+                    items = state.pendingSettlements.sortedByDescending { it.requestedAt },
+                    key = { it.id.value },
+                ) { settlement ->
+                    ParentSettlementRow(
+                        settlement = settlement,
+                        childName = state.children.firstOrNull { it.id == settlement.childProfileId }?.displayName
+                            ?: settlement.childProfileId.value,
+                        currencyCode = state.currencyCode,
+                        reminderLevel = state.settlementReminders.firstOrNull {
+                            it.settlementId == settlement.id &&
+                                it.audience == SettlementReminderAudience.Parent
+                        }?.level,
+                        onMarkSettlementPaid = onMarkSettlementPaid,
+                    )
                 }
             }
             item {
@@ -145,14 +218,19 @@ private fun SummaryCard() {
 @Composable
 private fun ChildProfileRow(
     child: ChildProfile,
+    mainBalance: BalanceCents,
+    goalBalance: BalanceCents,
+    currencyCode: String,
     onPairChild: (ChildProfileId) -> Unit,
+    onConfigureAllowance: (ChildProfileId) -> Unit,
+    onAdjustChild: (ChildProfileId) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column {
                 Text(text = child.displayName, style = MaterialTheme.typography.titleMedium)
@@ -160,12 +238,119 @@ private fun ChildProfileRow(
                     text = "${child.avatarKey} - ${child.birthYear}",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                Text(
+                    text = stringResource(
+                        Res.string.parent_home_main_balance,
+                        formatCents(mainBalance.value, currencyCode),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = stringResource(
+                        Res.string.parent_home_goal_balance,
+                        formatCents(goalBalance.value, currencyCode),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            OutlinedButton(onClick = { onPairChild(child.id) }) {
-                Text(stringResource(Res.string.parent_home_pairing))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                OutlinedButton(
+                    onClick = { onPairChild(child.id) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(Res.string.parent_home_pairing))
+                }
+                Button(
+                    onClick = { onConfigureAllowance(child.id) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(Res.string.parent_home_allowance))
+                }
+            }
+            Button(
+                onClick = { onAdjustChild(child.id) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                    Text(stringResource(Res.string.parent_home_adjustment))
             }
         }
     }
+}
+
+@Composable
+private fun ParentSettlementRow(
+    settlement: CashOutSettlement,
+    childName: String,
+    currencyCode: String,
+    reminderLevel: SettlementReminderLevel?,
+    onMarkSettlementPaid: (SettlementId) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = childName,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = formatCents(settlement.amountCents.value, currencyCode),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = settlement.concept.value,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = cashOutStatusLabel(settlement.status),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            reminderLevel?.let { level ->
+                Text(
+                    text = parentReminderText(level),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (settlement.status == SettlementStatus.Requested) {
+                Button(
+                    onClick = { onMarkSettlementPaid(settlement.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(Res.string.cash_out_mark_paid))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun cashOutStatusLabel(status: SettlementStatus): String = when (status) {
+    SettlementStatus.Requested -> stringResource(Res.string.cash_out_status_requested)
+    SettlementStatus.PaidByParent -> stringResource(Res.string.cash_out_status_paid_by_parent)
+    SettlementStatus.ConfirmedByChild -> stringResource(Res.string.cash_out_status_confirmed)
+}
+
+@Composable
+private fun parentReminderText(level: SettlementReminderLevel): String = when (level) {
+    SettlementReminderLevel.SevenDays -> stringResource(Res.string.cash_out_parent_reminder_seven_days)
+    SettlementReminderLevel.FourteenDays -> stringResource(Res.string.cash_out_parent_reminder_fourteen_days)
+}
+
+private fun formatCents(value: Long, currencyCode: String): String {
+    val sign = if (value < 0) "-" else ""
+    val absolute = if (value < 0) -value else value
+    val whole = absolute / 100
+    val cents = (absolute % 100).toString().padStart(2, '0')
+    return "$sign$whole,$cents $currencyCode"
 }
 
 @Composable
@@ -208,9 +393,23 @@ fun PreviewParentHomeContent() {
                         birthYear = 2017,
                         avatarKey = "rocket",
                     )
-                )
+                ),
+                pendingSettlements = listOf(
+                    CashOutSettlement(
+                        id = SettlementId("settlement-1"),
+                        familyId = FamilyId("family-1"),
+                        childProfileId = ChildProfileId("child-1"),
+                        amountCents = MoneyCents(500),
+                        concept = LedgerConcept("Cromos"),
+                        status = SettlementStatus.Requested,
+                        requestedAt = kotlin.time.Clock.System.now(),
+                    )
+                ),
             ),
             onPairChild = {},
+            onConfigureAllowance = {},
+            onAdjustChild = {},
+            onMarkSettlementPaid = {},
             onRequireParentalGate = {},
         )
     }

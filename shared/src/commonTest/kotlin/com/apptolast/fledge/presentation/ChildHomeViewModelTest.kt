@@ -1,12 +1,11 @@
 package com.apptolast.fledge.presentation
 
-import app.cash.turbine.test
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
 import com.apptolast.fledge.data.repository.InMemoryMoneyFlowRepository
+import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.CurrencyCode
-import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
@@ -15,30 +14,33 @@ import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.service.CashOutProcessor
-import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewModel
+import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
-class ParentHomeViewModelTest {
+class ChildHomeViewModelTest {
 
     @Test
-    fun `AC-10 parent home exposes stable lists with unique ids`() = runTest {
+    fun `FLE-21 child ledger shows original and reversal entries`() = runTest {
         // Given
-        val repository = InMemoryFamilyFoundationRepository()
+        val foundationRepository = InMemoryFamilyFoundationRepository()
         val ledgerRepository = InMemoryLedgerRepository()
         val moneyFlowRepository = InMemoryMoneyFlowRepository()
-        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
-        repository.recordVirtualMoneyConsent()
-        val child = repository.addChildProfile(
-            family.id,
-            "Lucas",
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
             birthYear = 2017,
             avatarKey = "rocket",
             pin = ChildPin("1234"),
         )
-        ledgerRepository.appendTransaction(
+        val original = ledgerRepository.appendTransaction(
             LedgerTransactionDraft(
                 familyId = family.id,
                 childProfileId = child.id,
@@ -49,21 +51,25 @@ class ParentHomeViewModelTest {
                 createdBy = LedgerActor.Parent,
             )
         )
-        val viewModel = ParentHomeViewModel(
-            repository,
+        ledgerRepository.reverseTransaction(
+            transactionId = original.id,
+            concept = LedgerConcept("Correccion"),
+            createdBy = LedgerActor.Parent,
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
             ledgerRepository,
             moneyFlowRepository,
             CashOutProcessor(moneyFlowRepository, ledgerRepository),
         )
 
-        // When / Then
-        viewModel.uiState.test {
-            val state = awaitItem()
-            assertEquals(1, state.children.size)
-            assertEquals(BalanceCents(500), state.mainBalances[child.id])
-            assertTrue(state.setupActions.isNotEmpty())
-            assertEquals(state.setupActions.size, state.setupActions.map { it.id }.toSet().size)
-            cancelAndIgnoreRemainingEvents()
-        }
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        val state = viewModel.uiState.value
+        assertEquals(BalanceCents(0), state.balances?.main)
+        assertEquals(2, state.ledgerTransactions.size)
+        assertEquals(original.id, state.ledgerTransactions[1].reversesTransactionId)
     }
 }
