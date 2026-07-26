@@ -26,6 +26,41 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 - Android tests: `./gradlew :shared:testAndroidHostTest`
 - iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
 
+### Firebase Auth setup
+
+Fledge uses BaseLogin with a Firebase Identity Toolkit REST provider in `:shared`.
+Use Firebase project `fledge-c685d`. The project has these Firebase apps:
+
+- Android package: `com.apptolast.fledge`
+- iOS bundle: `com.apptolast.fledge`
+
+Add the public client config to `local.properties`:
+
+```properties
+FIREBASE_API_KEY=...
+FIREBASE_PROJECT_ID=fledge-c685d
+GOOGLE_WEB_CLIENT_ID=...
+APP_ENV=debug
+```
+
+Auth providers are deployed from `firebase.json` with:
+
+```bash
+firebase deploy --only auth --project fledge-c685d
+```
+
+Expected provider state:
+
+- Email/Password enabled, password required.
+- Google for Android. `GOOGLE_WEB_CLIENT_ID` must be the OAuth Web client ID.
+- Apple for iOS, with bundle ID `com.apptolast.fledge`.
+- Anonymous, phone, magic link and unsupported social providers disabled in the app.
+
+For Google Sign-In, register SHA-1 and SHA-256 certificates for every Android keystore that will request
+credentials: local debug, CI, and release. For Apple, the current iOS-native flow uses the Apple ID token
+and raw nonce; configure the Services ID, Team ID, Key ID and private key only if a code-flow/web Apple
+sign-in path is added later.
+
 ---
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
