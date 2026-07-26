@@ -1,6 +1,7 @@
 package com.apptolast.fledge.di
 
 import com.apptolast.customlogin.di.loginModules
+import com.apptolast.fledge.data.auth.InMemoryLoginAuthProvider
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.navigation.FoundationRouteDecider
@@ -36,12 +37,18 @@ val presentationModule = module {
 
 expect val platformModule: Module
 
-fun initFledgeKoin(appDeclaration: KoinAppDeclaration? = null) {
-    val modules = loginModules(initialFledgeLoginConfig()) + listOf(
+internal fun fledgeModules(platform: Module): List<Module> =
+    loginModules(
+        config = initialFledgeLoginConfig(),
+        authProvider = InMemoryLoginAuthProvider(),
+    ) + listOf(
         dataModule,
         presentationModule,
-        platformModule,
+        platform,
     )
+
+fun initFledgeKoin(appDeclaration: KoinAppDeclaration? = null) {
+    val modules = fledgeModules(platformModule)
 
     if (KoinPlatformTools.defaultContext().getOrNull() != null) {
         loadKoinModules(modules)
