@@ -1,6 +1,6 @@
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinxSerialization)
     alias(libs.plugins.buildkonfig)
+    alias(libs.plugins.ktlint.jlleitschuh)
 }
 
 val localProperties: Properties by lazy {
@@ -30,35 +31,35 @@ val firestoreDatabaseId = (project.findProperty("FIRESTORE_DATABASE_ID") as Stri
 kotlin {
     listOf(
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
         }
     }
-    
+
     android {
-       namespace = "com.apptolast.fledge.shared"
-       compileSdk = libs.versions.android.compileSdk.get().toInt()
-       minSdk = libs.versions.android.minSdk.get().toInt()
-    
-       compilerOptions {
-           jvmTarget = JvmTarget.JVM_11
-       }
-       androidResources {
-           enable = true
-       }
-       withHostTest {
-           isIncludeAndroidResources = true
-       }
-       withDeviceTestBuilder {
-           sourceSetTreeName = "test"
-       }.configure {
-           instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-       }
+        namespace = "com.apptolast.fledge.shared"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_11
+        }
+        androidResources {
+            enable = true
+        }
+        withHostTest {
+            isIncludeAndroidResources = true
+        }
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }.configure {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
     }
-    
+
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
@@ -109,7 +110,11 @@ buildkonfig {
     defaultConfigs {
         buildConfigField(STRING, "APP_ENV", appEnv)
         buildConfigField(STRING, "FIREBASE_API_KEY", localProperties.getProperty("FIREBASE_API_KEY", ""))
-        buildConfigField(STRING, "FIREBASE_PROJECT_ID", localProperties.getProperty("FIREBASE_PROJECT_ID", "fledge-c685d"))
+        buildConfigField(
+            STRING,
+            "FIREBASE_PROJECT_ID",
+            localProperties.getProperty("FIREBASE_PROJECT_ID", "fledge-c685d"),
+        )
         buildConfigField(STRING, "FIRESTORE_DATABASE_ID", firestoreDatabaseId)
         buildConfigField(STRING, "GOOGLE_WEB_CLIENT_ID", localProperties.getProperty("GOOGLE_WEB_CLIENT_ID", ""))
     }
@@ -117,4 +122,10 @@ buildkonfig {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+}
+
+ktlint {
+    android = false
+    ignoreFailures = false
+    outputToConsole = true
 }
