@@ -20,9 +20,7 @@ enum class PairingError {
     MissingPairingCode,
 }
 
-class PairingViewModel(
-    private val repository: FamilyFoundationRepository,
-) : ViewModel() {
+class PairingViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow(PairingUiState())
     val uiState: StateFlow<PairingUiState> = mutableUiState
 

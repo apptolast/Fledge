@@ -3,8 +3,8 @@ package com.apptolast.fledge.presentation
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.TimeZoneId
-import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupError
+import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

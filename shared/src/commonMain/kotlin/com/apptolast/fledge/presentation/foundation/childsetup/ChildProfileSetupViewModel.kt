@@ -28,9 +28,7 @@ enum class ChildProfileSetupError {
     InvalidInput,
 }
 
-class ChildProfileSetupViewModel(
-    private val repository: FamilyFoundationRepository,
-) : ViewModel() {
+class ChildProfileSetupViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow(ChildProfileSetupUiState())
     val uiState: StateFlow<ChildProfileSetupUiState> = mutableUiState
 

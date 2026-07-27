@@ -12,7 +12,7 @@ import org.koin.dsl.module
 actual val platformModule: Module = module {
     single<Settings> {
         SharedPreferencesSettings(
-            androidContext().getSharedPreferences("fledge_auth", Context.MODE_PRIVATE)
+            androidContext().getSharedPreferences("fledge_auth", Context.MODE_PRIVATE),
         )
     }
     single<SocialAuthClient> { AndroidSocialAuthClient(androidContext()) }

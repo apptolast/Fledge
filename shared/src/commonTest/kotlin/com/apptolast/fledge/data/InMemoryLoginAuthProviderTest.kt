@@ -24,7 +24,7 @@ class InMemoryLoginAuthProviderTest {
                 email = "Parent@Example.com",
                 password = "password-1234",
                 displayName = "Parent User",
-            )
+            ),
         )
 
         // Then
@@ -44,7 +44,7 @@ class InMemoryLoginAuthProviderTest {
                 email = "parent@example.com",
                 password = "password-1234",
                 displayName = "Parent User",
-            )
+            ),
         )
         provider.signOut()
 

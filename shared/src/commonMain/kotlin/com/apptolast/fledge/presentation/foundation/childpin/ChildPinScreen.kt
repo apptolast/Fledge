@@ -71,12 +71,7 @@ fun ChildPinScreen(
 }
 
 @Composable
-fun ChildPinContent(
-    state: ChildPinUiState,
-    onPinChange: (String) -> Unit,
-    onUnlock: () -> Unit,
-    onReset: () -> Unit,
-) {
+fun ChildPinContent(state: ChildPinUiState, onPinChange: (String) -> Unit, onUnlock: () -> Unit, onReset: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize(),

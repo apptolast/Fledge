@@ -19,9 +19,7 @@ data class FamilySetupUiState(
     val isLocked: Boolean = createdFamily != null
 }
 
-class FamilySetupViewModel(
-    private val repository: FamilyFoundationRepository,
-) : ViewModel() {
+class FamilySetupViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow(FamilySetupUiState())
     val uiState: StateFlow<FamilySetupUiState> = mutableUiState
 

@@ -12,10 +12,10 @@ import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.presentation.foundation.manualadjustment.parseAmountCents
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlin.time.Clock
 
 data class CashOutRequestUiState(
     val child: ChildProfile? = null,

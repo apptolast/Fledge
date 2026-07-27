@@ -23,9 +23,9 @@ import com.apptolast.fledge.domain.service.CashOutProcessor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlinx.coroutines.test.runTest
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
+import kotlinx.coroutines.test.runTest
 
 class MoneyFlowProcessorTest {
 
@@ -81,11 +81,17 @@ class MoneyFlowProcessorTest {
 
         // Then
         assertEquals(SettlementStatus.Requested, settlement.status)
-        assertEquals(BalanceCents(1_000), ledgerRepository.balanceFor(settlement.childProfileId, VirtualAccountType.Main))
+        assertEquals(
+            BalanceCents(1_000),
+            ledgerRepository.balanceFor(settlement.childProfileId, VirtualAccountType.Main),
+        )
 
         val paid = processor.markPaidByParent(settlement.id, requestedAt + 1.days)
         assertEquals(SettlementStatus.PaidByParent, paid.status)
-        assertEquals(BalanceCents(1_000), ledgerRepository.balanceFor(settlement.childProfileId, VirtualAccountType.Main))
+        assertEquals(
+            BalanceCents(1_000),
+            ledgerRepository.balanceFor(settlement.childProfileId, VirtualAccountType.Main),
+        )
 
         val confirmed = processor.confirmByChild(settlement.id, requestedAt + 2.days)
         assertEquals(SettlementStatus.ConfirmedByChild, confirmed.status)
@@ -116,33 +122,30 @@ class MoneyFlowProcessorTest {
     private fun sampleAllowanceRuleDraft(
         frequency: AllowanceFrequency = AllowanceFrequency.Weekly,
         day: AllowanceDay = AllowanceDay(1),
-    ): AllowanceRuleDraft =
-        AllowanceRuleDraft(
-            familyId = FamilyId("family-1"),
-            childProfileId = ChildProfileId("child-1"),
-            frequency = frequency,
-            day = day,
-            amountCents = MoneyCents(500),
-            concept = LedgerConcept("Paga"),
-            timeZone = TimeZoneId("Europe/Madrid"),
-        )
+    ): AllowanceRuleDraft = AllowanceRuleDraft(
+        familyId = FamilyId("family-1"),
+        childProfileId = ChildProfileId("child-1"),
+        frequency = frequency,
+        day = day,
+        amountCents = MoneyCents(500),
+        concept = LedgerConcept("Paga"),
+        timeZone = TimeZoneId("Europe/Madrid"),
+    )
 
-    private fun sampleSettlementDraft(amountCents: MoneyCents): CashOutSettlementDraft =
-        CashOutSettlementDraft(
-            familyId = FamilyId("family-1"),
-            childProfileId = ChildProfileId("child-1"),
-            amountCents = amountCents,
-            concept = LedgerConcept("Retirada"),
-        )
+    private fun sampleSettlementDraft(amountCents: MoneyCents): CashOutSettlementDraft = CashOutSettlementDraft(
+        familyId = FamilyId("family-1"),
+        childProfileId = ChildProfileId("child-1"),
+        amountCents = amountCents,
+        concept = LedgerConcept("Retirada"),
+    )
 
-    private fun sampleLedgerDraft(amountCents: MoneyCents): LedgerTransactionDraft =
-        LedgerTransactionDraft(
-            familyId = FamilyId("family-1"),
-            childProfileId = ChildProfileId("child-1"),
-            accountType = VirtualAccountType.Main,
-            type = LedgerTransactionType.Bonus,
-            amountCents = amountCents,
-            concept = LedgerConcept("Saldo inicial"),
-            createdBy = LedgerActor.Parent,
-        )
+    private fun sampleLedgerDraft(amountCents: MoneyCents): LedgerTransactionDraft = LedgerTransactionDraft(
+        familyId = FamilyId("family-1"),
+        childProfileId = ChildProfileId("child-1"),
+        accountType = VirtualAccountType.Main,
+        type = LedgerTransactionType.Bonus,
+        amountCents = amountCents,
+        concept = LedgerConcept("Saldo inicial"),
+        createdBy = LedgerActor.Parent,
+    )
 }

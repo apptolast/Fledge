@@ -1,8 +1,8 @@
 package com.apptolast.fledge.data.auth
 
 import com.apptolast.fledge.data.auth.IosAppleAuthBridge.signInHandler
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 typealias IosAppleCompletion = (String?) -> Unit
 

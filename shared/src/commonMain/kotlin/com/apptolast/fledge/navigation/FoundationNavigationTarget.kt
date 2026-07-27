@@ -9,13 +9,11 @@ sealed interface FoundationNavigationTarget {
 }
 
 class FoundationRouteDecider {
-    fun targetForRole(
-        role: SharedDeviceRole,
-        childProfileId: ChildProfileId?,
-    ): FoundationNavigationTarget = when (role) {
-        SharedDeviceRole.Parent -> FoundationNavigationTarget.ParentAuth
-        SharedDeviceRole.Child -> FoundationNavigationTarget.ChildPin(
-            requireNotNull(childProfileId) { "Child mode requires a real child profile." }
-        )
-    }
+    fun targetForRole(role: SharedDeviceRole, childProfileId: ChildProfileId?): FoundationNavigationTarget =
+        when (role) {
+            SharedDeviceRole.Parent -> FoundationNavigationTarget.ParentAuth
+            SharedDeviceRole.Child -> FoundationNavigationTarget.ChildPin(
+                requireNotNull(childProfileId) { "Child mode requires a real child profile." },
+            )
+        }
 }

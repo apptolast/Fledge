@@ -48,8 +48,8 @@ class AppModulesTest {
                     module {
                         single<Settings> { TestSettings() }
                         single<SocialAuthClient> { FakeSocialAuthClient() }
-                    }
-                )
+                    },
+                ),
             )
         }
 

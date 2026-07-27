@@ -12,11 +12,9 @@ data class VirtualMoneyConsentUiState(
     val recordedConsent: VirtualMoneyConsent? = null,
 )
 
-class VirtualMoneyConsentViewModel(
-    private val repository: FamilyFoundationRepository,
-) : ViewModel() {
+class VirtualMoneyConsentViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow(
-        VirtualMoneyConsentUiState(recordedConsent = repository.virtualMoneyConsent.value)
+        VirtualMoneyConsentUiState(recordedConsent = repository.virtualMoneyConsent.value),
     )
     val uiState: StateFlow<VirtualMoneyConsentUiState> = mutableUiState
 

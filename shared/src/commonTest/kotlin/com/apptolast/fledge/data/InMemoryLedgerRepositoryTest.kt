@@ -35,7 +35,7 @@ class InMemoryLedgerRepositoryTest {
                     type = LedgerTransactionType.Allowance,
                     amountCents = MoneyCents(500),
                     concept = LedgerConcept("Paga semanal"),
-                )
+                ),
             )
 
             assertEquals(listOf(allowance), awaitItem())
@@ -47,7 +47,7 @@ class InMemoryLedgerRepositoryTest {
                     type = LedgerTransactionType.Penalty,
                     amountCents = MoneyCents(-125),
                     concept = LedgerConcept("Multa explicada"),
-                )
+                ),
             )
 
             assertEquals(listOf(allowance, penalty), awaitItem())
@@ -68,14 +68,14 @@ class InMemoryLedgerRepositoryTest {
                 childProfileId = childId,
                 accountType = VirtualAccountType.Main,
                 amountCents = MoneyCents(1_000),
-            )
+            ),
         )
         repository.appendTransaction(
             sampleDraft(
                 childProfileId = childId,
                 accountType = VirtualAccountType.Goal,
                 amountCents = MoneyCents(250),
-            )
+            ),
         )
         repository.appendTransaction(
             sampleDraft(
@@ -83,7 +83,7 @@ class InMemoryLedgerRepositoryTest {
                 accountType = VirtualAccountType.Main,
                 amountCents = MoneyCents(-150),
                 type = LedgerTransactionType.Penalty,
-            )
+            ),
         )
 
         // Then
@@ -110,7 +110,7 @@ class InMemoryLedgerRepositoryTest {
                 amountCents = MoneyCents(700),
                 concept = LedgerConcept("Regalo abuela"),
                 type = LedgerTransactionType.Gift,
-            )
+            ),
         )
 
         // When
@@ -163,14 +163,13 @@ class InMemoryLedgerRepositoryTest {
         amountCents: MoneyCents = MoneyCents(100),
         concept: LedgerConcept = LedgerConcept("Bonus"),
         createdBy: LedgerActor = LedgerActor.Parent,
-    ): LedgerTransactionDraft =
-        LedgerTransactionDraft(
-            familyId = familyId,
-            childProfileId = childProfileId,
-            accountType = accountType,
-            type = type,
-            amountCents = amountCents,
-            concept = concept,
-            createdBy = createdBy,
-        )
+    ): LedgerTransactionDraft = LedgerTransactionDraft(
+        familyId = familyId,
+        childProfileId = childProfileId,
+        accountType = accountType,
+        type = type,
+        amountCents = amountCents,
+        concept = concept,
+        createdBy = createdBy,
+    )
 }

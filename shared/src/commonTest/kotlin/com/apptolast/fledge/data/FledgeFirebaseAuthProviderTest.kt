@@ -40,7 +40,7 @@ class FledgeFirebaseAuthProviderTest {
                     "/v1/accounts:update" -> jsonResponse("{}")
                     else -> error("Unexpected request: ${request.url}")
                 }
-            }
+            },
         )
 
         // When
@@ -49,7 +49,7 @@ class FledgeFirebaseAuthProviderTest {
                 email = "parent@example.com",
                 password = "password-1234",
                 displayName = "Parent User",
-            )
+            ),
         )
 
         // Then
@@ -67,7 +67,7 @@ class FledgeFirebaseAuthProviderTest {
             MockEngine { request ->
                 assertEquals("/v1/accounts:signInWithPassword", request.url.encodedPath)
                 jsonResponse(signInJson(localId = "parent-2", refreshToken = "refresh-login"))
-            }
+            },
         )
 
         // When
@@ -89,7 +89,7 @@ class FledgeFirebaseAuthProviderTest {
                     "/v1/token" -> jsonResponse(refreshJson(idToken = "id-token-2", refreshToken = "refresh-two"))
                     else -> error("Unexpected request: ${request.url}")
                 }
-            }
+            },
         )
         provider.signIn(Credentials.EmailPassword("parent@example.com", "password-1234"))
 
@@ -110,7 +110,7 @@ class FledgeFirebaseAuthProviderTest {
             MockEngine { request ->
                 requests += request.url.encodedPath
                 jsonResponse("{}")
-            }
+            },
         )
 
         // When
@@ -132,7 +132,7 @@ class FledgeFirebaseAuthProviderTest {
                     content = """{"error":{"code":400,"message":"EMAIL_EXISTS"}}""",
                     status = HttpStatusCode.BadRequest,
                 )
-            }
+            },
         )
 
         // When
@@ -156,7 +156,7 @@ class FledgeFirebaseAuthProviderTest {
                     providerId = "google.com",
                     idToken = "google-id-token",
                     displayName = "Google Parent",
-                )
+                ),
             ),
         )
 
@@ -183,7 +183,7 @@ class FledgeFirebaseAuthProviderTest {
                     idToken = "apple-id-token",
                     rawNonce = "raw-nonce",
                     displayName = "Apple Parent",
-                )
+                ),
             ),
         )
 
@@ -231,14 +231,12 @@ class FledgeFirebaseAuthProviderTest {
         )
     }
 
-    private fun MockRequestHandleScope.jsonResponse(
-        content: String,
-        status: HttpStatusCode = HttpStatusCode.OK,
-    ) = respond(
-        content = content,
-        status = status,
-        headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-    )
+    private fun MockRequestHandleScope.jsonResponse(content: String, status: HttpStatusCode = HttpStatusCode.OK) =
+        respond(
+            content = content,
+            status = status,
+            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+        )
 
     private fun signInJson(
         localId: String = "parent-1",
@@ -258,11 +256,7 @@ class FledgeFirebaseAuthProviderTest {
         }
         """.trimIndent()
 
-    private fun refreshJson(
-        idToken: String,
-        refreshToken: String,
-        userId: String = "parent-1",
-    ): String =
+    private fun refreshJson(idToken: String, refreshToken: String, userId: String = "parent-1"): String =
         """
         {
           "id_token": "$idToken",

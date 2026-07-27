@@ -10,9 +10,9 @@ import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import kotlin.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.time.Instant
 
 class InMemoryMoneyFlowRepository : MoneyFlowRepository {
     private var allowanceRuleCounter = 1
@@ -98,10 +98,7 @@ class InMemoryMoneyFlowRepository : MoneyFlowRepository {
         return settlement
     }
 
-    override suspend fun markSettlementPaidByParent(
-        settlementId: SettlementId,
-        paidAt: Instant,
-    ): CashOutSettlement =
+    override suspend fun markSettlementPaidByParent(settlementId: SettlementId, paidAt: Instant): CashOutSettlement =
         updateSettlement(settlementId) { settlement ->
             require(settlement.status == SettlementStatus.Requested) {
                 "Only requested settlements can be marked as paid."
@@ -116,17 +113,16 @@ class InMemoryMoneyFlowRepository : MoneyFlowRepository {
         settlementId: SettlementId,
         transactionId: TransactionId,
         confirmedAt: Instant,
-    ): CashOutSettlement =
-        updateSettlement(settlementId) { settlement ->
-            require(settlement.status == SettlementStatus.PaidByParent) {
-                "Only paid settlements can be confirmed by the child."
-            }
-            settlement.copy(
-                status = SettlementStatus.ConfirmedByChild,
-                confirmedByChildAt = confirmedAt,
-                settlementTransactionId = transactionId,
-            )
+    ): CashOutSettlement = updateSettlement(settlementId) { settlement ->
+        require(settlement.status == SettlementStatus.PaidByParent) {
+            "Only paid settlements can be confirmed by the child."
         }
+        settlement.copy(
+            status = SettlementStatus.ConfirmedByChild,
+            confirmedByChildAt = confirmedAt,
+            settlementTransactionId = transactionId,
+        )
+    }
 
     override fun settlementById(settlementId: SettlementId): CashOutSettlement? =
         mutableSettlements.value.firstOrNull { it.id == settlementId }

@@ -20,7 +20,13 @@ class PairingViewModelTest {
         val repository = InMemoryFamilyFoundationRepository()
         val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
         repository.recordVirtualMoneyConsent()
-        val child = repository.addChildProfile(family.id, "Lucas", birthYear = 2017, avatarKey = "rocket", pin = ChildPin("1234"))
+        val child = repository.addChildProfile(
+            family.id,
+            "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
         val viewModel = PairingViewModel(repository)
 
         // When / Then

@@ -24,9 +24,7 @@ enum class ParentalGateError {
     MissingRequest,
 }
 
-class ParentalGateViewModel(
-    private val repository: FamilyFoundationRepository,
-) : ViewModel() {
+class ParentalGateViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow(
         ParentalGateUiState(pendingRequest = repository.parentalGateRequest.value),
     )

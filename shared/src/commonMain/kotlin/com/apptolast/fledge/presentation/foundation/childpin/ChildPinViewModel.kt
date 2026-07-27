@@ -28,9 +28,7 @@ enum class ChildPinError {
     InvalidPin,
 }
 
-class ChildPinViewModel(
-    private val repository: FamilyFoundationRepository,
-) : ViewModel() {
+class ChildPinViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow(ChildPinUiState())
     val uiState: StateFlow<ChildPinUiState> = mutableUiState
 

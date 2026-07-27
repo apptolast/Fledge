@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
-import fledge.shared.generated.resources.parental_gate_challenge
 import fledge.shared.generated.resources.parental_gate_body
+import fledge.shared.generated.resources.parental_gate_challenge
 import fledge.shared.generated.resources.parental_gate_confirm
 import fledge.shared.generated.resources.parental_gate_error_missing
 import fledge.shared.generated.resources.parental_gate_error_wrong
@@ -33,10 +33,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun ParentalGateScreen(
-    onConfirmed: (FoundationAction) -> Unit,
-    viewModel: ParentalGateViewModel = koinViewModel(),
-) {
+fun ParentalGateScreen(onConfirmed: (FoundationAction) -> Unit, viewModel: ParentalGateViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -47,16 +44,12 @@ fun ParentalGateScreen(
             scope.launch {
                 viewModel.confirmGate()?.let(onConfirmed)
             }
-        }
+        },
     )
 }
 
 @Composable
-fun ParentalGateContent(
-    state: ParentalGateUiState,
-    onAnswerChange: (String) -> Unit,
-    onConfirm: () -> Unit,
-) {
+fun ParentalGateContent(state: ParentalGateUiState, onAnswerChange: (String) -> Unit, onConfirm: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize(),

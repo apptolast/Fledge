@@ -1,8 +1,8 @@
 package com.apptolast.fledge.domain.model
 
-import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 import kotlin.time.Instant
+import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline

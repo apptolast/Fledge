@@ -28,8 +28,8 @@ import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.CashOutSettlement
 import com.apptolast.fledge.domain.model.ChildLedgerBalances
 import com.apptolast.fledge.domain.model.ChildProfileId
-import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.FamilyId
+import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
@@ -49,24 +49,24 @@ import fledge.shared.generated.resources.cash_out_mark_received
 import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
-import fledge.shared.generated.resources.child_home_external_link
 import fledge.shared.generated.resources.child_home_body
 import fledge.shared.generated.resources.child_home_cash_out
+import fledge.shared.generated.resources.child_home_external_link
 import fledge.shared.generated.resources.child_home_goal_balance
 import fledge.shared.generated.resources.child_home_ledger_empty
 import fledge.shared.generated.resources.child_home_ledger_title
 import fledge.shared.generated.resources.child_home_main_balance
 import fledge.shared.generated.resources.child_home_parent_zone
 import fledge.shared.generated.resources.child_home_purchase
+import fledge.shared.generated.resources.child_home_settings
 import fledge.shared.generated.resources.child_home_settlements_empty
 import fledge.shared.generated.resources.child_home_settlements_title
-import fledge.shared.generated.resources.child_home_settings
 import fledge.shared.generated.resources.child_home_title
+import fledge.shared.generated.resources.ledger_account_goal
+import fledge.shared.generated.resources.ledger_account_main
 import fledge.shared.generated.resources.ledger_actor_child
 import fledge.shared.generated.resources.ledger_actor_parent
 import fledge.shared.generated.resources.ledger_actor_system
-import fledge.shared.generated.resources.ledger_account_goal
-import fledge.shared.generated.resources.ledger_account_main
 import fledge.shared.generated.resources.ledger_reversal_of
 import fledge.shared.generated.resources.ledger_type_allowance
 import fledge.shared.generated.resources.ledger_type_bonus
@@ -75,10 +75,10 @@ import fledge.shared.generated.resources.ledger_type_goal_transfer
 import fledge.shared.generated.resources.ledger_type_penalty
 import fledge.shared.generated.resources.ledger_type_reversal
 import fledge.shared.generated.resources.ledger_type_settlement
+import kotlin.time.Clock
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.time.Clock
 
 @Composable
 fun ChildHomeScreen(
@@ -106,7 +106,7 @@ fun ChildHomeScreen(
                 viewModel.requestProtectedAction(action)
                 onParentalGateRequired()
             }
-        }
+        },
     )
 }
 
@@ -336,10 +336,7 @@ private fun ChildSettlementRow(
 }
 
 @Composable
-private fun LedgerTransactionRow(
-    transaction: LedgerTransaction,
-    currencyCode: String,
-) {
+private fun LedgerTransactionRow(transaction: LedgerTransaction, currencyCode: String) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -448,7 +445,7 @@ fun PreviewChildHomeContent() {
                         concept = LedgerConcept("Paga extra"),
                         createdBy = LedgerActor.Parent,
                         createdAt = kotlin.time.Clock.System.now(),
-                    )
+                    ),
                 ),
                 settlements = listOf(
                     CashOutSettlement(
@@ -460,7 +457,7 @@ fun PreviewChildHomeContent() {
                         status = SettlementStatus.PaidByParent,
                         requestedAt = Clock.System.now(),
                         paidByParentAt = Clock.System.now(),
-                    )
+                    ),
                 ),
             ),
             onRequestCashOut = {},

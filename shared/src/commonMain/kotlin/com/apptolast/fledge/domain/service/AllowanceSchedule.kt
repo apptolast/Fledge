@@ -3,6 +3,7 @@ package com.apptolast.fledge.domain.service
 import com.apptolast.fledge.domain.model.AllowanceDay
 import com.apptolast.fledge.domain.model.AllowanceFrequency
 import com.apptolast.fledge.domain.model.TimeZoneId
+import kotlin.time.Instant
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -11,15 +12,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Instant
 
 object AllowanceSchedule {
-    fun nextRunAt(
-        frequency: AllowanceFrequency,
-        day: AllowanceDay,
-        from: Instant,
-        timeZone: TimeZoneId,
-    ): Instant {
+    fun nextRunAt(frequency: AllowanceFrequency, day: AllowanceDay, from: Instant, timeZone: TimeZoneId): Instant {
         val zone = TimeZone.of(timeZone.value)
         val fromDate = from.toLocalDateTime(zone).date
         val candidate = when (frequency) {
@@ -100,11 +95,7 @@ object AllowanceSchedule {
         else -> error("Invalid month: $month")
     }
 
-    private fun isLeapYear(year: Int): Boolean =
-        year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+    private fun isLeapYear(year: Int): Boolean = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 
-    private data class YearMonth(
-        val year: Int,
-        val month: Int,
-    )
+    private data class YearMonth(val year: Int, val month: Int)
 }

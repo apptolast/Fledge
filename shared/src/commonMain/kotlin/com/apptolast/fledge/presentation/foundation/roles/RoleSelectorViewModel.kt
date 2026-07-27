@@ -47,7 +47,7 @@ class RoleSelectorViewModel(
                 navigationTarget = routeDecider.targetForRole(
                     role = SharedDeviceRole.Child,
                     childProfileId = childProfileId,
-                )
+                ),
             )
         }
     }

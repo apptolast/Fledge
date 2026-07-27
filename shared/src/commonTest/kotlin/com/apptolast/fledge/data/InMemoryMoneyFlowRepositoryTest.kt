@@ -16,9 +16,9 @@ import com.apptolast.fledge.domain.model.TransactionId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlinx.coroutines.test.runTest
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
+import kotlinx.coroutines.test.runTest
 
 class InMemoryMoneyFlowRepositoryTest {
 
@@ -77,22 +77,20 @@ class InMemoryMoneyFlowRepositoryTest {
         assertEquals(TransactionId("transaction-1"), confirmed.settlementTransactionId)
     }
 
-    private fun sampleAllowanceRuleDraft(): AllowanceRuleDraft =
-        AllowanceRuleDraft(
-            familyId = FamilyId("family-1"),
-            childProfileId = ChildProfileId("child-1"),
-            frequency = AllowanceFrequency.Weekly,
-            day = AllowanceDay(1),
-            amountCents = MoneyCents(500),
-            concept = LedgerConcept("Paga semanal"),
-            timeZone = TimeZoneId("Europe/Madrid"),
-        )
+    private fun sampleAllowanceRuleDraft(): AllowanceRuleDraft = AllowanceRuleDraft(
+        familyId = FamilyId("family-1"),
+        childProfileId = ChildProfileId("child-1"),
+        frequency = AllowanceFrequency.Weekly,
+        day = AllowanceDay(1),
+        amountCents = MoneyCents(500),
+        concept = LedgerConcept("Paga semanal"),
+        timeZone = TimeZoneId("Europe/Madrid"),
+    )
 
-    private fun sampleSettlementDraft(): CashOutSettlementDraft =
-        CashOutSettlementDraft(
-            familyId = FamilyId("family-1"),
-            childProfileId = ChildProfileId("child-1"),
-            amountCents = MoneyCents(300),
-            concept = LedgerConcept("Retirada para cromos"),
-        )
+    private fun sampleSettlementDraft(): CashOutSettlementDraft = CashOutSettlementDraft(
+        familyId = FamilyId("family-1"),
+        childProfileId = ChildProfileId("child-1"),
+        amountCents = MoneyCents(300),
+        concept = LedgerConcept("Retirada para cromos"),
+    )
 }
