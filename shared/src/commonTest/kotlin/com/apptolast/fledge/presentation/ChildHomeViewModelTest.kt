@@ -49,7 +49,7 @@ class ChildHomeViewModelTest {
                 amountCents = MoneyCents(500),
                 concept = LedgerConcept("Paga extra"),
                 createdBy = LedgerActor.Parent,
-            )
+            ),
         )
         ledgerRepository.reverseTransaction(
             transactionId = original.id,

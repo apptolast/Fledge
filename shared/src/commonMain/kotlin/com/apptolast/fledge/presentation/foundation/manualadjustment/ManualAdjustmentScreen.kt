@@ -151,10 +151,7 @@ fun ManualAdjustmentContent(
 }
 
 @Composable
-private fun AdjustmentKindChips(
-    selected: ManualAdjustmentKind,
-    onKindSelected: (ManualAdjustmentKind) -> Unit,
-) {
+private fun AdjustmentKindChips(selected: ManualAdjustmentKind, onKindSelected: (ManualAdjustmentKind) -> Unit) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),

@@ -35,17 +35,14 @@ import fledge.shared.generated.resources.pairing_qr_payload
 import fledge.shared.generated.resources.pairing_register_device
 import fledge.shared.generated.resources.pairing_start
 import fledge.shared.generated.resources.pairing_title
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun PairingScreen(
-    childProfileId: ChildProfileId,
-    viewModel: PairingViewModel = koinViewModel(),
-) {
+fun PairingScreen(childProfileId: ChildProfileId, viewModel: PairingViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val defaultDeviceLabel = stringResource(Res.string.pairing_default_device_label)
@@ -164,7 +161,7 @@ fun PreviewPairingContent() {
                     childProfileId = ChildProfileId("child-1"),
                     code = PairingCode("123456"),
                     expiresAt = Clock.System.now().plus(10.minutes),
-                )
+                ),
             ),
             onDeviceLabelChange = {},
             onStartPairing = {},

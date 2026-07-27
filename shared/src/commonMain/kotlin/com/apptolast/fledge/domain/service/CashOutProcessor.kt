@@ -16,10 +16,7 @@ class CashOutProcessor(
     private val moneyFlowRepository: MoneyFlowRepository,
     private val ledgerRepository: LedgerRepository,
 ) {
-    suspend fun requestCashOut(
-        draft: CashOutSettlementDraft,
-        requestedAt: Instant,
-    ): CashOutSettlement {
+    suspend fun requestCashOut(draft: CashOutSettlementDraft, requestedAt: Instant): CashOutSettlement {
         val balance = ledgerRepository.balanceFor(draft.childProfileId, VirtualAccountType.Main)
         require(balance.value >= draft.amountCents.value) {
             "Cash-out amount cannot exceed the main balance."
@@ -30,16 +27,10 @@ class CashOutProcessor(
         )
     }
 
-    suspend fun markPaidByParent(
-        settlementId: SettlementId,
-        paidAt: Instant,
-    ): CashOutSettlement =
+    suspend fun markPaidByParent(settlementId: SettlementId, paidAt: Instant): CashOutSettlement =
         moneyFlowRepository.markSettlementPaidByParent(settlementId, paidAt)
 
-    suspend fun confirmByChild(
-        settlementId: SettlementId,
-        confirmedAt: Instant,
-    ): CashOutSettlement {
+    suspend fun confirmByChild(settlementId: SettlementId, confirmedAt: Instant): CashOutSettlement {
         val settlement = requireNotNull(moneyFlowRepository.settlementById(settlementId)) {
             "Settlement does not exist."
         }
@@ -55,7 +46,7 @@ class CashOutProcessor(
                 amountCents = settlement.amountCents.reversed(),
                 concept = settlement.concept,
                 createdBy = LedgerActor.Child,
-            )
+            ),
         )
         return moneyFlowRepository.markSettlementConfirmedByChild(
             settlementId = settlementId,

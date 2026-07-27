@@ -29,10 +29,10 @@ import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.navigation.FoundationNavigationTarget
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
+import fledge.shared.generated.resources.role_body
 import fledge.shared.generated.resources.role_child_card_subtitle
 import fledge.shared.generated.resources.role_child_profiles
 import fledge.shared.generated.resources.role_no_children
-import fledge.shared.generated.resources.role_body
 import fledge.shared.generated.resources.role_parent
 import fledge.shared.generated.resources.role_title
 import org.jetbrains.compose.resources.stringResource
@@ -124,10 +124,7 @@ fun RoleSelectorContent(
 }
 
 @Composable
-private fun ChildRoleCard(
-    child: ChildProfile,
-    onClick: () -> Unit,
-) {
+private fun ChildRoleCard(child: ChildProfile, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -177,7 +174,7 @@ fun PreviewRoleSelectorContent() {
                         birthYear = 2015,
                         avatarKey = "star",
                     ),
-                )
+                ),
             ),
             onParentSelected = {},
             onChildSelected = {},

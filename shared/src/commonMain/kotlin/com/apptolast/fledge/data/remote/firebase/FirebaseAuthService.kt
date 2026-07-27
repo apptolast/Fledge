@@ -13,35 +13,22 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 
-class FirebaseAuthService(
-    private val client: HttpClient,
-    private val json: Json,
-) {
-    suspend fun signInWithPassword(
-        email: String,
-        password: String,
-    ): FirebaseSignInResponse =
+class FirebaseAuthService(private val client: HttpClient, private val json: Json) {
+    suspend fun signInWithPassword(email: String, password: String): FirebaseSignInResponse =
         client.post("${FirebaseConfig.IDENTITY_TOOLKIT}/accounts:signInWithPassword") {
             url { parameters.append("key", FirebaseConfig.apiKey) }
             contentType(ContentType.Application.Json)
             setBody(FirebaseSignInRequest(email, password, returnSecureToken = true))
         }.decodeOrThrow()
 
-    suspend fun signUp(
-        email: String,
-        password: String,
-    ): FirebaseSignInResponse =
+    suspend fun signUp(email: String, password: String): FirebaseSignInResponse =
         client.post("${FirebaseConfig.IDENTITY_TOOLKIT}/accounts:signUp") {
             url { parameters.append("key", FirebaseConfig.apiKey) }
             contentType(ContentType.Application.Json)
             setBody(FirebaseSignInRequest(email, password, returnSecureToken = true))
         }.decodeOrThrow()
 
-    suspend fun signInWithIdp(
-        providerId: String,
-        idToken: String,
-        rawNonce: String? = null,
-    ): FirebaseSignInResponse {
+    suspend fun signInWithIdp(providerId: String, idToken: String, rawNonce: String? = null): FirebaseSignInResponse {
         val postBody = buildString {
             append("id_token=").append(idToken)
             append("&providerId=").append(providerId)
@@ -58,7 +45,7 @@ class FirebaseAuthService(
                     requestUri = "http://localhost",
                     returnSecureToken = true,
                     returnIdpCredential = true,
-                )
+                ),
             )
         }.decodeOrThrow()
     }
@@ -71,10 +58,7 @@ class FirebaseAuthService(
         }.decodeUnitOrThrow()
     }
 
-    suspend fun confirmPasswordReset(
-        code: String,
-        newPassword: String,
-    ) {
+    suspend fun confirmPasswordReset(code: String, newPassword: String) {
         client.post("${FirebaseConfig.IDENTITY_TOOLKIT}/accounts:resetPassword") {
             url { parameters.append("key", FirebaseConfig.apiKey) }
             contentType(ContentType.Application.Json)
@@ -90,10 +74,7 @@ class FirebaseAuthService(
         }.decodeUnitOrThrow()
     }
 
-    suspend fun updateProfile(
-        idToken: String,
-        displayName: String,
-    ) {
+    suspend fun updateProfile(idToken: String, displayName: String) {
         client.post("${FirebaseConfig.IDENTITY_TOOLKIT}/accounts:update") {
             url { parameters.append("key", FirebaseConfig.apiKey) }
             contentType(ContentType.Application.Json)
@@ -101,20 +82,14 @@ class FirebaseAuthService(
         }.decodeUnitOrThrow()
     }
 
-    suspend fun updateEmail(
-        idToken: String,
-        email: String,
-    ): FirebaseSignInResponse =
+    suspend fun updateEmail(idToken: String, email: String): FirebaseSignInResponse =
         client.post("${FirebaseConfig.IDENTITY_TOOLKIT}/accounts:update") {
             url { parameters.append("key", FirebaseConfig.apiKey) }
             contentType(ContentType.Application.Json)
             setBody(FirebaseUpdateEmailRequest(idToken = idToken, email = email, returnSecureToken = true))
         }.decodeOrThrow()
 
-    suspend fun updatePassword(
-        idToken: String,
-        password: String,
-    ): FirebaseSignInResponse =
+    suspend fun updatePassword(idToken: String, password: String): FirebaseSignInResponse =
         client.post("${FirebaseConfig.IDENTITY_TOOLKIT}/accounts:update") {
             url { parameters.append("key", FirebaseConfig.apiKey) }
             contentType(ContentType.Application.Json)
@@ -129,16 +104,15 @@ class FirebaseAuthService(
         }.decodeUnitOrThrow()
     }
 
-    suspend fun refreshIdToken(refreshToken: String): FirebaseRefreshResponse =
-        client.submitForm(
-            url = "${FirebaseConfig.SECURE_TOKEN}/token",
-            formParameters = Parameters.build {
-                append("grant_type", "refresh_token")
-                append("refresh_token", refreshToken)
-            },
-        ) {
-            url { parameters.append("key", FirebaseConfig.apiKey) }
-        }.decodeOrThrow()
+    suspend fun refreshIdToken(refreshToken: String): FirebaseRefreshResponse = client.submitForm(
+        url = "${FirebaseConfig.SECURE_TOKEN}/token",
+        formParameters = Parameters.build {
+            append("grant_type", "refresh_token")
+            append("refresh_token", refreshToken)
+        },
+    ) {
+        url { parameters.append("key", FirebaseConfig.apiKey) }
+    }.decodeOrThrow()
 
     private suspend inline fun <reified T> HttpResponse.decodeOrThrow(): T {
         if (status.isSuccess()) return body()
@@ -165,7 +139,4 @@ class FirebaseAuthService(
     }
 }
 
-class FirebaseAuthException(
-    val code: String,
-    override val message: String,
-) : Exception(message)
+class FirebaseAuthException(val code: String, override val message: String) : Exception(message)

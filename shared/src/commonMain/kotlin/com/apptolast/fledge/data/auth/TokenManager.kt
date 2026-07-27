@@ -41,11 +41,7 @@ class TokenManager(
         return nowMillis() >= expiresAt - REFRESH_BUFFER_MS
     }
 
-    fun saveTokens(
-        access: String,
-        refresh: String,
-        expiresInSeconds: Long,
-    ) {
+    fun saveTokens(access: String, refresh: String, expiresInSeconds: Long) {
         accessToken = access
         refreshToken = refresh
         accessTokenExpiresAt = nowMillis() + expiresInSeconds * 1_000L

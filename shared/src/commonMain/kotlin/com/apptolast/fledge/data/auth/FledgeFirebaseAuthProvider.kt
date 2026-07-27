@@ -14,10 +14,10 @@ import com.apptolast.fledge.data.remote.firebase.FirebaseAuthService
 import com.apptolast.fledge.data.remote.firebase.FirebaseIdToken
 import com.apptolast.fledge.data.remote.firebase.FirebaseRefreshResponse
 import com.apptolast.fledge.data.remote.firebase.FirebaseSignInResponse
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalTime::class)
 class FledgeFirebaseAuthProvider(
@@ -30,7 +30,7 @@ class FledgeFirebaseAuthProvider(
 
     private var currentSession: UserSession? = restoreSession()
     private val authState = MutableStateFlow<AuthState>(
-        currentSession?.let(AuthState::Authenticated) ?: AuthState.Unauthenticated
+        currentSession?.let(AuthState::Authenticated) ?: AuthState.Unauthenticated,
     )
 
     override suspend fun signIn(credentials: Credentials): AuthResult = when (credentials) {
@@ -69,10 +69,7 @@ class FledgeFirebaseAuthProvider(
         AuthResult.PasswordResetSent
     }
 
-    override suspend fun confirmPasswordReset(
-        code: String,
-        newPassword: String,
-    ): AuthResult = runAuth {
+    override suspend fun confirmPasswordReset(code: String, newPassword: String): AuthResult = runAuth {
         authService.confirmPasswordReset(code, newPassword)
         AuthResult.PasswordResetSuccess
     }
@@ -132,21 +129,12 @@ class FledgeFirebaseAuthProvider(
     override suspend fun sendPhoneOtp(phoneNumber: String): PhoneAuthResult =
         PhoneAuthResult.Failure(AuthError.OperationNotAllowed(DISABLED_PROVIDER_MESSAGE))
 
-    override suspend fun verifyPhoneOtp(
-        verificationId: String,
-        otpCode: String,
-    ): AuthResult = unsupportedProvider()
+    override suspend fun verifyPhoneOtp(verificationId: String, otpCode: String): AuthResult = unsupportedProvider()
 
-    override suspend fun sendMagicLink(
-        email: String,
-        continueUrl: String,
-        iosBundleId: String?,
-    ): AuthResult = unsupportedProvider()
+    override suspend fun sendMagicLink(email: String, continueUrl: String, iosBundleId: String?): AuthResult =
+        unsupportedProvider()
 
-    override suspend fun signInWithMagicLink(
-        email: String,
-        link: String,
-    ): AuthResult = unsupportedProvider()
+    override suspend fun signInWithMagicLink(email: String, link: String): AuthResult = unsupportedProvider()
 
     private suspend fun signInWithOAuth(provider: IdentityProvider): AuthResult = runAuth {
         val social = when (provider) {
@@ -264,12 +252,11 @@ class FledgeFirebaseAuthProvider(
     private fun unsupportedProvider(): AuthResult =
         AuthResult.Failure(AuthError.OperationNotAllowed(DISABLED_PROVIDER_MESSAGE))
 
-    private suspend fun runAuth(block: suspend () -> AuthResult): AuthResult =
-        try {
-            block()
-        } catch (e: Throwable) {
-            AuthResult.Failure(e.toAuthError())
-        }
+    private suspend fun runAuth(block: suspend () -> AuthResult): AuthResult = try {
+        block()
+    } catch (e: Throwable) {
+        AuthResult.Failure(e.toAuthError())
+    }
 
     private fun FirebaseSignInResponse.toSession(
         providerId: String,
@@ -333,8 +320,12 @@ class FledgeFirebaseAuthProvider(
         "WEAK_PASSWORD" -> AuthError.WeakPassword("La contrasena es demasiado debil.")
         "INVALID_EMAIL", "MISSING_EMAIL" -> AuthError.InvalidEmail("El email no tiene un formato valido.")
         "TOO_MANY_ATTEMPTS_TRY_LATER" -> AuthError.TooManyRequests("Demasiados intentos. Pruebalo mas tarde.")
-        "INVALID_OOB_CODE", "EXPIRED_OOB_CODE" -> AuthError.InvalidResetCode("El codigo de recuperacion no es valido o ha caducado.")
-        "TOKEN_EXPIRED", "USER_TOKEN_EXPIRED", "INVALID_REFRESH_TOKEN" -> AuthError.SessionExpired("La sesion ha caducado.")
+        "INVALID_OOB_CODE", "EXPIRED_OOB_CODE" -> AuthError.InvalidResetCode(
+            "El codigo de recuperacion no es valido o ha caducado.",
+        )
+        "TOKEN_EXPIRED", "USER_TOKEN_EXPIRED", "INVALID_REFRESH_TOKEN" -> AuthError.SessionExpired(
+            "La sesion ha caducado.",
+        )
         "OPERATION_NOT_ALLOWED" -> AuthError.OperationNotAllowed("Este proveedor no esta habilitado en Firebase.")
         else -> AuthError.Unknown(message, this)
     }

@@ -89,14 +89,13 @@ class CashOutRequestViewModelTest {
             )
         }
 
-    private fun sampleLedgerDraft(amountCents: MoneyCents): LedgerTransactionDraft =
-        LedgerTransactionDraft(
-            familyId = com.apptolast.fledge.domain.model.FamilyId("family-1"),
-            childProfileId = com.apptolast.fledge.domain.model.ChildProfileId("child-1"),
-            accountType = VirtualAccountType.Main,
-            type = LedgerTransactionType.Bonus,
-            amountCents = amountCents,
-            concept = LedgerConcept("Saldo inicial"),
-            createdBy = LedgerActor.Parent,
-        )
+    private fun sampleLedgerDraft(amountCents: MoneyCents): LedgerTransactionDraft = LedgerTransactionDraft(
+        familyId = com.apptolast.fledge.domain.model.FamilyId("family-1"),
+        childProfileId = com.apptolast.fledge.domain.model.ChildProfileId("child-1"),
+        accountType = VirtualAccountType.Main,
+        type = LedgerTransactionType.Bonus,
+        amountCents = amountCents,
+        concept = LedgerConcept("Saldo inicial"),
+        createdBy = LedgerActor.Parent,
+    )
 }

@@ -21,9 +21,9 @@ import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetScreen
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinScreen
 import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupScreen
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupScreen
+import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentScreen
 import com.apptolast.fledge.presentation.foundation.onboarding.OnboardingScreen
 import com.apptolast.fledge.presentation.foundation.pairing.PairingScreen
-import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentScreen
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateScreen
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
@@ -50,10 +50,10 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                     when (target) {
                         FoundationNavigationTarget.ParentAuth -> navController.navigate(AuthRoutesFlow)
                         is FoundationNavigationTarget.ChildPin -> navController.navigate(
-                            ChildPinRoute(target.childProfileId.value)
+                            ChildPinRoute(target.childProfileId.value),
                         )
                     }
-                }
+                },
             )
         }
         authRoutesFlow(
@@ -144,7 +144,7 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                         }
                         else -> navController.popBackStack()
                     }
-                }
+                },
             )
         }
         composable<ChildHomeRoute> { backStackEntry ->

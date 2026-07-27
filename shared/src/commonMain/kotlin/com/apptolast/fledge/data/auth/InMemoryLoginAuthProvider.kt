@@ -63,9 +63,8 @@ class InMemoryLoginAuthProvider : AuthProvider {
 
     override suspend fun getCurrentSession(): UserSession? = currentSession
 
-    override suspend fun refreshSession(): AuthResult =
-        currentSession?.let(AuthResult::Success)
-            ?: AuthResult.Failure(AuthError.SessionExpired("No hay una sesión local activa."))
+    override suspend fun refreshSession(): AuthResult = currentSession?.let(AuthResult::Success)
+        ?: AuthResult.Failure(AuthError.SessionExpired("No hay una sesión local activa."))
 
     override suspend fun isSignedIn(): Boolean = currentSession != null
 
@@ -96,11 +95,8 @@ class InMemoryLoginAuthProvider : AuthProvider {
 
     override suspend fun verifyPhoneOtp(verificationId: String, otpCode: String): AuthResult = unsupportedProvider()
 
-    override suspend fun sendMagicLink(
-        email: String,
-        continueUrl: String,
-        iosBundleId: String?,
-    ): AuthResult = unsupportedProvider()
+    override suspend fun sendMagicLink(email: String, continueUrl: String, iosBundleId: String?): AuthResult =
+        unsupportedProvider()
 
     override suspend fun signInWithMagicLink(email: String, link: String): AuthResult = unsupportedProvider()
 
@@ -141,12 +137,11 @@ class InMemoryLoginAuthProvider : AuthProvider {
         return Result.success(Unit)
     }
 
-    private fun requireSession(): Result<Unit> =
-        if (currentSession == null) {
-            noActiveSession()
-        } else {
-            Result.success(Unit)
-        }
+    private fun requireSession(): Result<Unit> = if (currentSession == null) {
+        noActiveSession()
+    } else {
+        Result.success(Unit)
+    }
 
     private fun noActiveSession(): Result<Unit> =
         Result.failure(IllegalStateException("No hay una sesión local activa."))
@@ -159,14 +154,13 @@ class InMemoryLoginAuthProvider : AuthProvider {
 
     private fun String.normalizedEmail(): String = trim().lowercase()
 
-    private fun String.toStableId(): String =
-        map { char ->
-            when {
-                char in 'a'..'z' -> char
-                char in '0'..'9' -> char
-                else -> '-'
-            }
-        }.joinToString(separator = "").trim('-').ifBlank { "user" }
+    private fun String.toStableId(): String = map { char ->
+        when {
+            char in 'a'..'z' -> char
+            char in '0'..'9' -> char
+            else -> '-'
+        }
+    }.joinToString(separator = "").trim('-').ifBlank { "user" }
 
     companion object {
         const val PROVIDER_ID = "fledge-in-memory"

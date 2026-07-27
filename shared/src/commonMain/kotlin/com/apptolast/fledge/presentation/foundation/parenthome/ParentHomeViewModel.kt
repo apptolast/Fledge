@@ -16,11 +16,11 @@ import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SettlementReminderPolicy
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
 
 data class ParentHomeUiState(
     val children: List<ChildProfile> = emptyList(),
@@ -42,7 +42,7 @@ class ParentHomeViewModel(
         ParentHomeUiState(
             children = repository.children.value,
             currencyCode = repository.activeFamily.value?.currency?.value ?: "EUR",
-        ).withBalances()
+        ).withBalances(),
     )
     val uiState: StateFlow<ParentHomeUiState> = mutableUiState
 
@@ -80,19 +80,16 @@ class ParentHomeViewModel(
         mutableUiState.update { it.withSettlements(moneyFlowRepository.settlements.value) }
     }
 
-    private fun ParentHomeUiState.withBalances(): ParentHomeUiState =
-        copy(
-            mainBalances = children.associate { child ->
-                child.id to ledgerRepository.balancesFor(child.id).main
-            },
-            goalBalances = children.associate { child ->
-                child.id to ledgerRepository.balancesFor(child.id).goal
-            },
-        )
+    private fun ParentHomeUiState.withBalances(): ParentHomeUiState = copy(
+        mainBalances = children.associate { child ->
+            child.id to ledgerRepository.balancesFor(child.id).main
+        },
+        goalBalances = children.associate { child ->
+            child.id to ledgerRepository.balancesFor(child.id).goal
+        },
+    )
 
-    private fun ParentHomeUiState.withSettlements(
-        settlements: List<CashOutSettlement>,
-    ): ParentHomeUiState {
+    private fun ParentHomeUiState.withSettlements(settlements: List<CashOutSettlement>): ParentHomeUiState {
         val pending = settlements.filter { it.status != SettlementStatus.ConfirmedByChild }
         return copy(
             pendingSettlements = pending,

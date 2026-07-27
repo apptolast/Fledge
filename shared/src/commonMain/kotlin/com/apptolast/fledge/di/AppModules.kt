@@ -18,13 +18,12 @@ import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
-import com.apptolast.fledge.presentation.initialFledgeLoginConfig
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleViewModel
 import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestViewModel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetViewModel
-import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
+import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupViewModel
 import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentViewModel
 import com.apptolast.fledge.presentation.foundation.pairing.PairingViewModel
@@ -32,6 +31,7 @@ import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateVie
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
+import com.apptolast.fledge.presentation.initialFledgeLoginConfig
 import kotlinx.serialization.json.Json
 import org.koin.core.context.loadKoinModules
 import org.koin.core.context.startKoin
@@ -80,14 +80,13 @@ val presentationModule = module {
 
 expect val platformModule: Module
 
-internal fun fledgeModules(platform: Module): List<Module> =
-    listOf(
-        loginConfigModule(initialFledgeLoginConfig()),
-        dataModule,
-        loginPresentationModule,
-        presentationModule,
-        platform,
-    )
+internal fun fledgeModules(platform: Module): List<Module> = listOf(
+    loginConfigModule(initialFledgeLoginConfig()),
+    dataModule,
+    loginPresentationModule,
+    presentationModule,
+    platform,
+)
 
 fun initFledgeKoin(appDeclaration: KoinAppDeclaration? = null) {
     val modules = fledgeModules(platformModule)

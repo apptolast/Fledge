@@ -1,8 +1,8 @@
 package com.apptolast.fledge.domain.model
 
-import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 import kotlin.time.Instant
+import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
@@ -75,11 +75,7 @@ data class LedgerTransaction(
 )
 
 @Serializable
-data class ChildLedgerBalances(
-    val childProfileId: ChildProfileId,
-    val main: BalanceCents,
-    val goal: BalanceCents,
-)
+data class ChildLedgerBalances(val childProfileId: ChildProfileId, val main: BalanceCents, val goal: BalanceCents)
 
 data class LedgerTransactionDraft(
     val familyId: FamilyId,

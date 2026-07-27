@@ -9,16 +9,10 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 object SettlementReminderPolicy {
-    fun remindersFor(
-        settlements: List<CashOutSettlement>,
-        now: Instant,
-    ): List<SettlementReminder> =
+    fun remindersFor(settlements: List<CashOutSettlement>, now: Instant): List<SettlementReminder> =
         settlements.mapNotNull { settlement -> reminderFor(settlement, now) }
 
-    private fun reminderFor(
-        settlement: CashOutSettlement,
-        now: Instant,
-    ): SettlementReminder? {
+    private fun reminderFor(settlement: CashOutSettlement, now: Instant): SettlementReminder? {
         val reference = when (settlement.status) {
             SettlementStatus.Requested -> settlement.requestedAt
             SettlementStatus.PaidByParent -> settlement.paidByParentAt

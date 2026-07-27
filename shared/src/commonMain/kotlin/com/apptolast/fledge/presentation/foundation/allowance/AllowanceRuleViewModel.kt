@@ -14,10 +14,10 @@ import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.service.AllowanceSchedule
 import com.apptolast.fledge.presentation.foundation.manualadjustment.parseAmountCents
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlin.time.Clock
 
 data class AllowanceRuleUiState(
     val child: ChildProfile? = null,

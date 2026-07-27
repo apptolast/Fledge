@@ -33,10 +33,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun FamilySetupScreen(
-    onFamilyCreated: () -> Unit,
-    viewModel: FamilySetupViewModel = koinViewModel(),
-) {
+fun FamilySetupScreen(onFamilyCreated: () -> Unit, viewModel: FamilySetupViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 

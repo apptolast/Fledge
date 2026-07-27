@@ -55,11 +55,7 @@ fun ChildPinResetScreen(
 }
 
 @Composable
-fun ChildPinResetContent(
-    state: ChildPinResetUiState,
-    onPinChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-) {
+fun ChildPinResetContent(state: ChildPinResetUiState, onPinChange: (String) -> Unit, onSubmit: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize(),

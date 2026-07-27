@@ -7,15 +7,15 @@ import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.TimeZoneId
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.test.runTest
 
 class InMemoryFamilyFoundationRepositoryTest {

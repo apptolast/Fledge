@@ -1,8 +1,8 @@
 package com.apptolast.fledge.domain.repository
 
+import com.apptolast.fledge.domain.model.ChildDevice
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildPinPolicy
-import com.apptolast.fledge.domain.model.ChildDevice
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.ChildSession
@@ -26,11 +26,7 @@ interface FamilyFoundationRepository {
     val virtualMoneyConsent: StateFlow<VirtualMoneyConsent?>
     val parentalGateRequest: StateFlow<ParentalGateRequest?>
 
-    suspend fun createFamily(
-        name: String,
-        currency: CurrencyCode,
-        timeZone: TimeZoneId,
-    ): Family
+    suspend fun createFamily(name: String, currency: CurrencyCode, timeZone: TimeZoneId): Family
 
     suspend fun addChildProfile(
         familyId: FamilyId,

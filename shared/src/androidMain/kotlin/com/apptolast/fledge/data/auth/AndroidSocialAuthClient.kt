@@ -29,9 +29,7 @@ object SocialAuthActivityHolder {
         ?: throw SocialAuthUnavailableException("No hay una pantalla activa para iniciar sesion.")
 }
 
-class AndroidSocialAuthClient(
-    appContext: Context,
-) : SocialAuthClient {
+class AndroidSocialAuthClient(appContext: Context) : SocialAuthClient {
     private val credentialManager = CredentialManager.create(appContext)
     private val webClientId: String = BuildKonfig.GOOGLE_WEB_CLIENT_ID
 

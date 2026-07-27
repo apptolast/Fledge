@@ -24,7 +24,7 @@ class AllowanceProcessor(
                     amountCents = rule.amountCents,
                     concept = rule.concept,
                     createdBy = LedgerActor.System,
-                )
+                ),
             )
             val nextRunAt = AllowanceSchedule.nextRunAtAfter(
                 previousRunAt = rule.nextRunAt,

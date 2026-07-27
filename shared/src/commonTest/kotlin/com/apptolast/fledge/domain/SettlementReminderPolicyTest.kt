@@ -49,7 +49,7 @@ class SettlementReminderPolicyTest {
                     requestedAt = requestedAt,
                     status = SettlementStatus.PaidByParent,
                     paidByParentAt = paidAt,
-                )
+                ),
             ),
             now = paidAt + 14.days,
         )
@@ -74,7 +74,7 @@ class SettlementReminderPolicyTest {
                     paidByParentAt = requestedAt + 1.days,
                     confirmedByChildAt = requestedAt + 2.days,
                     settlementTransactionId = TransactionId("transaction-1"),
-                )
+                ),
             ),
             now = requestedAt + 30.days,
         )
@@ -89,17 +89,16 @@ class SettlementReminderPolicyTest {
         paidByParentAt: Instant? = null,
         confirmedByChildAt: Instant? = null,
         settlementTransactionId: TransactionId? = null,
-    ): CashOutSettlement =
-        CashOutSettlement(
-            id = SettlementId("settlement-1"),
-            familyId = FamilyId("family-1"),
-            childProfileId = ChildProfileId("child-1"),
-            amountCents = MoneyCents(300),
-            concept = LedgerConcept("Retirada"),
-            status = status,
-            requestedAt = requestedAt,
-            paidByParentAt = paidByParentAt,
-            confirmedByChildAt = confirmedByChildAt,
-            settlementTransactionId = settlementTransactionId,
-        )
+    ): CashOutSettlement = CashOutSettlement(
+        id = SettlementId("settlement-1"),
+        familyId = FamilyId("family-1"),
+        childProfileId = ChildProfileId("child-1"),
+        amountCents = MoneyCents(300),
+        concept = LedgerConcept("Retirada"),
+        status = status,
+        requestedAt = requestedAt,
+        paidByParentAt = paidByParentAt,
+        confirmedByChildAt = confirmedByChildAt,
+        settlementTransactionId = settlementTransactionId,
+    )
 }

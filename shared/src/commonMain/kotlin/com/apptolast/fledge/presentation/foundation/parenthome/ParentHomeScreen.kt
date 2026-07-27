@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.CashOutSettlement
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
@@ -31,7 +32,6 @@ import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.MoneyCents
-import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementReminderAudience
 import com.apptolast.fledge.domain.model.SettlementReminderLevel
@@ -46,15 +46,15 @@ import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
 import fledge.shared.generated.resources.empty_children
+import fledge.shared.generated.resources.parent_home_add_child
 import fledge.shared.generated.resources.parent_home_adjustment
 import fledge.shared.generated.resources.parent_home_allowance
 import fledge.shared.generated.resources.parent_home_balance
 import fledge.shared.generated.resources.parent_home_balance_zero
 import fledge.shared.generated.resources.parent_home_children
-import fledge.shared.generated.resources.parent_home_add_child
-import fledge.shared.generated.resources.parent_home_goal_balance
 import fledge.shared.generated.resources.parent_home_gate
 import fledge.shared.generated.resources.parent_home_gate_setup
+import fledge.shared.generated.resources.parent_home_goal_balance
 import fledge.shared.generated.resources.parent_home_main_balance
 import fledge.shared.generated.resources.parent_home_pairing
 import fledge.shared.generated.resources.parent_home_settlements_empty
@@ -275,7 +275,7 @@ private fun ChildProfileRow(
                 onClick = { onAdjustChild(child.id) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                    Text(stringResource(Res.string.parent_home_adjustment))
+                Text(stringResource(Res.string.parent_home_adjustment))
             }
         }
     }
@@ -354,10 +354,7 @@ private fun formatCents(value: Long, currencyCode: String): String {
 }
 
 @Composable
-private fun SetupActionRow(
-    action: SetupAction,
-    onRequireParentalGate: (FoundationAction) -> Unit,
-) {
+private fun SetupActionRow(action: SetupAction, onRequireParentalGate: (FoundationAction) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -392,7 +389,7 @@ fun PreviewParentHomeContent() {
                         displayName = "Lucas",
                         birthYear = 2017,
                         avatarKey = "rocket",
-                    )
+                    ),
                 ),
                 pendingSettlements = listOf(
                     CashOutSettlement(
@@ -403,7 +400,7 @@ fun PreviewParentHomeContent() {
                         concept = LedgerConcept("Cromos"),
                         status = SettlementStatus.Requested,
                         requestedAt = kotlin.time.Clock.System.now(),
-                    )
+                    ),
                 ),
             ),
             onPairChild = {},

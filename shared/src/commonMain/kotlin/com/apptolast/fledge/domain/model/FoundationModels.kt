@@ -1,9 +1,9 @@
 package com.apptolast.fledge.domain.model
 
-import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
@@ -76,27 +76,17 @@ data class ChildProfile(
 )
 
 @Serializable
-data class ChildPinPolicy(
-    val timeoutMinutes: Int = 15,
-) {
+data class ChildPinPolicy(val timeoutMinutes: Int = 15) {
     init {
         require(timeoutMinutes in 1..240) { "Child PIN timeout must be between 1 and 240 minutes." }
     }
 }
 
 @Serializable
-data class ChildSession(
-    val childProfileId: ChildProfileId,
-    val unlockedAt: Instant,
-    val expiresAt: Instant,
-)
+data class ChildSession(val childProfileId: ChildProfileId, val unlockedAt: Instant, val expiresAt: Instant)
 
 @Serializable
-data class PairingSession(
-    val childProfileId: ChildProfileId,
-    val code: PairingCode,
-    val expiresAt: Instant,
-)
+data class PairingSession(val childProfileId: ChildProfileId, val code: PairingCode, val expiresAt: Instant)
 
 @Serializable
 data class ChildDevice(
@@ -109,10 +99,7 @@ data class ChildDevice(
 )
 
 @Serializable
-data class VirtualMoneyConsent(
-    val acceptedAt: Instant,
-    val disclosureVersion: String,
-)
+data class VirtualMoneyConsent(val acceptedAt: Instant, val disclosureVersion: String)
 
 @Serializable
 enum class SharedDeviceRole {
@@ -142,13 +129,7 @@ sealed interface FoundationAction {
 }
 
 @Serializable
-data class ParentalGateRequest(
-    val action: FoundationAction,
-    val requestedAt: Instant = Clock.System.now(),
-)
+data class ParentalGateRequest(val action: FoundationAction, val requestedAt: Instant = Clock.System.now())
 
 @Serializable
-data class SetupAction(
-    val id: String,
-    val label: String,
-)
+data class SetupAction(val id: String, val label: String)

@@ -1,9 +1,9 @@
 package com.apptolast.fledge.data.repository
 
+import com.apptolast.fledge.domain.model.ChildDevice
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildPinHash
 import com.apptolast.fledge.domain.model.ChildPinPolicy
-import com.apptolast.fledge.domain.model.ChildDevice
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.ChildSession
@@ -19,8 +19,8 @@ import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.security.Sha256
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -45,11 +45,7 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
     override val virtualMoneyConsent: StateFlow<VirtualMoneyConsent?> = mutableVirtualMoneyConsent
     override val parentalGateRequest: StateFlow<ParentalGateRequest?> = mutableParentalGateRequest
 
-    override suspend fun createFamily(
-        name: String,
-        currency: CurrencyCode,
-        timeZone: TimeZoneId,
-    ): Family {
+    override suspend fun createFamily(name: String, currency: CurrencyCode, timeZone: TimeZoneId): Family {
         require(mutableActiveFamily.value == null) {
             "Family money settings are locked after creation."
         }

@@ -16,9 +16,9 @@ object Sha256 {
                 val offset = blockOffset + index * 4
                 schedule[index] =
                     ((padded[offset].toInt() and 0xff) shl 24) or
-                        ((padded[offset + 1].toInt() and 0xff) shl 16) or
-                        ((padded[offset + 2].toInt() and 0xff) shl 8) or
-                        (padded[offset + 3].toInt() and 0xff)
+                    ((padded[offset + 1].toInt() and 0xff) shl 16) or
+                    ((padded[offset + 2].toInt() and 0xff) shl 8) or
+                    (padded[offset + 3].toInt() and 0xff)
             }
 
             for (index in 16 until 64) {

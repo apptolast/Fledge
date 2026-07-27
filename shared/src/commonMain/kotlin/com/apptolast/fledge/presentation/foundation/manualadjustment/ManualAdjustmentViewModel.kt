@@ -111,7 +111,7 @@ class ManualAdjustmentViewModel(
                 amountCents = MoneyCents(signedAmount),
                 concept = LedgerConcept(concept),
                 createdBy = LedgerActor.Parent,
-            )
+            ),
         )
         mutableUiState.update { it.copy(error = null, savedTransaction = transaction) }
         return true

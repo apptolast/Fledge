@@ -4,9 +4,9 @@ import app.cash.turbine.test
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
 import com.apptolast.fledge.data.repository.InMemoryMoneyFlowRepository
+import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.CurrencyCode
-import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
@@ -47,7 +47,7 @@ class ParentHomeViewModelTest {
                 amountCents = MoneyCents(500),
                 concept = LedgerConcept("Paga extra"),
                 createdBy = LedgerActor.Parent,
-            )
+            ),
         )
         val viewModel = ParentHomeViewModel(
             repository,

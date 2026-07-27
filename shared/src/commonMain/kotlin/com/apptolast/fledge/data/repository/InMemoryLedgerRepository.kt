@@ -8,7 +8,6 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
-import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.repository.LedgerRepository
@@ -69,10 +68,7 @@ class InMemoryLedgerRepository : LedgerRepository {
     override fun transactionsFor(childProfileId: ChildProfileId): List<LedgerTransaction> =
         mutableTransactions.value.filter { it.childProfileId == childProfileId }
 
-    override fun balanceFor(
-        childProfileId: ChildProfileId,
-        accountType: VirtualAccountType,
-    ): BalanceCents {
+    override fun balanceFor(childProfileId: ChildProfileId, accountType: VirtualAccountType): BalanceCents {
         val sum = mutableTransactions.value
             .asSequence()
             .filter { it.childProfileId == childProfileId && it.accountType == accountType }
@@ -81,17 +77,15 @@ class InMemoryLedgerRepository : LedgerRepository {
         return BalanceCents(sum)
     }
 
-    override fun balancesFor(childProfileId: ChildProfileId): ChildLedgerBalances =
-        ChildLedgerBalances(
-            childProfileId = childProfileId,
-            main = balanceFor(childProfileId, VirtualAccountType.Main),
-            goal = balanceFor(childProfileId, VirtualAccountType.Goal),
-        )
+    override fun balancesFor(childProfileId: ChildProfileId): ChildLedgerBalances = ChildLedgerBalances(
+        childProfileId = childProfileId,
+        main = balanceFor(childProfileId, VirtualAccountType.Main),
+        goal = balanceFor(childProfileId, VirtualAccountType.Goal),
+    )
 
     private fun appendOnly(transaction: LedgerTransaction) {
         mutableTransactions.value = mutableTransactions.value + transaction
     }
 
-    private fun nextTransactionId(): TransactionId =
-        TransactionId("transaction-${transactionCounter++}")
+    private fun nextTransactionId(): TransactionId = TransactionId("transaction-${transactionCounter++}")
 }

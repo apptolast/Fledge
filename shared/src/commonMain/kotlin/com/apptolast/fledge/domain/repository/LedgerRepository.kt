@@ -1,8 +1,8 @@
 package com.apptolast.fledge.domain.repository
 
-import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.ChildLedgerBalances
+import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
@@ -24,10 +24,7 @@ interface LedgerRepository {
 
     fun transactionsFor(childProfileId: ChildProfileId): List<LedgerTransaction>
 
-    fun balanceFor(
-        childProfileId: ChildProfileId,
-        accountType: VirtualAccountType,
-    ): BalanceCents
+    fun balanceFor(childProfileId: ChildProfileId, accountType: VirtualAccountType): BalanceCents
 
     fun balancesFor(childProfileId: ChildProfileId): ChildLedgerBalances
 }

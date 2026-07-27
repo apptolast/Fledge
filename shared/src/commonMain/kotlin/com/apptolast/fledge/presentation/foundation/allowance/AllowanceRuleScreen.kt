@@ -165,10 +165,7 @@ fun AllowanceRuleContent(
 }
 
 @Composable
-private fun FrequencyChips(
-    selected: AllowanceFrequency,
-    onFrequencySelected: (AllowanceFrequency) -> Unit,
-) {
+private fun FrequencyChips(selected: AllowanceFrequency, onFrequencySelected: (AllowanceFrequency) -> Unit) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),
