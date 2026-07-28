@@ -238,11 +238,15 @@ Feature: Integración del SDK GitLive Firestore en Fledge
 
   # ---------- Verificable por build + smoke manual ----------
 
+  # Reformulado en /implement (2026-07-28): la redaccion original exigia que "el log de arranque
+  # reporte el estado del bootstrap", pero el proyecto no tiene infraestructura de logging (ni Napier
+  # ni Kermit, y el logger de Koin esta en EmptyLogger). Improvisar una convencion de logging queda
+  # fuera del alcance de FLE-78; se aborda en FLE-89.
   Scenario [AC-09]: Ambos entry points inicializan Firebase antes de usar Firestore
     Given la app instalada en Android y en el simulador iOS
     When se arranca desde MainActivity (Android) y desde MainViewController (iOS)
     Then el bootstrap de Firebase se ejecuta antes de la primera resolución de FirestoreProvider
-     And el log de arranque reporta el estado del bootstrap exactamente una vez por proceso
+     And el bootstrap se ejecuta exactamente una vez por proceso
      And la app no crashea por "FirebaseApp name [DEFAULT] already exists"
          ni por "Default app has already been configured"
 ```
