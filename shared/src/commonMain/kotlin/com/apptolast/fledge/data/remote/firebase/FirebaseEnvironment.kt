@@ -13,8 +13,16 @@ data class FirebaseEnvironment(
     val storageBucket: String,
     val databaseId: String,
 ) {
-    /** True when every mandatory field is present, so Firebase can actually be initialized. */
-    fun isComplete(): Boolean = TODO("FLE-78 T3b: validate mandatory Firebase configuration fields")
+    /**
+     * True when every mandatory field is present, so Firebase can actually be initialized.
+     *
+     * [storageBucket] is optional: Firebase accepts null there, and Fledge does not use Storage yet.
+     */
+    fun isComplete(): Boolean = apiKey.isNotBlank() &&
+        projectId.isNotBlank() &&
+        applicationId.isNotBlank() &&
+        gcmSenderId.isNotBlank() &&
+        databaseId.isNotBlank()
 }
 
 /**
@@ -30,4 +38,12 @@ fun firebaseEnvironmentOf(
     gcmSenderId: String,
     storageBucket: String,
     databaseId: String,
-): FirebaseEnvironment = TODO("FLE-78 T3b: derive the effective Firebase environment")
+): FirebaseEnvironment = FirebaseEnvironment(
+    apiKey = apiKey,
+    projectId = projectId,
+    applicationId = applicationId,
+    gcmSenderId = gcmSenderId,
+    storageBucket = storageBucket,
+    // Used literally: "debug" and "(default)" are both valid Firestore database ids.
+    databaseId = databaseId,
+)

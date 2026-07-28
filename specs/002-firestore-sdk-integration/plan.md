@@ -175,16 +175,35 @@ single<FirebaseInitializer> { … }
 single<FirestoreProvider> { GitLiveFirestoreProvider(get(), get<FirebaseEnvironment>().databaseId) }
 ```
 
-Dos detalles de Koin que condicionan los ACs y que hay que verificar en `/implement`, no dar por hechos:
+> ⚠️ **Corrección tras `/implement` (2026-07-28).** El wiring de arriba con
+> `single(createdAtStart = true)` **es incorrecto** y se ha sustituido por `single { FirebaseBootstrap(...) }`
+> más una invocación explícita al final de `initFledgeKoin`. El motivo está en el punto 2 de abajo.
 
-1. **`createdAtStart` y la rama `loadKoinModules`.** `initFledgeKoin` tiene dos caminos: `startKoin`
-   (primer arranque) y `loadKoinModules` (si ya hay contexto). Las instancias `createdAtStart` se
-   materializan en `createEagerInstances()`. Hay que confirmar que la rama `loadKoinModules` también
-   las dispara; si no, el bootstrap se invoca explícitamente tras cargar los módulos.
-2. **`koinApplication { }` no llama a `createEagerInstances()`.** Esto es justo lo que AC-07 necesita
-   («el initializer falso no registró ninguna llamada por el mero hecho de construir el grafo») y hace
-   que el test sea honesto en vez de accidental. Si en algún momento se cambiara a `startKoin` en tests,
-   ese AC dejaría de significar lo que dice.
+Dos detalles de Koin que condicionan los ACs. Se marcaron como «verificar, no dar por hechos» y al
+verificarlos **uno resultó ser falso**:
+
+1. ✅ **Cierto.** `initFledgeKoin` tiene dos caminos: `startKoin` (primer arranque) y `loadKoinModules`
+   (si ya hay contexto). `loadKoinModules` usa `createEagerInstances = false`, así que las instancias
+   `createdAtStart` **no** se materializan en esa rama. Confirmado en `/implement`.
+2. ❌ **FALSO.** El plan afirmaba que «`koinApplication { }` no llama a `createEagerInstances()`».
+   En Koin 4.2.x la firma es `fun koinApplication(createEagerInstances: Boolean = true, …)` y el
+   overload que usan los tests delega con `createEagerInstances = true`. Es decir: **sí** crea
+   instancias eager. Con un bootstrap `createdAtStart` fallaban tres tests, no uno — AC-07 por
+   `initializeCalls == 1`, y dos tests **preexistentes** (`AC-09 presentation module resolves role
+   selector graph` y `FLE-8 BaseLogin graph resolves…`) por `InstanceCreationException`, ya que
+   `koinApplication { modules(dataModule, presentationModule) }` intentaba crear el bootstrap eager sin
+   tener `FirebaseInitializer` en el grafo.
+
+**Wiring final adoptado**, que resuelve ambos puntos sin depender de la maquinaria eager:
+
+```kotlin
+single { FirebaseBootstrap(get(), get()) }                  // no createdAtStart
+// …y al final de initFledgeKoin, tras ambas ramas:
+KoinPlatformTools.defaultContext().get().get<FirebaseBootstrap>().run()
+```
+
+`run()` es idempotente y el `SingleInstanceFactory` cachea la instancia, así que queda exactamente una
+inicialización por proceso, y construir un grafo en tests nunca toca el SDK.
 
 `dataModule` **no se toca** en sus bindings `InMemory*` — es literalmente lo que AC-08 comprueba.
 

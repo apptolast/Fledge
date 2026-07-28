@@ -5,7 +5,7 @@ sealed interface FirebaseBootstrapState {
 
     /** True when the Firebase app is available and Firestore can be used. */
     val isReady: Boolean
-        get() = TODO("FLE-78 T3b: derive readiness from the bootstrap outcome")
+        get() = this is Initialized || this is AlreadyInitialized
 
     /** The configuration is incomplete, so initialization was skipped on purpose. */
     data object NotConfigured : FirebaseBootstrapState

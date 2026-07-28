@@ -123,6 +123,20 @@ buildkonfig {
         )
         buildConfigField(STRING, "FIRESTORE_DATABASE_ID", firestoreDatabaseId)
         buildConfigField(STRING, "GOOGLE_WEB_CLIENT_ID", localProperties.getProperty("GOOGLE_WEB_CLIENT_ID", ""))
+        // Public Firebase client values used to build explicit FirebaseOptions (no google-services.json).
+        // Every field defaults to "" so the build keeps working on a machine without local.properties.
+        buildConfigField(
+            STRING,
+            "FIREBASE_APP_ID_ANDROID",
+            localProperties.getProperty("FIREBASE_APP_ID_ANDROID", ""),
+        )
+        buildConfigField(STRING, "FIREBASE_APP_ID_IOS", localProperties.getProperty("FIREBASE_APP_ID_IOS", ""))
+        buildConfigField(STRING, "FIREBASE_GCM_SENDER_ID", localProperties.getProperty("FIREBASE_GCM_SENDER_ID", ""))
+        buildConfigField(
+            STRING,
+            "FIREBASE_STORAGE_BUCKET",
+            localProperties.getProperty("FIREBASE_STORAGE_BUCKET", ""),
+        )
     }
 }
 
