@@ -62,6 +62,9 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
+            // GitLive publishes its Android artifacts without a version for the Firebase SDK,
+            // delegating the resolution to this BOM.
+            implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.androidx.credentials)
@@ -75,6 +78,9 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(libs.baselogin)
+            implementation(libs.gitlive.firebase.app)
+            implementation(libs.gitlive.firebase.common)
+            implementation(libs.gitlive.firebase.firestore)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
