@@ -8,7 +8,10 @@ import com.apptolast.customlogin.domain.AuthRepository
 import com.apptolast.fledge.data.auth.FledgeFirebaseAuthProvider
 import com.apptolast.fledge.data.auth.TokenManager
 import com.apptolast.fledge.data.remote.firebase.FirebaseAuthService
+import com.apptolast.fledge.data.remote.firebase.FirebaseBootstrap
 import com.apptolast.fledge.data.remote.firebase.createFirebaseAuthHttpClient
+import com.apptolast.fledge.data.remote.firebase.firebaseApplicationId
+import com.apptolast.fledge.data.remote.firebase.firebaseEnvironmentOf
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
 import com.apptolast.fledge.data.repository.InMemoryMoneyFlowRepository
@@ -32,6 +35,7 @@ import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewMod
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
+import com.apptolast.fledge.shared.BuildKonfig
 import kotlinx.serialization.json.Json
 import org.koin.core.context.loadKoinModules
 import org.koin.core.context.startKoin
@@ -59,6 +63,22 @@ val dataModule = module {
     single { InMemoryMoneyFlowRepository() } bind MoneyFlowRepository::class
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }
+    // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
+    // platformModule, so tests can substitute them without overriding the production graph.
+    single {
+        firebaseEnvironmentOf(
+            apiKey = BuildKonfig.FIREBASE_API_KEY,
+            projectId = BuildKonfig.FIREBASE_PROJECT_ID,
+            applicationId = firebaseApplicationId,
+            gcmSenderId = BuildKonfig.FIREBASE_GCM_SENDER_ID,
+            storageBucket = BuildKonfig.FIREBASE_STORAGE_BUCKET,
+            databaseId = BuildKonfig.FIRESTORE_DATABASE_ID,
+        )
+    }
+    // Deliberately NOT createdAtStart: koinApplication { } creates eager instances by default in Koin
+    // 4.2.x, so an eager bootstrap would touch Firebase just by building the graph. initFledgeKoin runs
+    // it explicitly instead.
+    single { FirebaseBootstrap(get(), get()) }
 }
 
 val presentationModule = module {
@@ -99,4 +119,9 @@ fun initFledgeKoin(appDeclaration: KoinAppDeclaration? = null) {
             modules(modules)
         }
     }
+
+    // Firebase is bootstrapped here, outside the Koin eager-instance machinery, so that both branches
+    // behave the same and building a graph in tests never touches the SDK. FirebaseBootstrap.run() is
+    // idempotent and the single is cached, so this stays at exactly one initialization per process.
+    KoinPlatformTools.defaultContext().get().get<FirebaseBootstrap>().run()
 }

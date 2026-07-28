@@ -62,6 +62,9 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
+            // GitLive publishes its Android artifacts without a version for the Firebase SDK,
+            // delegating the resolution to this BOM.
+            implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.androidx.credentials)
@@ -75,6 +78,9 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(libs.baselogin)
+            implementation(libs.gitlive.firebase.app)
+            implementation(libs.gitlive.firebase.common)
+            implementation(libs.gitlive.firebase.firestore)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -117,6 +123,20 @@ buildkonfig {
         )
         buildConfigField(STRING, "FIRESTORE_DATABASE_ID", firestoreDatabaseId)
         buildConfigField(STRING, "GOOGLE_WEB_CLIENT_ID", localProperties.getProperty("GOOGLE_WEB_CLIENT_ID", ""))
+        // Public Firebase client values used to build explicit FirebaseOptions (no google-services.json).
+        // Every field defaults to "" so the build keeps working on a machine without local.properties.
+        buildConfigField(
+            STRING,
+            "FIREBASE_APP_ID_ANDROID",
+            localProperties.getProperty("FIREBASE_APP_ID_ANDROID", ""),
+        )
+        buildConfigField(STRING, "FIREBASE_APP_ID_IOS", localProperties.getProperty("FIREBASE_APP_ID_IOS", ""))
+        buildConfigField(STRING, "FIREBASE_GCM_SENDER_ID", localProperties.getProperty("FIREBASE_GCM_SENDER_ID", ""))
+        buildConfigField(
+            STRING,
+            "FIREBASE_STORAGE_BUCKET",
+            localProperties.getProperty("FIREBASE_STORAGE_BUCKET", ""),
+        )
     }
 }
 

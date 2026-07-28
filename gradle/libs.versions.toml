@@ -13,6 +13,8 @@ androidx-credentials = "1.6.0"
 baselogin = "35a5e15fc452157b887121dd464f8dc4f14f1ea9"
 buildkonfig = "0.22.0"
 composeMultiplatform = "1.11.1"
+firebase-bom = "33.15.0"
+gitlive = "2.5.0"
 googleid = "1.2.0"
 junit = "4.13.2"
 koin-bom = "4.2.2"
@@ -48,6 +50,10 @@ compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMul
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 baselogin = { module = "com.github.apptolast.BaseLogin:baselogin", version.ref = "baselogin" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+gitlive-firebase-app = { module = "dev.gitlive:firebase-app", version.ref = "gitlive" }
+gitlive-firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "gitlive" }
+gitlive-firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "gitlive" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }

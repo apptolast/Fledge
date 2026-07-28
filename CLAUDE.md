@@ -130,10 +130,22 @@ FIREBASE_PROJECT_ID=fledge-c685d
 FIRESTORE_DATABASE_ID=debug        # "(default)" en release
 GOOGLE_WEB_CLIENT_ID=...           # OAuth Web client ID, no el de Android
 APP_ENV=debug
+
+# Firebase SDK nativo (FLE-78): FirebaseOptions explícitas, sin google-services.json
+FIREBASE_APP_ID_ANDROID=1:<sender>:android:<hash>   # App ID del app Android en fledge-c685d
+FIREBASE_APP_ID_IOS=1:<sender>:ios:<hash>           # App ID del app iOS en fledge-c685d
+FIREBASE_GCM_SENDER_ID=<project number>             # Project number (Cloud Messaging sender id)
+FIREBASE_STORAGE_BUCKET=fledge-c685d.firebasestorage.app
 ```
 
 Se exponen al código vía BuildKonfig (`com.apptolast.fledge.shared.BuildKonfig`). **Ningún secreto se
 commitea.**
+
+Los cuatro campos de Firebase SDK son **valores públicos de cliente** (Firebase Console → Configuración
+del proyecto → Tus apps) y **todos tienen default `""`**: el build funciona en una máquina sin
+`local.properties`. Si faltan, el bootstrap de Firebase queda en `NotConfigured` y Firestore no está
+disponible — la app no crashea, pero tampoco habla con Firestore. El CI los inyecta por GitHub Secrets
+escribiendo `local.properties`.
 
 ## Autenticación
 
