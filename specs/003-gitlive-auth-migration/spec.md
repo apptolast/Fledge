@@ -1,7 +1,35 @@
 # Spec 003: Migrar la autenticación al SDK GitLive firebase-auth (FLE-88)
 
-> Rama: `feature/003-gitlive-auth-migration` · Proyecto: `Fledge` · Estado: draft
-> El spec es el mecanismo anti-deriva: debe ser autosuficiente (releíble al inicio de cada fase).
+> Rama: `feature/003-gitlive-auth-migration` · Proyecto: `Fledge`
+> **Estado: PAUSADO — bloqueado por FLE-90 (repo `apptolast/BaseLogin`, spec 001).**
+
+## ⚠️ Cambio de dirección (2026-07-28) — leer antes que nada
+
+La versión original de este spec proponía escribir en Fledge un `FledgeGitLiveAuthProvider` propio
+sobre un puerto local. **Esa decisión se ha revertido.** Todo lo que sigue por debajo de la sección
+«Alcance» describe ese plan antiguo y **no debe implementarse**; se conserva porque su análisis de
+riesgos y su evidencia de T1 siguen siendo válidos.
+
+Motivo: al revisar el repo local de BaseLogin se comprobó que ya trae un `FirebaseAuthProvider`
+completo sobre GitLive (389 líneas: email/password, OAuth, teléfono, magic link, gestión de cuenta) y
+que `loginDataModule(authProvider = null)` ya lo registra. Escribir un tercero en Fledge duplicaría
+ese código y dejaría BaseLogin igual de frágil para el resto de la flota.
+
+Se cae además una de las tres justificaciones que sostenían el plan original: dije que el `actual` de
+Android de BaseLogin «no era auditable» porque el sources jar no traía `androidMain`. Con el repo
+local delante **sí lo es**, y esa razón queda retirada. Las otras dos —el `displayName` de Apple que
+se pierde y la ausencia total de cobertura— resultaron ser argumentos para **arreglar BaseLogin**, no
+para esquivarlo.
+
+**Nueva forma del trabajo:**
+
+| Ticket | Repo | Contenido |
+|---|---|---|
+| **FLE-90** | `apptolast/BaseLogin` | El puerto que hace testeable `FirebaseAuthProvider`, el `displayName` de Apple, el `signOut` social y la higiene de `Platform.android.kt`. Ver `specs/001-firebase-auth-gateway/spec.md` allí |
+| **FLE-88** | `apptolast/Fledge` | Consumir `loginDataModule()`, **borrar** el transporte REST y **borrar** la capa social duplicada de Fledge, repinear BaseLogin |
+
+FLE-88 se vuelve a especificar cuando FLE-90 aterrice, porque su superficie exacta depende de la API
+que quede allí. Lo único de este spec que sigue vigente y ya ejecutado es **T1** y su evidencia.
 
 ## Contexto y objetivo
 
