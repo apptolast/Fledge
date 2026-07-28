@@ -52,6 +52,7 @@ compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-previ
 baselogin = { module = "com.github.apptolast.BaseLogin:baselogin", version.ref = "baselogin" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 gitlive-firebase-app = { module = "dev.gitlive:firebase-app", version.ref = "gitlive" }
+gitlive-firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "gitlive" }
 gitlive-firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "gitlive" }
 gitlive-firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "gitlive" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }

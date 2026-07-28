@@ -79,6 +79,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.baselogin)
             implementation(libs.gitlive.firebase.app)
+            implementation(libs.gitlive.firebase.auth)
             implementation(libs.gitlive.firebase.common)
             implementation(libs.gitlive.firebase.firestore)
             implementation(libs.compose.runtime)
