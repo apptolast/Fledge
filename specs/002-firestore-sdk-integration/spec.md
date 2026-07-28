@@ -324,7 +324,14 @@ ejecutarse una sola vez por proceso y no bloquear el primer frame más de lo est
 Se acepta el crecimiento del APK (ver D-8).
 
 **i18n / accesibilidad / diseño visual**: no aplican — la feature no toca UI ni añade strings. No hay
-`@Preview` nuevos. `/design-check` no debería tener trabajo en este spec.
+`@Preview` nuevos.
+
+**🚦 Gate 3 — `/design-check`: N/A (2026-07-28).** Feature de infraestructura pura: **sin impacto de
+UI**. No se crea ni modifica ninguna pantalla, componente, ruta de navegación, cadena de
+`composeResources` ni tema. Los ficheros que toca son build (`libs.versions.toml`,
+`shared/build.gradle.kts`), `data/remote/firebase/`, los dos `PlatformModule.<plat>.kt`, el proyecto
+Xcode y `commonTest`. No se abre `Fledge.pen` ni se añaden tableros. Gate saltado hacia `/test` según
+el paso 1 del comando.
 
 **ktlint**: `./gradlew ktlintFormat` tras tocar Kotlin; el gate corre `ktlintCheck`.
 
@@ -337,12 +344,18 @@ Se acepta el crecimiento del APK (ver D-8).
 | AC-01 | *(no unitario)* — comando: `./gradlew :shared:testAndroid :androidApp:assembleDebug :shared:compileKotlinIosSimulatorArm64` + `ktlintCheck` + grep de `cocoapods`/`cinterops` en `shared/build.gradle.kts` | n/a — verificable por build |
 | AC-02 | *(no unitario)* — comando: `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build` + existencia de `Package.resolved` | n/a — verificable por build |
 | AC-03 | *(no unitario)* — inspección de repo: ausencia de `google-services.json` / `GoogleService-Info.plist` y del plugin `com.google.gms.google-services`; build verde sin `local.properties` | n/a — verificable por build/inspección |
-| AC-04 | `FirebaseEnvironmentTest` · `` `FLE-78 firebase environment derives effective database id from build config` `` | sí |
-| AC-05 | `FirebaseBootstrapTest` · `` `FLE-78 incomplete firebase config skips initialization without crashing` `` | sí |
-| AC-06 | `FirebaseBootstrapTest` · `` `FLE-78 firebase bootstrap initializes only once` `` , `` `FLE-78 firebase bootstrap skips when app already exists` `` | sí |
-| AC-07 | `AppModulesTest` · `` `FLE-78 koin graph resolves firestore provider without initializing firebase` `` | sí |
-| AC-08 | `AppModulesTest` · `` `FLE-78 repositories remain in memory after firestore integration` `` | sí |
+| AC-04 | `FirebaseEnvironmentTest` · `` `FLE-78 firebase environment derives effective database id from build config` `` | **sí** — `kotlin.NotImplementedError` en `firebaseEnvironmentOf` (`FirebaseEnvironmentTest.kt:19`) |
+| AC-05 | `FirebaseBootstrapTest` · `` `FLE-78 incomplete firebase config skips initialization without crashing` `` | **sí** — `kotlin.NotImplementedError` en `FirebaseBootstrap.run()` (`FirebaseBootstrapTest.kt:17`) |
+| AC-06 | `FirebaseBootstrapTest` · `` `FLE-78 firebase bootstrap initializes only once` `` , `` `FLE-78 firebase bootstrap skips when app already exists` `` | **sí** — `kotlin.NotImplementedError` en `FirebaseBootstrap.run()` (`FirebaseBootstrapTest.kt:33` y `:51`) |
+| AC-07 | `AppModulesTest` · `` `FLE-78 koin graph resolves firestore provider without initializing firebase` `` | **sí** — `org.koin.core.error.NoDefinitionFoundException: No definition found for type 'FirebaseEnvironment'` (falta el binding de T6) |
+| AC-08 | `AppModulesTest` · `` `FLE-78 repositories remain in memory after firestore integration` `` | **no** — verde desde el inicio (test de regresión, no hay implementación asociada): comprueba que `dataModule` sigue resolviendo `InMemory*` y que ningún repositorio necesita `FirestoreProvider` |
 | AC-09 | *(no unitario)* — `:androidApp:assembleDebug` + `xcodebuild` + smoke manual de arranque en Android y simulador iOS, comprobando un único log de bootstrap y ausencia de crash por doble init | n/a — verificable por build + smoke manual |
 
 > Nota para `/validate`: los ACs marcados «n/a» **no** deben bloquear el gate de trazabilidad por falta
 > de test rojo previo; se validan con el comando indicado en la misma fila.
+
+> Nota de la fase `/test` (2026-07-28): ejecutado `./gradlew :shared:testAndroid` con el esqueleto T3a
+> (`FirebaseEnvironment`, `FirebaseBootstrapState`, `FirebaseInitializer`, `FirebaseBootstrap`,
+> `FirestoreProvider`, todos con `TODO()`): **78 tests, 5 fallidos**, todos en ejecución y ninguno por
+> compilación. AC-08 es el único test nuevo en verde y así se declara arriba: es regresión pura sobre el
+> grafo actual, no cubre implementación pendiente.
