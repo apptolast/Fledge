@@ -264,7 +264,7 @@ Feature: Integración del SDK GitLive Firestore en Fledge
 | **D-4** ⚠️ | **Tests nativos iOS por Gradle**: `:shared:iosSimulatorArm64Test` **no enlaza** (`ld: framework 'FirebaseCore' not found`, memorias #71/#76) porque el binario de test de Gradle no consume los frameworks SPM de Xcode. El README de GitLive lo confirma. | memorias #71/#73/#76 + README GitLive | ✅ **No** añadir `iosSimulatorArm64Test` al gate. La suite corre en `:shared:testAndroid` (host) y iOS se valida con `:shared:compileKotlinIosSimulatorArm64` + `xcodebuild`, como ya prescribe `CLAUDE.md`. Descartada la alternativa `linkerOpts("-F<ruta DerivedData>")` por frágil y dependiente de la máquina. |
 | **D-5** | **Dónde arranca el bootstrap en Android**: hoy no hay clase `Application`; Koin se inicia en `MainActivity.onCreate()`. | `androidApp/.../MainActivity.kt` | ✅ **Opción A**: ejecutar el bootstrap dentro de `initFledgeKoin` como `single(createdAtStart = true)`. Simétrico Android/iOS y sin tocar el manifest. **No** se crea clase `Application`. |
 | **D-6** | **Artefactos a declarar**: `Firebase.initialize`/`FirebaseApp`/`FirebaseOptions` viven en **`firebase-app`**, no en `firebase-common`. Los tres son `api` transitivos de `firebase-firestore`. | fuente GitLive | ✅ Declarar los **tres** explícitamente en el catálogo (dependencias explícitas > transitivas). |
-| **D-7** | **Base de datos `debug`**: `FIRESTORE_DATABASE_ID=debug` en debug builds. `firestore.rules` usa el comodín `{database}` (aplica a todas), pero **`firestore.indexes.json` se despliega por base**: hay que confirmar que la base `debug` existe en `fledge-c685d` y tiene el índice de `allowanceRules`. | `firestore.rules`, `firestore.indexes.json`, `firebase.json` | ✅ Verificar el estado en Firebase Console durante `/plan`. No se toca ningún fichero de reglas/índices en esta feature (es FLE-83). |
+| **D-7** | **Base de datos `debug`**: `FIRESTORE_DATABASE_ID=debug` en debug builds. `firestore.rules` usa el comodín `{database}` (aplica a todas), pero **`firestore.indexes.json` se despliega por base**. | `firestore.rules`, `firestore.indexes.json`, `firebase.json` | ✅ **Verificado el 2026-07-28.** La base `debug` **no existía** y el usuario la creó: `projects/fledge-c685d/databases/debug`, región `eur3` (la misma que `(default)`), **`freeTier: false`** — se factura, porque el tramo gratuito de Firestore cubre una sola base. **Ninguna de las dos bases tiene desplegado el índice compuesto de `allowanceRules`** (`active` + `nextRunAt`): nunca se desplegó. Es trabajo de FLE-86, no de esta feature. Además `firebase.json` declara el bloque `firestore` **sin clave `database`**, así que un `firebase deploy --only firestore` iría solo a `(default)`; para cubrir `debug` hace falta la forma de array con `"database": "debug"`. Anotado para FLE-83/FLE-86. |
 | **D-8** | **Peso e impacto Android**: `dev.gitlive:firebase-firestore` arrastra `com.google.firebase:firebase-firestore` (BOM 33.15.0) con gRPC/protobuf/guava. R8 está desactivado (`isMinifyEnabled = false`). | `firebase-firestore/build.gradle.kts`, `androidApp/build.gradle.kts` | ✅ Aceptar el crecimiento en esta fase y anotarlo como deuda para la fase de release. Sin acción en FLE-78. |
 
 ---
@@ -353,10 +353,38 @@ el paso 1 del comando.
 | AC-06 | `FirebaseBootstrapTest` · `` `FLE-78 firebase bootstrap initializes only once` `` , `` `FLE-78 firebase bootstrap skips when app already exists` `` | **sí** — `kotlin.NotImplementedError` en `FirebaseBootstrap.run()` (`FirebaseBootstrapTest.kt:33` y `:51`) |
 | AC-07 | `AppModulesTest` · `` `FLE-78 koin graph resolves firestore provider without initializing firebase` `` | **sí** — `org.koin.core.error.NoDefinitionFoundException: No definition found for type 'FirebaseEnvironment'` (falta el binding de T6) |
 | AC-08 | `AppModulesTest` · `` `FLE-78 repositories remain in memory after firestore integration` `` | **no** — verde desde el inicio (test de regresión, no hay implementación asociada): comprueba que `dataModule` sigue resolviendo `InMemory*` y que ningún repositorio necesita `FirestoreProvider` |
-| AC-09 | *(no unitario)* — `:androidApp:assembleDebug` + `xcodebuild` + smoke manual de arranque en Android y simulador iOS, comprobando un único log de bootstrap y ausencia de crash por doble init | n/a — verificable por build + smoke manual |
+| AC-09 | *(no unitario)* — builds + **smoke manual ejecutado el 2026-07-28** en emulador Android y simulador iPhone 16 (ver evidencia abajo) | n/a — verificable por build + smoke manual ✅ |
 
 > Nota para `/validate`: los ACs marcados «n/a» **no** deben bloquear el gate de trazabilidad por falta
 > de test rojo previo; se validan con el comando indicado en la misma fila.
+
+> **Evidencia del smoke manual de AC-09 (2026-07-28).** No hay logging propio en el proyecto (FLE-89),
+> pero el SDK de Firebase escribe en el log del sistema, así que la inicialización es observable sin
+> añadir código.
+>
+> *Android* (emulador `emulator-5554`, APK debug instalado con `-t`), logcat:
+> ```
+> W FirebaseApp: Default FirebaseApp failed to initialize because no default options were found...
+> I FirebaseInitProvider: FirebaseApp initialization unsuccessful
+> I FirebaseApp: Device unlocked: initializing all Firebase APIs for app [DEFAULT]
+> ```
+> Las dos primeras líneas son el `FirebaseInitProvider` automático del SDK, que falla **por diseño**
+> porque no hay `google-services.json` (D-2); son ruido esperado, no un fallo. La tercera es nuestro
+> bootstrap, y aparece **una sola vez**. Proceso vivo, sin `FATAL EXCEPTION`, sin `already exists`.
+>
+> *iOS* (simulador iPhone 16, lanzado con `-FIRDebugEnabled` y capturado con `log stream --debug`):
+> ```
+> E  [FirebaseCore][I-COR000005] No app has been configured yet.
+> Db [FirebaseCore][I-COR000001] Configuring the default app.
+> Db [FirebaseCore][I-COR000033] Data Collection flag is not set.
+> ```
+> `I-COR000005` lo emite `+[FIRApp allApps]` cuando aún no hay app: es **nuestra** comprobación de
+> idempotencia devolviendo `false`. `I-COR000001` aparece **exactamente una vez** e `I-COR000004`
+> («app configured twice») **cero veces**. Sin crash.
+>
+> ⚠️ Gotcha de método: `I-COR000001` es `FIRLogDebug`, así que **no se ve** con `log stream` sin
+> `--debug`. Una primera captura sin ese flag hizo parecer que iOS no inicializaba. Ausencia de
+> evidencia no era evidencia de ausencia.
 
 > Nota de la fase `/test` (2026-07-28): ejecutado `./gradlew :shared:testAndroid` con el esqueleto T3a
 > (`FirebaseEnvironment`, `FirebaseBootstrapState`, `FirebaseInitializer`, `FirebaseBootstrap`,
