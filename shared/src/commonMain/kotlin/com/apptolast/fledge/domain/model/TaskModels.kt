@@ -138,6 +138,51 @@ data class TaskAssignmentDraft(
     }
 }
 
+@Serializable
+@JvmInline
+value class TaskInstanceId(val value: String) {
+    init {
+        require(value.isNotBlank()) { "Task instance id cannot be blank." }
+    }
+}
+
+@Serializable
+enum class TaskInstanceStatus {
+    Pending,
+    Submitted,
+    Approved,
+    Rejected,
+    Expired,
+}
+
+@Serializable
+data class TaskInstance(
+    val id: TaskInstanceId,
+    val familyId: FamilyId,
+    val taskAssignmentId: TaskAssignmentId,
+    val taskTemplateId: TaskTemplateId,
+    val childProfileId: ChildProfileId,
+    val title: String,
+    val rewardCents: MoneyCents,
+    val requiresPhoto: Boolean,
+    val status: TaskInstanceStatus,
+    val dueAt: Instant,
+    val periodKey: String,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val submittedAt: Instant? = null,
+    val reviewedAt: Instant? = null,
+    val expiredAt: Instant? = null,
+) {
+    init {
+        validateTaskInstanceFields(
+            title = title,
+            rewardCents = rewardCents,
+            periodKey = periodKey,
+        )
+    }
+}
+
 private fun validateTaskTemplateFields(
     title: String,
     description: String,
@@ -155,6 +200,12 @@ private fun validateTaskTemplateFields(
     if (suggestedMinAge != null && suggestedMaxAge != null) {
         require(suggestedMinAge <= suggestedMaxAge) { "Suggested age range is invalid." }
     }
+}
+
+private fun validateTaskInstanceFields(title: String, rewardCents: MoneyCents, periodKey: String) {
+    require(title.isNotBlank()) { "Task instance title cannot be blank." }
+    require(rewardCents.value > 0) { "Task instance reward must be positive." }
+    require(periodKey.isNotBlank()) { "Task instance period key cannot be blank." }
 }
 
 private fun validateTaskAssignmentFields(

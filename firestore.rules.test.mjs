@@ -87,6 +87,10 @@ function taskAssignmentPath(assignmentId = "assignment-1", familyId = FAMILY_ID)
   return `${familyPath(familyId)}/taskAssignments/${assignmentId}`;
 }
 
+function taskInstancePath(instanceId = "task-assignment-1-child-1-20260729", familyId = FAMILY_ID) {
+  return `${familyPath(familyId)}/taskInstances/${instanceId}`;
+}
+
 function settlementPath(settlementId = "settlement-1", familyId = FAMILY_ID) {
   return `${familyPath(familyId)}/settlements/${settlementId}`;
 }
@@ -171,6 +175,32 @@ function taskAssignmentData({
     active: true,
     createdAt: NOW,
     updatedAt: NOW,
+  };
+}
+
+function taskInstanceData({
+  familyId = FAMILY_ID,
+  taskAssignmentId = "assignment-1",
+  taskTemplateId = "template-1",
+  childProfileId = CHILD_ID,
+  status = "Pending",
+} = {}) {
+  return {
+    familyId,
+    taskAssignmentId,
+    taskTemplateId,
+    childProfileId,
+    title: "Poner la mesa",
+    rewardCents: 50,
+    requiresPhoto: false,
+    status,
+    dueAt: LATER,
+    periodKey: "20260729",
+    createdAt: NOW,
+    updatedAt: NOW,
+    submittedAt: null,
+    reviewedAt: null,
+    expiredAt: null,
   };
 }
 
@@ -341,5 +371,28 @@ describe("FLE-83 Firestore membership rules", () => {
       doc(child, taskAssignmentPath("child-write")),
       taskAssignmentData({ childProfileIds: [CHILD_ID] }),
     ));
+  });
+
+  test("task instances are readable by family members and not writable by clients", async () => {
+    await seed(familyPath(), familyData());
+    await seed(taskInstancePath(), taskInstanceData());
+    await seed(
+      taskInstancePath("task-assignment-1-child-2-20260729"),
+      taskInstanceData({ childProfileId: SIBLING_ID }),
+    );
+
+    const parent = parentDb();
+    const child = childDb();
+    const sibling = childDb({ childProfileId: SIBLING_ID });
+
+    await assertSucceeds(getDoc(doc(parent, taskInstancePath())));
+    await assertSucceeds(getDoc(doc(child, taskInstancePath())));
+    await assertFails(getDoc(doc(sibling, taskInstancePath())));
+    await assertSucceeds(getDoc(doc(sibling, taskInstancePath("task-assignment-1-child-2-20260729"))));
+
+    await assertFails(setDoc(doc(parent, taskInstancePath("parent-write")), taskInstanceData()));
+    await assertFails(updateDoc(doc(parent, taskInstancePath()), { status: "Submitted" }));
+    await assertFails(setDoc(doc(child, taskInstancePath("child-write")), taskInstanceData()));
+    await assertFails(updateDoc(doc(child, taskInstancePath()), { status: "Submitted" }));
   });
 });

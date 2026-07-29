@@ -15,6 +15,9 @@ import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.TaskAssignment
 import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskInstance
+import com.apptolast.fledge.domain.model.TaskInstanceId
+import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskRecurrence
 import com.apptolast.fledge.domain.model.TaskTemplate
 import com.apptolast.fledge.domain.model.TaskTemplateId
@@ -193,6 +196,46 @@ class FirestoreRepositorySupportTest {
         assertEquals(true, data["active"])
         assertIs<Timestamp>(data["createdAt"])
         assertIs<Timestamp>(data["updatedAt"])
+    }
+
+    @Test
+    fun `FLE-29 task instance document matches scheduler schema`() {
+        // Given
+        val instance = TaskInstance(
+            id = TaskInstanceId("task-assignment-1-child-1-20260729"),
+            familyId = FamilyId("family-1"),
+            taskAssignmentId = TaskAssignmentId("assignment-1"),
+            taskTemplateId = TaskTemplateId("template-1"),
+            childProfileId = ChildProfileId("child-1"),
+            title = "Poner la mesa",
+            rewardCents = MoneyCents(50),
+            requiresPhoto = false,
+            status = TaskInstanceStatus.Pending,
+            dueAt = Instant.fromEpochSeconds(1_700_200_000),
+            periodKey = "20260729",
+            createdAt = Instant.fromEpochSeconds(1_700_100_000),
+            updatedAt = Instant.fromEpochSeconds(1_700_100_000),
+        )
+
+        // When
+        val data = instance.toFirestoreMap()
+
+        // Then
+        assertEquals("family-1", data["familyId"])
+        assertEquals("assignment-1", data["taskAssignmentId"])
+        assertEquals("template-1", data["taskTemplateId"])
+        assertEquals("child-1", data["childProfileId"])
+        assertEquals("Poner la mesa", data["title"])
+        assertEquals(50L, data["rewardCents"])
+        assertEquals(false, data["requiresPhoto"])
+        assertEquals("Pending", data["status"])
+        assertEquals("20260729", data["periodKey"])
+        assertIs<Timestamp>(data["dueAt"])
+        assertIs<Timestamp>(data["createdAt"])
+        assertIs<Timestamp>(data["updatedAt"])
+        assertEquals(null, data["submittedAt"])
+        assertEquals(null, data["reviewedAt"])
+        assertEquals(null, data["expiredAt"])
     }
 
     @Test

@@ -30,6 +30,9 @@ import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.TaskAssignment
 import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskInstance
+import com.apptolast.fledge.domain.model.TaskInstanceId
+import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskRecurrence
 import com.apptolast.fledge.domain.model.TaskTemplate
 import com.apptolast.fledge.domain.model.TaskTemplateId
@@ -334,6 +337,43 @@ internal fun DocumentSnapshot.toTaskAssignment(templateFallback: TaskTemplate? =
         updatedAt = requiredTimestamp("updatedAt"),
     )
 }
+
+internal fun TaskInstance.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "taskAssignmentId" to taskAssignmentId.value,
+    "taskTemplateId" to taskTemplateId.value,
+    "childProfileId" to childProfileId.value,
+    "title" to title,
+    "rewardCents" to rewardCents.value,
+    "requiresPhoto" to requiresPhoto,
+    "status" to status.name,
+    "dueAt" to dueAt.toFirestoreTimestamp(),
+    "periodKey" to periodKey,
+    "createdAt" to createdAt.toFirestoreTimestamp(),
+    "updatedAt" to updatedAt.toFirestoreTimestamp(),
+    "submittedAt" to submittedAt?.toFirestoreTimestamp(),
+    "reviewedAt" to reviewedAt?.toFirestoreTimestamp(),
+    "expiredAt" to expiredAt?.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toTaskInstance(): TaskInstance = TaskInstance(
+    id = TaskInstanceId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    taskAssignmentId = TaskAssignmentId(requiredString("taskAssignmentId")),
+    taskTemplateId = TaskTemplateId(requiredString("taskTemplateId")),
+    childProfileId = ChildProfileId(requiredString("childProfileId")),
+    title = requiredString("title"),
+    rewardCents = MoneyCents(requiredLong("rewardCents")),
+    requiresPhoto = requiredBoolean("requiresPhoto"),
+    status = TaskInstanceStatus.valueOf(requiredString("status")),
+    dueAt = requiredTimestamp("dueAt"),
+    periodKey = requiredString("periodKey"),
+    createdAt = requiredTimestamp("createdAt"),
+    updatedAt = requiredTimestamp("updatedAt"),
+    submittedAt = optionalTimestamp("submittedAt"),
+    reviewedAt = optionalTimestamp("reviewedAt"),
+    expiredAt = optionalTimestamp("expiredAt"),
+)
 
 internal fun VirtualMoneyConsent.toFirestorePatch(): Map<String, Any?> = mapOf(
     "virtualMoneyConsentAcceptedAt" to acceptedAt.toFirestoreTimestamp(),
