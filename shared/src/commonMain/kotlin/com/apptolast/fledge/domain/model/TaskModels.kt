@@ -73,6 +73,71 @@ data class TaskTemplateDraft(
     }
 }
 
+@Serializable
+@JvmInline
+value class TaskAssignmentId(val value: String) {
+    init {
+        require(value.isNotBlank()) { "Task assignment id cannot be blank." }
+    }
+}
+
+@Serializable
+enum class TaskRecurrence {
+    Once,
+    Daily,
+    Weekly,
+    Custom,
+}
+
+@Serializable
+data class TaskAssignment(
+    val id: TaskAssignmentId,
+    val familyId: FamilyId,
+    val taskTemplateId: TaskTemplateId,
+    val title: String,
+    val rewardCents: MoneyCents,
+    val requiresPhoto: Boolean,
+    val childProfileIds: List<ChildProfileId>,
+    val recurrence: TaskRecurrence,
+    val dueAt: Instant,
+    val customIntervalDays: Int? = null,
+    val active: Boolean = true,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+) {
+    init {
+        validateTaskAssignmentFields(
+            title = title,
+            rewardCents = rewardCents,
+            childProfileIds = childProfileIds,
+            recurrence = recurrence,
+            customIntervalDays = customIntervalDays,
+        )
+    }
+}
+
+data class TaskAssignmentDraft(
+    val familyId: FamilyId,
+    val taskTemplateId: TaskTemplateId,
+    val title: String,
+    val rewardCents: MoneyCents,
+    val requiresPhoto: Boolean,
+    val childProfileIds: List<ChildProfileId>,
+    val recurrence: TaskRecurrence,
+    val dueAt: Instant,
+    val customIntervalDays: Int? = null,
+) {
+    init {
+        validateTaskAssignmentFields(
+            title = title,
+            rewardCents = rewardCents,
+            childProfileIds = childProfileIds,
+            recurrence = recurrence,
+            customIntervalDays = customIntervalDays,
+        )
+    }
+}
+
 private fun validateTaskTemplateFields(
     title: String,
     description: String,
@@ -89,5 +154,29 @@ private fun validateTaskTemplateFields(
     require(suggestedMaxAge == null || suggestedMaxAge >= 0) { "Suggested maximum age cannot be negative." }
     if (suggestedMinAge != null && suggestedMaxAge != null) {
         require(suggestedMinAge <= suggestedMaxAge) { "Suggested age range is invalid." }
+    }
+}
+
+private fun validateTaskAssignmentFields(
+    title: String,
+    rewardCents: MoneyCents,
+    childProfileIds: List<ChildProfileId>,
+    recurrence: TaskRecurrence,
+    customIntervalDays: Int?,
+) {
+    require(title.isNotBlank()) { "Task assignment title cannot be blank." }
+    require(rewardCents.value > 0) { "Task assignment reward must be positive." }
+    require(childProfileIds.isNotEmpty()) { "Task assignment must target at least one child." }
+    require(childProfileIds.distinct().size == childProfileIds.size) {
+        "Task assignment cannot repeat the same child."
+    }
+    if (recurrence == TaskRecurrence.Custom) {
+        require(customIntervalDays != null && customIntervalDays >= 1) {
+            "Custom recurrence interval must be at least one day."
+        }
+    } else {
+        require(customIntervalDays == null) {
+            "Custom recurrence interval is only valid for custom recurrence."
+        }
     }
 }

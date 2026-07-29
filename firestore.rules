@@ -51,6 +51,11 @@ service cloud.firestore {
       return !request.resource.data.keys().hasAny([field]) || request.resource.data[field] == null;
     }
 
+    function hasNonBlankText(field) {
+      return request.resource.data[field] is string
+        && request.resource.data[field].matches(".*\\S.*");
+    }
+
     function settlementKeys() {
       return [
         "familyId",
@@ -98,16 +103,54 @@ service cloud.firestore {
           "updatedAt",
         ])
         && requestMatchesFamily(familyId)
-        && request.resource.data.title is string
-        && request.resource.data.title.size() > 0
-        && request.resource.data.description is string
-        && request.resource.data.description.size() > 0
-        && request.resource.data.iconKey is string
-        && request.resource.data.iconKey.size() > 0
+        && hasNonBlankText("title")
+        && hasNonBlankText("description")
+        && hasNonBlankText("iconKey")
         && request.resource.data.defaultValueCents is int
         && request.resource.data.defaultValueCents > 0
         && request.resource.data.requiresPhoto is bool
         && request.resource.data.source is string
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function taskAssignmentWriteIsValid(familyId) {
+      return request.resource.data.keys().hasAll([
+          "familyId",
+          "taskTemplateId",
+          "title",
+          "rewardCents",
+          "requiresPhoto",
+          "childProfileIds",
+          "recurrence",
+          "dueAt",
+          "active",
+          "createdAt",
+          "updatedAt",
+        ])
+        && requestMatchesFamily(familyId)
+        && request.resource.data.taskTemplateId is string
+        && request.resource.data.taskTemplateId.size() > 0
+        && hasNonBlankText("title")
+        && request.resource.data.rewardCents is int
+        && request.resource.data.rewardCents > 0
+        && request.resource.data.requiresPhoto is bool
+        && request.resource.data.childProfileIds is list
+        && request.resource.data.childProfileIds.size() > 0
+        && request.resource.data.recurrence in ["Once", "Daily", "Weekly", "Custom"]
+        && request.resource.data.dueAt is timestamp
+        && (
+          (
+            request.resource.data.recurrence == "Custom"
+            && request.resource.data.customIntervalDays is int
+            && request.resource.data.customIntervalDays >= 1
+          )
+          || (
+            request.resource.data.recurrence != "Custom"
+            && nullOrAbsent("customIntervalDays")
+          )
+        )
+        && request.resource.data.active is bool
         && request.resource.data.createdAt is timestamp
         && request.resource.data.updatedAt is timestamp;
     }
@@ -161,6 +204,13 @@ service cloud.firestore {
         allow read: if isFamilyMember(familyId);
         allow create: if isParent(familyId) && taskTemplateWriteIsValid(familyId);
         allow update: if isParent(familyId) && requestKeepsFamilyId() && taskTemplateWriteIsValid(familyId);
+        allow delete: if false;
+      }
+
+      match /taskAssignments/{assignmentId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isParent(familyId) && taskAssignmentWriteIsValid(familyId);
+        allow update: if isParent(familyId) && requestKeepsFamilyId() && taskAssignmentWriteIsValid(familyId);
         allow delete: if false;
       }
 

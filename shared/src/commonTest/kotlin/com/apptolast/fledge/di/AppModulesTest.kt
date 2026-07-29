@@ -19,10 +19,12 @@ import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestoreTaskAssignmentRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.TaskAssignmentRepository
 import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
@@ -51,6 +53,7 @@ class AppModulesTest {
         assertNotNull(application.koin.get<RoleSelectorViewModel>())
         assertNotNull(application.koin.get<LedgerRepository>())
         assertNotNull(application.koin.get<MoneyFlowRepository>())
+        assertNotNull(application.koin.get<TaskAssignmentRepository>())
         assertNotNull(application.koin.get<TaskTemplateRepository>())
         assertNotNull(application.koin.get<AllowanceProcessor>())
         assertNotNull(application.koin.get<CashOutProcessor>())
@@ -105,12 +108,14 @@ class AppModulesTest {
         val familyFoundation = application.koin.get<FamilyFoundationRepository>()
         val ledger = application.koin.get<LedgerRepository>()
         val moneyFlow = application.koin.get<MoneyFlowRepository>()
+        val taskAssignments = application.koin.get<TaskAssignmentRepository>()
         val taskTemplates = application.koin.get<TaskTemplateRepository>()
 
         // Then production bindings now point to Firestore-backed repositories
         assertIs<FirestoreFamilyFoundationRepository>(familyFoundation)
         assertIs<FirestoreLedgerRepository>(ledger)
         assertIs<FirestoreMoneyFlowRepository>(moneyFlow)
+        assertIs<FirestoreTaskAssignmentRepository>(taskAssignments)
         assertIs<FirestoreTaskTemplateRepository>(taskTemplates)
     }
 }

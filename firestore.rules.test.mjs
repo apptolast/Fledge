@@ -83,6 +83,10 @@ function allowanceRulePath(ruleId = "allowance-1", familyId = FAMILY_ID) {
   return `${familyPath(familyId)}/allowanceRules/${ruleId}`;
 }
 
+function taskAssignmentPath(assignmentId = "assignment-1", familyId = FAMILY_ID) {
+  return `${familyPath(familyId)}/taskAssignments/${assignmentId}`;
+}
+
 function settlementPath(settlementId = "settlement-1", familyId = FAMILY_ID) {
   return `${familyPath(familyId)}/settlements/${settlementId}`;
 }
@@ -142,6 +146,28 @@ function allowanceRuleData({
     concept: "Paga semanal",
     timeZone: "Europe/Madrid",
     nextRunAt: NOW,
+    active: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+}
+
+function taskAssignmentData({
+  familyId = FAMILY_ID,
+  childProfileIds = [CHILD_ID, SIBLING_ID],
+  recurrence = "Daily",
+  customIntervalDays = null,
+} = {}) {
+  return {
+    familyId,
+    taskTemplateId: "template-1",
+    title: "Poner la mesa",
+    rewardCents: 50,
+    requiresPhoto: false,
+    childProfileIds,
+    recurrence,
+    dueAt: LATER,
+    customIntervalDays,
     active: true,
     createdAt: NOW,
     updatedAt: NOW,
@@ -284,5 +310,36 @@ describe("FLE-83 Firestore membership rules", () => {
       amountCents: 10000,
       updatedAt: LATER,
     }));
+  });
+
+  test("only parents can write task assignments with an editable snapshot", async () => {
+    await seed(familyPath(), familyData());
+    await seed(taskAssignmentPath("shared-task"), taskAssignmentData());
+
+    const parent = parentDb();
+    const child = childDb();
+
+    await assertSucceeds(getDoc(doc(child, taskAssignmentPath("shared-task"))));
+    await assertSucceeds(setDoc(doc(parent, taskAssignmentPath()), taskAssignmentData()));
+    await assertSucceeds(setDoc(
+      doc(parent, taskAssignmentPath("custom-task")),
+      taskAssignmentData({ recurrence: "Custom", customIntervalDays: 3 }),
+    ));
+    await assertFails(setDoc(
+      doc(parent, taskAssignmentPath("blank-title")),
+      { ...taskAssignmentData(), title: " " },
+    ));
+    await assertFails(setDoc(
+      doc(parent, taskAssignmentPath("invalid-reward")),
+      { ...taskAssignmentData(), rewardCents: 0 },
+    ));
+    await assertFails(setDoc(
+      doc(parent, taskAssignmentPath("invalid-custom")),
+      taskAssignmentData({ recurrence: "Custom", customIntervalDays: null }),
+    ));
+    await assertFails(setDoc(
+      doc(child, taskAssignmentPath("child-write")),
+      taskAssignmentData({ childProfileIds: [CHILD_ID] }),
+    ));
   });
 });

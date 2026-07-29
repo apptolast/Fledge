@@ -10,10 +10,12 @@ import com.apptolast.fledge.data.remote.firebase.firebaseEnvironmentOf
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestoreTaskAssignmentRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.TaskAssignmentRepository
 import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
@@ -31,6 +33,7 @@ import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateVie
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewModel
 import com.apptolast.fledge.presentation.foundation.postlogin.PostLoginViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
+import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentViewModel
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
 import com.apptolast.fledge.shared.BuildKonfig
@@ -47,6 +50,7 @@ val dataModule = module {
     single { FirestoreFamilyFoundationRepository(get(), get()) } bind FamilyFoundationRepository::class
     single { FirestoreLedgerRepository(get(), get()) } bind LedgerRepository::class
     single { FirestoreMoneyFlowRepository(get(), get()) } bind MoneyFlowRepository::class
+    single { FirestoreTaskAssignmentRepository(get(), get(), get()) } bind TaskAssignmentRepository::class
     single { FirestoreTaskTemplateRepository(get(), get()) } bind TaskTemplateRepository::class
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }
@@ -84,6 +88,7 @@ val presentationModule = module {
     viewModelOf(::ParentalGateViewModel)
     viewModelOf(::ParentHomeViewModel)
     viewModelOf(::PostLoginViewModel)
+    viewModelOf(::TaskAssignmentViewModel)
 }
 
 expect val platformModule: Module

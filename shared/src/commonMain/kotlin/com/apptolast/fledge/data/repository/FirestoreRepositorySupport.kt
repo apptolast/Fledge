@@ -28,6 +28,9 @@ import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
+import com.apptolast.fledge.domain.model.TaskAssignment
+import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskRecurrence
 import com.apptolast.fledge.domain.model.TaskTemplate
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TaskTemplateSource
@@ -87,6 +90,8 @@ internal fun Iterable<RepositorySyncStatus>.aggregateRepositorySyncStatus(): Rep
 internal fun Throwable.toRepositorySyncError(): RepositorySyncStatus.Error = RepositorySyncStatus.Error(message)
 
 internal fun DocumentSnapshot.requiredString(field: String): String = get(field)
+
+internal fun DocumentSnapshot.requiredStringList(field: String): List<String> = get(field)
 
 internal fun DocumentSnapshot.optionalString(field: String): String? =
     if (contains(field)) get<String?>(field) else null
@@ -289,6 +294,46 @@ internal fun DocumentSnapshot.toTaskTemplate(): TaskTemplate = TaskTemplate(
     createdAt = requiredTimestamp("createdAt"),
     updatedAt = requiredTimestamp("updatedAt"),
 )
+
+internal fun TaskAssignment.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "taskTemplateId" to taskTemplateId.value,
+    "title" to title,
+    "rewardCents" to rewardCents.value,
+    "requiresPhoto" to requiresPhoto,
+    "childProfileIds" to childProfileIds.map { it.value },
+    "recurrence" to recurrence.name,
+    "dueAt" to dueAt.toFirestoreTimestamp(),
+    "customIntervalDays" to customIntervalDays,
+    "active" to active,
+    "createdAt" to createdAt.toFirestoreTimestamp(),
+    "updatedAt" to updatedAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toTaskAssignment(templateFallback: TaskTemplate? = null): TaskAssignment {
+    val taskTemplateId = TaskTemplateId(requiredString("taskTemplateId"))
+    val template = templateFallback?.takeIf { it.id == taskTemplateId }
+    return TaskAssignment(
+        id = TaskAssignmentId(id),
+        familyId = FamilyId(requiredString("familyId")),
+        taskTemplateId = taskTemplateId,
+        title = optionalString("title")?.takeIf { it.isNotBlank() }
+            ?: requireNotNull(template) { "Legacy task assignment requires its source template." }.title,
+        rewardCents = MoneyCents(
+            optionalLong("rewardCents") ?: requireNotNull(template) {
+                "Legacy task assignment requires its source template."
+            }.defaultValueCents.value,
+        ),
+        requiresPhoto = optionalBoolean("requiresPhoto") ?: template?.requiresPhoto ?: requiredBoolean("requiresPhoto"),
+        childProfileIds = requiredStringList("childProfileIds").map(::ChildProfileId),
+        recurrence = TaskRecurrence.valueOf(requiredString("recurrence")),
+        dueAt = requiredTimestamp("dueAt"),
+        customIntervalDays = optionalInt("customIntervalDays"),
+        active = optionalBoolean("active") ?: true,
+        createdAt = requiredTimestamp("createdAt"),
+        updatedAt = requiredTimestamp("updatedAt"),
+    )
+}
 
 internal fun VirtualMoneyConsent.toFirestorePatch(): Map<String, Any?> = mapOf(
     "virtualMoneyConsentAcceptedAt" to acceptedAt.toFirestoreTimestamp(),

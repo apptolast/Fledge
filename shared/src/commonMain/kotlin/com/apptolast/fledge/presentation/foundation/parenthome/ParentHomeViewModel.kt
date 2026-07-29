@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ParentHomeUiState(
+    val familyName: String = "",
     val children: List<ChildProfile> = emptyList(),
     val mainBalances: Map<ChildProfileId, BalanceCents> = emptyMap(),
     val goalBalances: Map<ChildProfileId, BalanceCents> = emptyMap(),
@@ -48,6 +49,7 @@ class ParentHomeViewModel(
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(
         ParentHomeUiState(
+            familyName = repository.activeFamily.value?.name.orEmpty(),
             children = repository.children.value,
             currencyCode = repository.activeFamily.value?.currency?.value ?: "EUR",
         ).withBalances(),
@@ -77,7 +79,12 @@ class ParentHomeViewModel(
         }
         viewModelScope.launch {
             repository.activeFamily.collect { family ->
-                mutableUiState.update { it.copy(currencyCode = family?.currency?.value ?: "EUR") }
+                mutableUiState.update {
+                    it.copy(
+                        familyName = family?.name.orEmpty(),
+                        currencyCode = family?.currency?.value ?: "EUR",
+                    )
+                }
             }
         }
         viewModelScope.launch {
