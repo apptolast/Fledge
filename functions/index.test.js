@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { Timestamp } from "firebase-admin/firestore";
 import {
+  buildApprovalQueueReminderMessage,
   buildTaskInstancePushMessage,
   buildTaskInstanceDocuments,
   createTaskInstanceId,
   nextTaskDueDateAfter,
+  processApprovalQueueReminders,
   processDueTaskAssignments,
   taskPeriodKey,
 } from "./index.js";
@@ -177,6 +179,122 @@ describe("FLE-32 task approval push", () => {
   });
 });
 
+describe("FLE-33 approval queue reminders", () => {
+  test("sends one parent reminder when more than five tasks are waiting", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": familyData(),
+      ...Object.fromEntries(
+        Array.from({ length: 6 }, (_, index) => [
+          `families/family-1/taskInstances/task-${index + 1}`,
+          taskInstanceData({
+            status: "Submitted",
+            submittedAt: new Date("2026-07-29T09:00:00.000Z"),
+          }),
+        ]),
+      ),
+    });
+    const messaging = new FakeMessaging();
+
+    const processed = await processApprovalQueueReminders(database, messaging, "debug", NOW);
+
+    assert.equal(processed, 1);
+    assert.equal(messaging.messages.length, 1);
+    assert.equal(messaging.messages[0].topic, "fledge_debug_family_family-1_parents");
+    assert.deepEqual(messaging.messages[0].data, {
+      type: "approval_queue_reminder",
+      familyId: "family-1",
+      pendingCount: "6",
+      oldestSubmittedAt: "2026-07-29T09:00:00.000Z",
+    });
+    assert.ok(database.docs.get("families/family-1").approvalQueueReminderLastSentAt);
+  });
+
+  test("sends parent reminder when a submitted task is older than seventy two hours", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": familyData(),
+      "families/family-1/taskInstances/task-old": taskInstanceData({
+        status: "Submitted",
+        submittedAt: new Date("2026-07-25T09:00:00.000Z"),
+      }),
+      "families/family-1/taskInstances/task-recent": taskInstanceData({
+        status: "Submitted",
+        submittedAt: new Date("2026-07-29T09:00:00.000Z"),
+      }),
+    });
+    const messaging = new FakeMessaging();
+
+    const processed = await processApprovalQueueReminders(database, messaging, "release", NOW);
+
+    assert.equal(processed, 1);
+    assert.equal(messaging.messages.length, 1);
+    assert.equal(messaging.messages[0].topic, "fledge_release_family_family-1_parents");
+    assert.equal(messaging.messages[0].data.pendingCount, "2");
+    assert.equal(messaging.messages[0].data.oldestSubmittedAt, "2026-07-25T09:00:00.000Z");
+  });
+
+  test("does not send reminder when queue is below thresholds", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": familyData(),
+      "families/family-1/taskInstances/task-1": taskInstanceData({
+        status: "Submitted",
+        submittedAt: new Date("2026-07-29T09:00:00.000Z"),
+      }),
+      "families/family-1/taskInstances/task-2": taskInstanceData({
+        status: "Approved",
+        submittedAt: new Date("2026-07-25T09:00:00.000Z"),
+      }),
+    });
+    const messaging = new FakeMessaging();
+
+    const processed = await processApprovalQueueReminders(database, messaging, "debug", NOW);
+
+    assert.equal(processed, 0);
+    assert.equal(messaging.messages.length, 0);
+  });
+
+  test("does not repeat a reminder within the cooldown window", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": {
+        ...familyData(),
+        approvalQueueReminderLastSentAt: Timestamp.fromDate(new Date("2026-07-29T09:30:00.000Z")),
+      },
+      ...Object.fromEntries(
+        Array.from({ length: 6 }, (_, index) => [
+          `families/family-1/taskInstances/task-${index + 1}`,
+          taskInstanceData({
+            status: "Submitted",
+            submittedAt: new Date("2026-07-25T09:00:00.000Z"),
+          }),
+        ]),
+      ),
+    });
+    const messaging = new FakeMessaging();
+
+    const processed = await processApprovalQueueReminders(database, messaging, "debug", NOW);
+
+    assert.equal(processed, 0);
+    assert.equal(messaging.messages.length, 0);
+  });
+
+  test("builds an approval queue reminder payload for parent navigation", () => {
+    const message = buildApprovalQueueReminderMessage({
+      appEnv: "debug",
+      familyId: "family-1",
+      pendingCount: 6,
+      oldestSubmittedAt: new Date("2026-07-25T09:00:00.000Z"),
+    });
+
+    assert.equal(message.topic, "fledge_debug_family_family-1_parents");
+    assert.equal(message.notification.title, "Tareas pendientes de revisar");
+    assert.deepEqual(message.data, {
+      type: "approval_queue_reminder",
+      familyId: "family-1",
+      pendingCount: "6",
+      oldestSubmittedAt: "2026-07-25T09:00:00.000Z",
+    });
+  });
+});
+
 function familyData() {
   return {
     familyId: "family-1",
@@ -261,8 +379,23 @@ class FakeDatabase {
     return new FakeQuery(this, name);
   }
 
+  doc(path) {
+    return new FakeDocumentRef(this, path);
+  }
+
   async runTransaction(callback) {
     return callback(new FakeTransaction(this));
+  }
+}
+
+class FakeMessaging {
+  constructor() {
+    this.messages = [];
+  }
+
+  async send(message) {
+    this.messages.push(message);
+    return `fake-message-${this.messages.length}`;
   }
 }
 

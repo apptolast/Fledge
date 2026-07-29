@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 sealed class DeepLink {
-    data class ParentApprovalQueue(val familyId: String, val taskInstanceId: String) : DeepLink()
+    data class ParentApprovalQueue(val familyId: String, val taskInstanceId: String? = null) : DeepLink()
 
     data class ChildTaskApproved(val familyId: String, val childProfileId: String, val taskInstanceId: String) :
         DeepLink()
@@ -38,6 +38,10 @@ fun deepLinkFromNotificationPayload(
             familyId = normalizedFamilyId,
             taskInstanceId = normalizedTaskInstanceId,
         )
+    }
+    FledgePushType.ApprovalQueueReminder -> {
+        val normalizedFamilyId = familyId?.takeIf { it.isNotBlank() } ?: return null
+        DeepLink.ParentApprovalQueue(familyId = normalizedFamilyId)
     }
     FledgePushType.TaskApproved -> {
         val normalizedFamilyId = familyId?.takeIf { it.isNotBlank() } ?: return null
