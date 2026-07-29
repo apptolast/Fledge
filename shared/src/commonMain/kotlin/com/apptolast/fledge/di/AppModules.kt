@@ -27,6 +27,7 @@ import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjus
 import com.apptolast.fledge.presentation.foundation.pairing.PairingViewModel
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateViewModel
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewModel
+import com.apptolast.fledge.presentation.foundation.postlogin.PostLoginViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
@@ -79,6 +80,7 @@ val presentationModule = module {
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)
     viewModelOf(::ParentHomeViewModel)
+    viewModelOf(::PostLoginViewModel)
 }
 
 expect val platformModule: Module
