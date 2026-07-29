@@ -5,8 +5,11 @@ import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.TaskInstance
+import com.apptolast.fledge.domain.model.TaskInstanceId
+import com.apptolast.fledge.domain.model.submittedForReview
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
+import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -73,6 +76,41 @@ class FirestoreTaskInstanceRepository(
     override fun instancesForChild(childProfileId: ChildProfileId): List<TaskInstance> = instances.value
         .filter { it.childProfileId == childProfileId }
         .sortedForInstances()
+
+    override suspend fun submitForReview(
+        instanceId: TaskInstanceId,
+        childProfileId: ChildProfileId,
+        photoEvidenceUri: String?,
+        submittedAt: Instant,
+    ): TaskInstance {
+        val existing = instanceById(instanceId) ?: instanceByIdFromFirestore(instanceId)
+        requireNotNull(existing) { "Task instance does not exist." }
+        val submitted = existing.submittedForReview(
+            childProfileId = childProfileId,
+            photoEvidenceUri = photoEvidenceUri,
+            submittedAt = submittedAt,
+        )
+        taskInstanceCollection(submitted.familyId).document(instanceId.value)
+            .set(submitted.toFirestoreMap(), merge = true)
+        upsertLocal(submitted)
+        return submitted
+    }
+
+    private fun instanceById(instanceId: TaskInstanceId): TaskInstance? =
+        instances.value.firstOrNull { it.id == instanceId }
+
+    private suspend fun instanceByIdFromFirestore(instanceId: TaskInstanceId): TaskInstance? {
+        val fallbackFamilyId = authProvider.currentFamilyId()
+        return taskInstanceCollection(fallbackFamilyId).document(instanceId.value)
+            .get()
+            .takeIf { it.exists }
+            ?.toTaskInstance()
+    }
+
+    private fun upsertLocal(instance: TaskInstance) {
+        mutableInstances.value = (instances.value.filterNot { it.id == instance.id } + instance)
+            .sortedForInstances()
+    }
 
     private fun taskInstanceCollection(familyId: FamilyId) = firestoreProvider
         .firestoreOrThrow()

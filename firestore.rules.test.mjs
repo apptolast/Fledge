@@ -183,7 +183,12 @@ function taskInstanceData({
   taskAssignmentId = "assignment-1",
   taskTemplateId = "template-1",
   childProfileId = CHILD_ID,
+  requiresPhoto = false,
   status = "Pending",
+  submittedAt = null,
+  reviewedAt = null,
+  expiredAt = null,
+  photoEvidenceUri = null,
 } = {}) {
   return {
     familyId,
@@ -192,15 +197,16 @@ function taskInstanceData({
     childProfileId,
     title: "Poner la mesa",
     rewardCents: 50,
-    requiresPhoto: false,
+    requiresPhoto,
     status,
     dueAt: LATER,
     periodKey: "20260729",
     createdAt: NOW,
     updatedAt: NOW,
-    submittedAt: null,
-    reviewedAt: null,
-    expiredAt: null,
+    submittedAt,
+    reviewedAt,
+    expiredAt,
+    photoEvidenceUri,
   };
 }
 
@@ -373,13 +379,18 @@ describe("FLE-83 Firestore membership rules", () => {
     ));
   });
 
-  test("task instances are readable by family members and not writable by clients", async () => {
+  test("task instances are readable and can only be submitted by the owning child flow", async () => {
     await seed(familyPath(), familyData());
     await seed(taskInstancePath(), taskInstanceData());
     await seed(
       taskInstancePath("task-assignment-1-child-2-20260729"),
       taskInstanceData({ childProfileId: SIBLING_ID }),
     );
+    await seed(taskInstancePath("parent-submit"), taskInstanceData());
+    await seed(taskInstancePath("needs-photo"), taskInstanceData({ requiresPhoto: true }));
+    await seed(taskInstancePath("needs-photo-valid"), taskInstanceData({ requiresPhoto: true }));
+    await seed(taskInstancePath("tamper"), taskInstanceData());
+    await seed(taskInstancePath("direct-approval"), taskInstanceData());
 
     const parent = parentDb();
     const child = childDb();
@@ -391,8 +402,45 @@ describe("FLE-83 Firestore membership rules", () => {
     await assertSucceeds(getDoc(doc(sibling, taskInstancePath("task-assignment-1-child-2-20260729"))));
 
     await assertFails(setDoc(doc(parent, taskInstancePath("parent-write")), taskInstanceData()));
-    await assertFails(updateDoc(doc(parent, taskInstancePath()), { status: "Submitted" }));
     await assertFails(setDoc(doc(child, taskInstancePath("child-write")), taskInstanceData()));
-    await assertFails(updateDoc(doc(child, taskInstancePath()), { status: "Submitted" }));
+
+    await assertSucceeds(updateDoc(doc(child, taskInstancePath()), {
+      status: "Submitted",
+      submittedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertSucceeds(updateDoc(doc(parent, taskInstancePath("parent-submit")), {
+      status: "Submitted",
+      submittedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(child, taskInstancePath("needs-photo")), {
+      status: "Submitted",
+      submittedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertSucceeds(updateDoc(doc(child, taskInstancePath("needs-photo-valid")), {
+      status: "Submitted",
+      submittedAt: LATER,
+      updatedAt: LATER,
+      photoEvidenceUri: "local://task-photo-1",
+    }));
+    await assertFails(updateDoc(doc(child, taskInstancePath("tamper")), {
+      rewardCents: 10000,
+      status: "Submitted",
+      submittedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(child, taskInstancePath("direct-approval")), {
+      status: "Approved",
+      submittedAt: LATER,
+      reviewedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(sibling, taskInstancePath("parent-submit")), {
+      status: "Submitted",
+      submittedAt: LATER,
+      updatedAt: LATER,
+    }));
   });
 });

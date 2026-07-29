@@ -22,7 +22,7 @@ class RoleSelectorViewModel(
     private val repository: FamilyFoundationRepository,
     private val routeDecider: FoundationRouteDecider = FoundationRouteDecider(),
 ) : ViewModel() {
-    private val mutableUiState = MutableStateFlow(RoleSelectorUiState())
+    private val mutableUiState = MutableStateFlow(RoleSelectorUiState(childProfiles = repository.children.value))
     val uiState: StateFlow<RoleSelectorUiState> = mutableUiState
 
     init {

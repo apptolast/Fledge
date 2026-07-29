@@ -117,4 +117,61 @@ class TaskInstanceModelTest {
         assertEquals("Rejected", TaskInstanceStatus.Rejected.name)
         assertEquals("Expired", TaskInstanceStatus.Expired.name)
     }
+
+    @Test
+    fun `FLE-30 TaskInstance modela evidencia de envio`() {
+        // Given
+        val now = Instant.fromEpochSeconds(1_700_000_000)
+
+        // When
+        val instance = TaskInstance(
+            id = TaskInstanceId("task-assignment-1-child-1-20260729"),
+            familyId = FamilyId("family-1"),
+            taskAssignmentId = TaskAssignmentId("assignment-1"),
+            taskTemplateId = TaskTemplateId("template-1"),
+            childProfileId = ChildProfileId("child-1"),
+            title = "Poner la mesa",
+            rewardCents = MoneyCents(50),
+            requiresPhoto = true,
+            status = TaskInstanceStatus.Submitted,
+            dueAt = now,
+            periodKey = "20260729",
+            createdAt = now,
+            updatedAt = now,
+            submittedAt = now,
+            photoEvidenceUri = "local://task-photo-1",
+        )
+
+        // Then
+        assertEquals(TaskInstanceStatus.Submitted, instance.status)
+        assertEquals(now, instance.submittedAt)
+        assertEquals("local://task-photo-1", instance.photoEvidenceUri)
+    }
+
+    @Test
+    fun `FLE-30 TaskInstance rechaza envio con foto obligatoria sin evidencia`() {
+        // Given
+        val now = Instant.fromEpochSeconds(1_700_000_000)
+
+        // When / Then
+        assertFailsWith<IllegalArgumentException> {
+            TaskInstance(
+                id = TaskInstanceId("task-assignment-1-child-1-20260729"),
+                familyId = FamilyId("family-1"),
+                taskAssignmentId = TaskAssignmentId("assignment-1"),
+                taskTemplateId = TaskTemplateId("template-1"),
+                childProfileId = ChildProfileId("child-1"),
+                title = "Poner la mesa",
+                rewardCents = MoneyCents(50),
+                requiresPhoto = true,
+                status = TaskInstanceStatus.Submitted,
+                dueAt = now,
+                periodKey = "20260729",
+                createdAt = now,
+                updatedAt = now,
+                submittedAt = now,
+                photoEvidenceUri = null,
+            )
+        }
+    }
 }

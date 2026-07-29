@@ -236,6 +236,39 @@ class FirestoreRepositorySupportTest {
         assertEquals(null, data["submittedAt"])
         assertEquals(null, data["reviewedAt"])
         assertEquals(null, data["expiredAt"])
+        assertEquals(null, data["photoEvidenceUri"])
+    }
+
+    @Test
+    fun `FLE-30 task instance document stores child submission evidence`() {
+        // Given
+        val submittedAt = Instant.fromEpochSeconds(1_700_300_000)
+        val instance = TaskInstance(
+            id = TaskInstanceId("task-assignment-1-child-1-20260729"),
+            familyId = FamilyId("family-1"),
+            taskAssignmentId = TaskAssignmentId("assignment-1"),
+            taskTemplateId = TaskTemplateId("template-1"),
+            childProfileId = ChildProfileId("child-1"),
+            title = "Poner la mesa",
+            rewardCents = MoneyCents(50),
+            requiresPhoto = true,
+            status = TaskInstanceStatus.Submitted,
+            dueAt = Instant.fromEpochSeconds(1_700_200_000),
+            periodKey = "20260729",
+            createdAt = Instant.fromEpochSeconds(1_700_100_000),
+            updatedAt = submittedAt,
+            submittedAt = submittedAt,
+            photoEvidenceUri = "local://task-photo-1",
+        )
+
+        // When
+        val data = instance.toFirestoreMap()
+
+        // Then
+        assertEquals("Submitted", data["status"])
+        assertEquals("local://task-photo-1", data["photoEvidenceUri"])
+        assertIs<Timestamp>(data["submittedAt"])
+        assertIs<Timestamp>(data["updatedAt"])
     }
 
     @Test

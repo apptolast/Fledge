@@ -279,6 +279,7 @@ export function buildTaskInstanceDocuments({ familyId, assignmentId, assignment,
       submittedAt: null,
       reviewedAt: null,
       expiredAt: null,
+      photoEvidenceUri: null,
     },
   }));
 }
