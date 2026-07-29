@@ -13,6 +13,9 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.TaskTemplate
+import com.apptolast.fledge.domain.model.TaskTemplateId
+import com.apptolast.fledge.domain.model.TaskTemplateSource
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
@@ -110,6 +113,46 @@ class FirestoreRepositorySupportTest {
         assertEquals(500L, data["amountCents"])
         assertEquals("Europe/Madrid", data["timeZone"])
         assertIs<Timestamp>(data["nextRunAt"])
+    }
+
+    @Test
+    fun `AC-05 task template document matches catalog schema`() {
+        // Given
+        val template = TaskTemplate(
+            id = TaskTemplateId("template-1"),
+            familyId = FamilyId("family-1"),
+            title = "Poner la mesa",
+            description = "Preparar platos, vasos y cubiertos.",
+            iconKey = "utensils",
+            defaultValueCents = MoneyCents(50),
+            requiresPhoto = false,
+            suggestedMinAge = 7,
+            suggestedMaxAge = 9,
+            source = TaskTemplateSource.InitialSuggestion,
+            sourceChildProfileId = ChildProfileId("child-1"),
+            sourceKey = "set-table",
+            createdAt = Instant.fromEpochSeconds(1_700_000_000),
+            updatedAt = Instant.fromEpochSeconds(1_700_000_000),
+        )
+
+        // When
+        val data = template.toFirestoreMap()
+
+        // Then
+        assertEquals("family-1", data["familyId"])
+        assertEquals("Poner la mesa", data["title"])
+        assertEquals("Preparar platos, vasos y cubiertos.", data["description"])
+        assertEquals("utensils", data["iconKey"])
+        assertEquals(50L, data["defaultValueCents"])
+        assertEquals(false, data["requiresPhoto"])
+        assertEquals(7, data["suggestedMinAge"])
+        assertEquals(9, data["suggestedMaxAge"])
+        assertEquals("InitialSuggestion", data["source"])
+        assertEquals("child-1", data["sourceChildProfileId"])
+        assertEquals("set-table", data["sourceKey"])
+        assertEquals(false, data["archived"])
+        assertIs<Timestamp>(data["createdAt"])
+        assertIs<Timestamp>(data["updatedAt"])
     }
 
     @Test

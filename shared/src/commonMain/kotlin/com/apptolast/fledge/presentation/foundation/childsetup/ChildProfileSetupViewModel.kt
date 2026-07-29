@@ -4,9 +4,13 @@ import androidx.lifecycle.ViewModel
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.domain.repository.TaskTemplateRepository
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 data class ChildProfileSetupUiState(
     val displayName: String = "",
@@ -28,7 +32,10 @@ enum class ChildProfileSetupError {
     InvalidInput,
 }
 
-class ChildProfileSetupViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
+class ChildProfileSetupViewModel(
+    private val repository: FamilyFoundationRepository,
+    private val taskTemplateRepository: TaskTemplateRepository,
+) : ViewModel() {
     private val mutableUiState = MutableStateFlow(ChildProfileSetupUiState())
     val uiState: StateFlow<ChildProfileSetupUiState> = mutableUiState
 
@@ -65,6 +72,7 @@ class ChildProfileSetupViewModel(private val repository: FamilyFoundationReposit
             return false
         }
 
+        val shouldSeedInitialSuggestions = repository.children.value.isEmpty()
         val child = repository.addChildProfile(
             familyId = family.id,
             displayName = state.displayName,
@@ -72,10 +80,19 @@ class ChildProfileSetupViewModel(private val repository: FamilyFoundationReposit
             avatarKey = state.avatarKey,
             pin = ChildPin(state.pin),
         )
+        if (shouldSeedInitialSuggestions) {
+            taskTemplateRepository.seedInitialSuggestionsForChild(
+                familyId = family.id,
+                child = child,
+                currentYear = currentYear(),
+            )
+        }
         mutableUiState.update { it.copy(createdChild = child) }
         return true
     }
 }
+
+private fun currentYear(): Int = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
 
 private const val MIN_BIRTH_YEAR = 2008
 private const val MAX_BIRTH_YEAR = 2023

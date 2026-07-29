@@ -28,6 +28,9 @@ import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
+import com.apptolast.fledge.domain.model.TaskTemplate
+import com.apptolast.fledge.domain.model.TaskTemplateId
+import com.apptolast.fledge.domain.model.TaskTemplateSource
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
@@ -98,6 +101,8 @@ internal fun DocumentSnapshot.optionalInt(field: String): Int? = if (contains(fi
 
 internal fun DocumentSnapshot.optionalBoolean(field: String): Boolean? =
     if (contains(field)) get<Boolean?>(field) else null
+
+internal fun DocumentSnapshot.requiredBoolean(field: String): Boolean = get(field)
 
 internal fun DocumentSnapshot.requiredTimestamp(field: String): Instant = get<Timestamp>(field).toKotlinInstant()
 
@@ -248,6 +253,41 @@ internal fun DocumentSnapshot.toCashOutSettlement(): CashOutSettlement = CashOut
     paidByParentAt = optionalTimestamp("paidByParentAt"),
     confirmedByChildAt = optionalTimestamp("confirmedByChildAt"),
     settlementTransactionId = optionalString("settlementTransactionId")?.let(::TransactionId),
+)
+
+internal fun TaskTemplate.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "title" to title,
+    "description" to description,
+    "iconKey" to iconKey,
+    "defaultValueCents" to defaultValueCents.value,
+    "requiresPhoto" to requiresPhoto,
+    "suggestedMinAge" to suggestedMinAge,
+    "suggestedMaxAge" to suggestedMaxAge,
+    "source" to source.name,
+    "sourceChildProfileId" to sourceChildProfileId?.value,
+    "sourceKey" to sourceKey,
+    "archived" to archived,
+    "createdAt" to createdAt.toFirestoreTimestamp(),
+    "updatedAt" to updatedAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toTaskTemplate(): TaskTemplate = TaskTemplate(
+    id = TaskTemplateId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    title = requiredString("title"),
+    description = requiredString("description"),
+    iconKey = requiredString("iconKey"),
+    defaultValueCents = MoneyCents(requiredLong("defaultValueCents")),
+    requiresPhoto = requiredBoolean("requiresPhoto"),
+    suggestedMinAge = optionalInt("suggestedMinAge"),
+    suggestedMaxAge = optionalInt("suggestedMaxAge"),
+    source = TaskTemplateSource.valueOf(requiredString("source")),
+    sourceChildProfileId = optionalString("sourceChildProfileId")?.let(::ChildProfileId),
+    sourceKey = optionalString("sourceKey"),
+    archived = optionalBoolean("archived") ?: false,
+    createdAt = requiredTimestamp("createdAt"),
+    updatedAt = requiredTimestamp("updatedAt"),
 )
 
 internal fun VirtualMoneyConsent.toFirestorePatch(): Map<String, Any?> = mapOf(
