@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,6 +37,25 @@ import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyC
 @Composable
 fun FledgeNavHost(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
+    val pendingDeepLink by DeepLinkManager.pendingDeepLink.collectAsState()
+
+    LaunchedEffect(pendingDeepLink) {
+        when (val deepLink = pendingDeepLink) {
+            is DeepLink.ParentApprovalQueue -> {
+                navController.navigate(ParentHomeRoute) {
+                    launchSingleTop = true
+                }
+                DeepLinkManager.consumeDeepLink()
+            }
+            is DeepLink.ChildTaskApproved -> {
+                navController.navigate(ChildPinRoute(deepLink.childProfileId)) {
+                    launchSingleTop = true
+                }
+                DeepLinkManager.consumeDeepLink()
+            }
+            null -> Unit
+        }
+    }
 
     NavHost(
         navController = navController,

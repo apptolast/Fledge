@@ -8,6 +8,8 @@ import com.apptolast.fledge.domain.model.ChildSession
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.notification.NoOpPushNotificationManager
+import com.apptolast.fledge.notification.PushNotificationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -28,7 +30,10 @@ enum class ChildPinError {
     InvalidPin,
 }
 
-class ChildPinViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
+class ChildPinViewModel(
+    private val repository: FamilyFoundationRepository,
+    private val pushNotifications: PushNotificationManager = NoOpPushNotificationManager,
+) : ViewModel() {
     private val mutableUiState = MutableStateFlow(ChildPinUiState())
     val uiState: StateFlow<ChildPinUiState> = mutableUiState
 
@@ -62,6 +67,13 @@ class ChildPinViewModel(private val repository: FamilyFoundationRepository) : Vi
                 childSession = session,
                 error = if (session == null) ChildPinError.InvalidPin else null,
             )
+        }
+        if (session != null) {
+            repository.activeFamily.value?.id?.let { familyId ->
+                runCatching {
+                    pushNotifications.subscribeToChildApprovals(familyId, childProfileId)
+                }
+            }
         }
         return session != null
     }

@@ -17,6 +17,7 @@ firebase-bom = "33.15.0"
 gitlive = "2.5.0"
 googleid = "1.2.0"
 junit = "4.13.2"
+kmpnotifier = "1.6.1"
 koin-bom = "4.2.2"
 kotlin = "2.4.10"
 ktlintJlleitschuh = "14.0.1"
@@ -49,11 +50,13 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 baselogin = { module = "com.github.apptolast.BaseLogin:baselogin", version.ref = "baselogin" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 gitlive-firebase-app = { module = "dev.gitlive:firebase-app", version.ref = "gitlive" }
 gitlive-firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "gitlive" }
 gitlive-firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "gitlive" }
 gitlive-firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "gitlive" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+kmpnotifier = { module = "io.github.mirzemehdi:kmpnotifier", version.ref = "kmpnotifier" }
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }
 koin-compose = { module = "io.insert-koin:koin-compose" }

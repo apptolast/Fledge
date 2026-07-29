@@ -1,5 +1,6 @@
 package com.apptolast.fledge.presentation
 
+import app.cash.turbine.test
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
 import com.apptolast.fledge.domain.model.BalanceCents
@@ -28,10 +29,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 
 class ManualAdjustmentViewModelTest {
@@ -101,7 +100,6 @@ class ManualAdjustmentViewModelTest {
     }
 
     @Test
-    @OptIn(ExperimentalCoroutinesApi::class)
     fun `FLE-84 cached data notice is exposed while the form remains usable`() = runTest {
         // Given
         val foundationRepository = InMemoryFamilyFoundationRepository()
@@ -109,13 +107,17 @@ class ManualAdjustmentViewModelTest {
         val child = foundationRepository.createChild()
         val viewModel = ManualAdjustmentViewModel(foundationRepository, ledgerRepository)
 
-        // When
-        viewModel.load(child.id)
-        advanceUntilIdle()
-
-        // Then
-        assertEquals(FoundationSyncNotice.CachedData, viewModel.uiState.value.syncNotice)
-        assertEquals(child, viewModel.uiState.value.child)
+        // When / Then
+        viewModel.uiState.test {
+            viewModel.load(child.id)
+            var cachedState = awaitItem()
+            while (cachedState.syncNotice != FoundationSyncNotice.CachedData || cachedState.child != child) {
+                cachedState = awaitItem()
+            }
+            assertEquals(FoundationSyncNotice.CachedData, cachedState.syncNotice)
+            assertEquals(child, cachedState.child)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

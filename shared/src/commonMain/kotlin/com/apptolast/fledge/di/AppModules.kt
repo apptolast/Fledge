@@ -23,6 +23,8 @@ import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
+import com.apptolast.fledge.notification.KmpPushNotificationManager
+import com.apptolast.fledge.notification.PushNotificationManager
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleViewModel
 import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestViewModel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
@@ -59,6 +61,7 @@ val dataModule = module {
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }
     single { TaskApprovalProcessor(get(), get()) }
+    single<PushNotificationManager> { KmpPushNotificationManager() }
     // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
     // platformModule, so tests can substitute them without overriding the production graph.
     single {
