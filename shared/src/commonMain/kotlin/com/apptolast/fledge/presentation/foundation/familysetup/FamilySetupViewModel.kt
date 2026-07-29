@@ -1,6 +1,7 @@
 package com.apptolast.fledge.presentation.foundation.familysetup
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.Family
 import com.apptolast.fledge.domain.model.TimeZoneId
@@ -8,6 +9,7 @@ import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class FamilySetupUiState(
     val familyName: String = "",
@@ -22,6 +24,25 @@ data class FamilySetupUiState(
 class FamilySetupViewModel(private val repository: FamilyFoundationRepository) : ViewModel() {
     private val mutableUiState = MutableStateFlow(FamilySetupUiState())
     val uiState: StateFlow<FamilySetupUiState> = mutableUiState
+
+    init {
+        viewModelScope.launch {
+            repository.activeFamily.collect { family ->
+                mutableUiState.update { state ->
+                    if (family == null) {
+                        if (state.createdFamily == null) state else FamilySetupUiState()
+                    } else {
+                        state.copy(
+                            familyName = family.name,
+                            currency = family.currency,
+                            timeZone = family.timeZone,
+                            createdFamily = family,
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun updateFamilyName(value: String) {
         if (mutableUiState.value.isLocked) return

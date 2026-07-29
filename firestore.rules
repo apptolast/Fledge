@@ -17,6 +17,18 @@ service cloud.firestore {
         allow read, write: if signedIn();
       }
 
+      match /childProfiles/{childProfileId} {
+        allow read, write: if signedIn();
+      }
+
+      match /childDevices/{deviceId} {
+        allow read, write: if signedIn();
+      }
+
+      match /pairingSessions/{pairingCode} {
+        allow read, write: if signedIn();
+      }
+
       match /ledgerTransactions/{transactionId} {
         allow read, create: if signedIn();
         allow update, delete: if false;

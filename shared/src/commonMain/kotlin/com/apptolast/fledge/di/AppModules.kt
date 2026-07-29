@@ -3,12 +3,13 @@ package com.apptolast.fledge.di
 import com.apptolast.customlogin.di.loginConfigModule
 import com.apptolast.customlogin.di.loginDataModule
 import com.apptolast.customlogin.di.loginPresentationModule
+import com.apptolast.customlogin.domain.AuthProvider
 import com.apptolast.fledge.data.remote.firebase.FirebaseBootstrap
 import com.apptolast.fledge.data.remote.firebase.firebaseApplicationId
 import com.apptolast.fledge.data.remote.firebase.firebaseEnvironmentOf
-import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
-import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
-import com.apptolast.fledge.data.repository.InMemoryMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
+import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
+import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
@@ -40,9 +41,9 @@ import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
 
 val dataModule = module {
-    single { InMemoryFamilyFoundationRepository() } bind FamilyFoundationRepository::class
-    single { InMemoryLedgerRepository() } bind LedgerRepository::class
-    single { InMemoryMoneyFlowRepository() } bind MoneyFlowRepository::class
+    single { FirestoreFamilyFoundationRepository(get(), get()) } bind FamilyFoundationRepository::class
+    single { FirestoreLedgerRepository(get(), get()) } bind LedgerRepository::class
+    single { FirestoreMoneyFlowRepository(get(), get()) } bind MoneyFlowRepository::class
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }
     // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
@@ -82,12 +83,12 @@ val presentationModule = module {
 
 expect val platformModule: Module
 
-internal fun fledgeModules(platform: Module): List<Module> = listOf(
+internal fun fledgeModules(platform: Module, authProvider: AuthProvider? = null): List<Module> = listOf(
     loginConfigModule(initialFledgeLoginConfig()),
     // Auth comes from BaseLogin: loginDataModule() registers its FirebaseAuthGateway and the
     // FirebaseAuthProvider built on top of it. Fledge used to pass its own REST provider here, a
     // stopgap from when the iOS SPM integration had been reverted and there was no native Firebase.
-    loginDataModule(),
+    loginDataModule(authProvider),
     dataModule,
     loginPresentationModule,
     presentationModule,

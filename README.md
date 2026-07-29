@@ -28,7 +28,7 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 
 ### Firebase Auth setup
 
-Fledge uses BaseLogin with a Firebase Identity Toolkit REST provider in `:shared`.
+Fledge delegates authentication to BaseLogin, which registers its GitLive-backed FirebaseAuthProvider.
 Use Firebase project `fledge-c685d`. The project has these Firebase apps:
 
 - Android package: `com.apptolast.fledge`

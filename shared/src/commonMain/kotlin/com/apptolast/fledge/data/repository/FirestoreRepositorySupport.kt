@@ -1,0 +1,282 @@
+package com.apptolast.fledge.data.repository
+
+import com.apptolast.customlogin.domain.AuthProvider
+import com.apptolast.customlogin.domain.model.AuthState
+import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
+import com.apptolast.fledge.data.remote.firebase.GitLiveFirestoreProvider
+import com.apptolast.fledge.domain.model.AllowanceDay
+import com.apptolast.fledge.domain.model.AllowanceFrequency
+import com.apptolast.fledge.domain.model.AllowanceRule
+import com.apptolast.fledge.domain.model.AllowanceRuleId
+import com.apptolast.fledge.domain.model.CashOutSettlement
+import com.apptolast.fledge.domain.model.ChildDevice
+import com.apptolast.fledge.domain.model.ChildPinHash
+import com.apptolast.fledge.domain.model.ChildProfile
+import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.domain.model.CurrencyCode
+import com.apptolast.fledge.domain.model.DeviceId
+import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.FamilyId
+import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.domain.model.LedgerActor
+import com.apptolast.fledge.domain.model.LedgerConcept
+import com.apptolast.fledge.domain.model.LedgerTransaction
+import com.apptolast.fledge.domain.model.LedgerTransactionType
+import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.PairingCode
+import com.apptolast.fledge.domain.model.PairingSession
+import com.apptolast.fledge.domain.model.ParentalGateRequest
+import com.apptolast.fledge.domain.model.SettlementId
+import com.apptolast.fledge.domain.model.SettlementStatus
+import com.apptolast.fledge.domain.model.TimeZoneId
+import com.apptolast.fledge.domain.model.TransactionId
+import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.model.VirtualMoneyConsent
+import dev.gitlive.firebase.firestore.DocumentSnapshot
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.firestore.Timestamp
+import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+
+internal const val FAMILIES_COLLECTION = "families"
+
+internal fun FirestoreProvider.firestoreOrThrow(): FirebaseFirestore {
+    check(isAvailable) { "Firebase is not configured; Firestore persistence is unavailable." }
+    val gitLiveProvider = this as? GitLiveFirestoreProvider
+    checkNotNull(gitLiveProvider) { "Production Firestore provider is required for persistence." }
+    return gitLiveProvider.firestore()
+}
+
+internal suspend fun AuthProvider.currentFamilyId(): FamilyId {
+    val session = getCurrentSession()
+    checkNotNull(session) { "A signed-in parent is required before using Firestore persistence." }
+    return FamilyId(session.userId)
+}
+
+internal fun AuthProvider.authenticatedFamilyIds(): Flow<FamilyId?> = observeAuthState()
+    .map { state -> (state as? AuthState.Authenticated)?.session?.userId?.let(::FamilyId) }
+    .distinctUntilChanged()
+    .catch { emit(null) }
+
+internal fun Instant.toFirestoreTimestamp(): Timestamp = Timestamp(epochSeconds, nanosecondsOfSecond)
+
+internal fun Timestamp.toKotlinInstant(): Instant = Instant.fromEpochSeconds(seconds, nanoseconds)
+
+internal fun DocumentSnapshot.requiredString(field: String): String = get(field)
+
+internal fun DocumentSnapshot.optionalString(field: String): String? =
+    if (contains(field)) get<String?>(field) else null
+
+internal fun DocumentSnapshot.requiredLong(field: String): Long = get(field)
+
+internal fun DocumentSnapshot.optionalLong(field: String): Long? = if (contains(field)) get<Long?>(field) else null
+
+internal fun DocumentSnapshot.requiredInt(field: String): Int = get(field)
+
+internal fun DocumentSnapshot.optionalInt(field: String): Int? = if (contains(field)) get<Int?>(field) else null
+
+internal fun DocumentSnapshot.optionalBoolean(field: String): Boolean? =
+    if (contains(field)) get<Boolean?>(field) else null
+
+internal fun DocumentSnapshot.requiredTimestamp(field: String): Instant = get<Timestamp>(field).toKotlinInstant()
+
+internal fun DocumentSnapshot.optionalTimestamp(field: String): Instant? =
+    if (contains(field)) get<Timestamp?>(field)?.toKotlinInstant() else null
+
+internal fun Family.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to id.value,
+    "name" to name,
+    "currency" to currency.value,
+    "timeZone" to timeZone.value,
+    "moneySettingsLocked" to moneySettingsLocked,
+)
+
+internal fun DocumentSnapshot.toFamily(): Family = Family(
+    id = FamilyId(id),
+    name = requiredString("name"),
+    currency = CurrencyCode(requiredString("currency")),
+    timeZone = TimeZoneId(requiredString("timeZone")),
+    moneySettingsLocked = optionalBoolean("moneySettingsLocked") ?: true,
+)
+
+internal fun ChildProfile.toFirestoreMap(familyId: FamilyId): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "childProfileId" to id.value,
+    "displayName" to displayName,
+    "birthYear" to birthYear,
+    "avatarKey" to avatarKey,
+    "pinHash" to pinHash?.value,
+)
+
+internal fun DocumentSnapshot.toChildProfile(): ChildProfile = ChildProfile(
+    id = ChildProfileId(id),
+    displayName = requiredString("displayName"),
+    birthYear = requiredInt("birthYear"),
+    avatarKey = requiredString("avatarKey"),
+    pinHash = optionalString("pinHash")?.let(::ChildPinHash),
+)
+
+internal fun ChildDevice.toFirestoreMap(familyId: FamilyId): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "deviceId" to id.value,
+    "childProfileId" to childProfileId.value,
+    "label" to label,
+    "pairingCode" to pairingCode.value,
+    "pairedAt" to pairedAt.toFirestoreTimestamp(),
+    "lastSeenAt" to lastSeenAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toChildDevice(): ChildDevice = ChildDevice(
+    id = DeviceId(id),
+    childProfileId = ChildProfileId(requiredString("childProfileId")),
+    label = requiredString("label"),
+    pairingCode = PairingCode(requiredString("pairingCode")),
+    pairedAt = requiredTimestamp("pairedAt"),
+    lastSeenAt = requiredTimestamp("lastSeenAt"),
+)
+
+internal fun PairingSession.toFirestoreMap(familyId: FamilyId): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "childProfileId" to childProfileId.value,
+    "code" to code.value,
+    "expiresAt" to expiresAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toPairingSession(): PairingSession = PairingSession(
+    childProfileId = ChildProfileId(requiredString("childProfileId")),
+    code = PairingCode(id),
+    expiresAt = requiredTimestamp("expiresAt"),
+)
+
+internal fun LedgerTransaction.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "childProfileId" to childProfileId.value,
+    "accountType" to accountType.name,
+    "type" to type.name,
+    "amountCents" to amountCents.value,
+    "concept" to concept.value,
+    "createdBy" to createdBy.name,
+    "createdAt" to createdAt.toFirestoreTimestamp(),
+    "reversesTransactionId" to reversesTransactionId?.value,
+)
+
+internal fun DocumentSnapshot.toLedgerTransaction(): LedgerTransaction = LedgerTransaction(
+    id = TransactionId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    childProfileId = ChildProfileId(requiredString("childProfileId")),
+    accountType = VirtualAccountType.valueOf(requiredString("accountType")),
+    type = LedgerTransactionType.valueOf(requiredString("type")),
+    amountCents = MoneyCents(requiredLong("amountCents")),
+    concept = LedgerConcept(requiredString("concept")),
+    createdBy = LedgerActor.valueOf(requiredString("createdBy")),
+    createdAt = requiredTimestamp("createdAt"),
+    reversesTransactionId = optionalString("reversesTransactionId")?.let(::TransactionId),
+)
+
+internal fun AllowanceRule.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "childProfileId" to childProfileId.value,
+    "accountType" to accountType.name,
+    "frequency" to frequency.name,
+    "day" to day.value,
+    "amountCents" to amountCents.value,
+    "concept" to concept.value,
+    "timeZone" to timeZone.value,
+    "nextRunAt" to nextRunAt.toFirestoreTimestamp(),
+    "active" to active,
+    "createdAt" to createdAt.toFirestoreTimestamp(),
+    "updatedAt" to updatedAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toAllowanceRule(): AllowanceRule = AllowanceRule(
+    id = AllowanceRuleId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    childProfileId = ChildProfileId(requiredString("childProfileId")),
+    accountType = VirtualAccountType.valueOf(requiredString("accountType")),
+    frequency = AllowanceFrequency.valueOf(requiredString("frequency")),
+    day = AllowanceDay(requiredInt("day")),
+    amountCents = MoneyCents(requiredLong("amountCents")),
+    concept = LedgerConcept(requiredString("concept")),
+    timeZone = TimeZoneId(requiredString("timeZone")),
+    nextRunAt = requiredTimestamp("nextRunAt"),
+    active = optionalBoolean("active") ?: true,
+    createdAt = requiredTimestamp("createdAt"),
+    updatedAt = requiredTimestamp("updatedAt"),
+)
+
+internal fun CashOutSettlement.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "childProfileId" to childProfileId.value,
+    "amountCents" to amountCents.value,
+    "concept" to concept.value,
+    "status" to status.name,
+    "requestedAt" to requestedAt.toFirestoreTimestamp(),
+    "paidByParentAt" to paidByParentAt?.toFirestoreTimestamp(),
+    "confirmedByChildAt" to confirmedByChildAt?.toFirestoreTimestamp(),
+    "settlementTransactionId" to settlementTransactionId?.value,
+)
+
+internal fun DocumentSnapshot.toCashOutSettlement(): CashOutSettlement = CashOutSettlement(
+    id = SettlementId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    childProfileId = ChildProfileId(requiredString("childProfileId")),
+    amountCents = MoneyCents(requiredLong("amountCents")),
+    concept = LedgerConcept(requiredString("concept")),
+    status = SettlementStatus.valueOf(requiredString("status")),
+    requestedAt = requiredTimestamp("requestedAt"),
+    paidByParentAt = optionalTimestamp("paidByParentAt"),
+    confirmedByChildAt = optionalTimestamp("confirmedByChildAt"),
+    settlementTransactionId = optionalString("settlementTransactionId")?.let(::TransactionId),
+)
+
+internal fun VirtualMoneyConsent.toFirestorePatch(): Map<String, Any?> = mapOf(
+    "virtualMoneyConsentAcceptedAt" to acceptedAt.toFirestoreTimestamp(),
+    "virtualMoneyConsentDisclosureVersion" to disclosureVersion,
+)
+
+internal fun DocumentSnapshot.toVirtualMoneyConsent(): VirtualMoneyConsent? {
+    val acceptedAt = optionalTimestamp("virtualMoneyConsentAcceptedAt") ?: return null
+    val version = optionalString("virtualMoneyConsentDisclosureVersion") ?: return null
+    return VirtualMoneyConsent(acceptedAt = acceptedAt, disclosureVersion = version)
+}
+
+internal fun ParentalGateRequest.toFirestorePatch(): Map<String, Any?> = mapOf(
+    "parentalGateActionType" to action.actionType,
+    "parentalGateChildProfileId" to (
+        (action as? FoundationAction.ResetChildPin)?.childProfileId?.value
+            ?: (action as? FoundationAction.PairChildDevice)?.childProfileId?.value
+        ),
+    "parentalGateRequestedAt" to requestedAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toParentalGateRequest(): ParentalGateRequest? {
+    val type = optionalString("parentalGateActionType") ?: return null
+    val requestedAt = optionalTimestamp("parentalGateRequestedAt") ?: return null
+    return ParentalGateRequest(
+        action = foundationActionOf(type, optionalString("parentalGateChildProfileId")),
+        requestedAt = requestedAt,
+    )
+}
+
+internal val FoundationAction.actionType: String
+    get() = when (this) {
+        FoundationAction.ManageSettings -> "ManageSettings"
+        FoundationAction.OpenExternalLink -> "OpenExternalLink"
+        FoundationAction.OpenParentZone -> "OpenParentZone"
+        is FoundationAction.PairChildDevice -> "PairChildDevice"
+        is FoundationAction.ResetChildPin -> "ResetChildPin"
+        FoundationAction.StartPurchase -> "StartPurchase"
+    }
+
+private fun foundationActionOf(type: String, childProfileId: String?): FoundationAction = when (type) {
+    "ManageSettings" -> FoundationAction.ManageSettings
+    "OpenExternalLink" -> FoundationAction.OpenExternalLink
+    "OpenParentZone" -> FoundationAction.OpenParentZone
+    "PairChildDevice" -> FoundationAction.PairChildDevice(ChildProfileId(requireNotNull(childProfileId)))
+    "ResetChildPin" -> FoundationAction.ResetChildPin(ChildProfileId(requireNotNull(childProfileId)))
+    "StartPurchase" -> FoundationAction.StartPurchase
+    else -> error("Unknown parental gate action: $type")
+}
