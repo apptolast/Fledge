@@ -10,9 +10,11 @@ import com.apptolast.fledge.data.remote.firebase.firebaseEnvironmentOf
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
@@ -45,6 +47,7 @@ val dataModule = module {
     single { FirestoreFamilyFoundationRepository(get(), get()) } bind FamilyFoundationRepository::class
     single { FirestoreLedgerRepository(get(), get()) } bind LedgerRepository::class
     single { FirestoreMoneyFlowRepository(get(), get()) } bind MoneyFlowRepository::class
+    single { FirestoreTaskTemplateRepository(get(), get()) } bind TaskTemplateRepository::class
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }
     // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
