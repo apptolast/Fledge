@@ -13,9 +13,14 @@ import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.model.toLedgerTransaction
 import com.apptolast.fledge.domain.repository.LedgerRepository
+import com.apptolast.fledge.domain.repository.LedgerTransferPair
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
+import com.apptolast.fledge.domain.repository.requireValidTransferDraftPair
+import com.apptolast.fledge.domain.repository.requireValidTransferPair
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -78,25 +83,47 @@ class FirestoreLedgerRepository(
         jobs.joinAll()
     }
 
-    override suspend fun appendTransaction(draft: LedgerTransactionDraft): LedgerTransaction {
+    override suspend fun appendTransaction(draft: LedgerTransactionDraft, createdAt: Instant): LedgerTransaction {
         require(authProvider.currentFamilyId() == draft.familyId) {
             "A signed-in parent can only append transactions to the active family."
         }
         val ref = ledgerCollection(draft.familyId).document
-        val transaction = LedgerTransaction(
+        val transaction = draft.toLedgerTransaction(
             id = TransactionId(ref.id),
-            familyId = draft.familyId,
-            childProfileId = draft.childProfileId,
-            accountType = draft.accountType,
-            type = draft.type,
-            amountCents = draft.amountCents,
-            concept = LedgerConcept(draft.concept.value.trim()),
-            createdBy = draft.createdBy,
-            createdAt = Clock.System.now(),
+            createdAt = createdAt,
         )
         ref.set(transaction.toFirestoreMap())
         appendLocal(transaction)
         return transaction
+    }
+
+    override suspend fun appendTransferPair(
+        debitDraft: LedgerTransactionDraft,
+        creditDraft: LedgerTransactionDraft,
+        createdAt: Instant,
+    ): LedgerTransferPair {
+        require(authProvider.currentFamilyId() == debitDraft.familyId) {
+            "A signed-in parent can only append transactions to the active family."
+        }
+        requireValidTransferDraftPair(debitDraft, creditDraft)
+
+        val firestore = firestoreProvider.firestoreOrThrow()
+        val ledgerRef = ledgerCollection(debitDraft.familyId)
+        val debitRef = ledgerRef.document
+        val creditRef = ledgerRef.document
+        val transfer = LedgerTransferPair(
+            debit = debitDraft.toLedgerTransaction(TransactionId(debitRef.id), createdAt),
+            credit = creditDraft.toLedgerTransaction(TransactionId(creditRef.id), createdAt),
+        )
+        requireValidTransferPair(transfer)
+
+        firestore.batch()
+            .set(debitRef, transfer.debit.toFirestoreMap())
+            .set(creditRef, transfer.credit.toFirestoreMap())
+            .commit()
+        appendLocal(transfer.debit)
+        appendLocal(transfer.credit)
+        return transfer
     }
 
     override suspend fun reverseTransaction(

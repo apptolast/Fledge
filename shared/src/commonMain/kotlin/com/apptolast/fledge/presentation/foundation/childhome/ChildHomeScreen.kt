@@ -66,6 +66,7 @@ import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
 import fledge.shared.generated.resources.child_home_active_goal_amount
+import fledge.shared.generated.resources.child_home_active_goal_deposit
 import fledge.shared.generated.resources.child_home_active_goal_progress
 import fledge.shared.generated.resources.child_home_active_goal_title
 import fledge.shared.generated.resources.child_home_body
@@ -121,6 +122,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun ChildHomeScreen(
     childProfileId: ChildProfileId,
     onRequestCashOut: (ChildProfileId) -> Unit,
+    onOpenSavingsGoal: (ChildProfileId, SavingsGoalId) -> Unit,
     onParentalGateRequired: () -> Unit,
     viewModel: ChildHomeViewModel = koinViewModel(),
 ) {
@@ -133,6 +135,7 @@ fun ChildHomeScreen(
     ChildHomeContent(
         state = state,
         onRequestCashOut = onRequestCashOut,
+        onOpenSavingsGoal = onOpenSavingsGoal,
         onConfirmSettlement = { settlementId ->
             scope.launch {
                 viewModel.confirmSettlement(settlementId)
@@ -160,6 +163,7 @@ fun ChildHomeScreen(
 fun ChildHomeContent(
     state: ChildHomeUiState,
     onRequestCashOut: (ChildProfileId) -> Unit,
+    onOpenSavingsGoal: (ChildProfileId, SavingsGoalId) -> Unit,
     onConfirmSettlement: (SettlementId) -> Unit,
     onAttachPhotoEvidence: (TaskInstanceId) -> Unit,
     onSubmitTask: (TaskInstanceId) -> Unit,
@@ -211,6 +215,11 @@ fun ChildHomeContent(
                         goal = goal,
                         currentCents = state.balances?.goal?.value ?: 0L,
                         currencyCode = state.currencyCode,
+                        onDeposit = {
+                            state.childProfileId?.let { childProfileId ->
+                                onOpenSavingsGoal(childProfileId, goal.id)
+                            }
+                        },
                     )
                 }
             }
@@ -488,7 +497,7 @@ private fun ChildTaskInstanceRow(
 }
 
 @Composable
-private fun ActiveSavingsGoalCard(goal: SavingsGoal, currentCents: Long, currencyCode: String) {
+private fun ActiveSavingsGoalCard(goal: SavingsGoal, currentCents: Long, currencyCode: String, onDeposit: () -> Unit) {
     val progress = (currentCents.toFloat() / goal.targetCents.value.toFloat()).coerceIn(0f, 1f)
     val progressPercent = (progress * 100).toInt()
 
@@ -559,6 +568,16 @@ private fun ActiveSavingsGoalCard(goal: SavingsGoal, currentCents: Long, currenc
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Button(
+                onClick = onDeposit,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.child_home_active_goal_deposit))
+            }
         }
     }
 }
@@ -841,6 +860,7 @@ fun PreviewChildHomeContent() {
                 syncNotice = null,
             ),
             onRequestCashOut = {},
+            onOpenSavingsGoal = { _, _ -> },
             onConfirmSettlement = {},
             onAttachPhotoEvidence = {},
             onSubmitTask = {},

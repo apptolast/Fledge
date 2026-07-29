@@ -10,9 +10,14 @@ import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.model.toLedgerTransaction
 import com.apptolast.fledge.domain.repository.LedgerRepository
+import com.apptolast.fledge.domain.repository.LedgerTransferPair
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
+import com.apptolast.fledge.domain.repository.requireValidTransferDraftPair
+import com.apptolast.fledge.domain.repository.requireValidTransferPair
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,20 +29,29 @@ class InMemoryLedgerRepository : LedgerRepository {
     override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val transactions: StateFlow<List<LedgerTransaction>> = mutableTransactions
 
-    override suspend fun appendTransaction(draft: LedgerTransactionDraft): LedgerTransaction {
-        val transaction = LedgerTransaction(
+    override suspend fun appendTransaction(draft: LedgerTransactionDraft, createdAt: Instant): LedgerTransaction {
+        val transaction = draft.toLedgerTransaction(
             id = nextTransactionId(),
-            familyId = draft.familyId,
-            childProfileId = draft.childProfileId,
-            accountType = draft.accountType,
-            type = draft.type,
-            amountCents = draft.amountCents,
-            concept = LedgerConcept(draft.concept.value.trim()),
-            createdBy = draft.createdBy,
-            createdAt = Clock.System.now(),
+            createdAt = createdAt,
         )
         appendOnly(transaction)
         return transaction
+    }
+
+    override suspend fun appendTransferPair(
+        debitDraft: LedgerTransactionDraft,
+        creditDraft: LedgerTransactionDraft,
+        createdAt: Instant,
+    ): LedgerTransferPair {
+        requireValidTransferDraftPair(debitDraft, creditDraft)
+        val transfer = LedgerTransferPair(
+            debit = debitDraft.toLedgerTransaction(nextTransactionId(), createdAt),
+            credit = creditDraft.toLedgerTransaction(nextTransactionId(), createdAt),
+        )
+        requireValidTransferPair(transfer)
+        appendOnly(transfer.debit)
+        appendOnly(transfer.credit)
+        return transfer
     }
 
     override suspend fun reverseTransaction(

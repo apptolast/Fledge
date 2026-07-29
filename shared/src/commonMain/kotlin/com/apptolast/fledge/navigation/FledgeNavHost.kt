@@ -14,6 +14,7 @@ import com.apptolast.customlogin.presentation.navigation.AuthRoutesFlow
 import com.apptolast.customlogin.presentation.navigation.authRoutesFlow
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleScreen
 import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestScreen
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeScreen
@@ -28,6 +29,7 @@ import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateScr
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeScreen
 import com.apptolast.fledge.presentation.foundation.postlogin.PostLoginScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
+import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositScreen
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupScreen
 import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentScreen
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentScreen
@@ -124,6 +126,15 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onSaved = { navController.popBackStack() },
             )
         }
+        composable<SavingsGoalDepositRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<SavingsGoalDepositRoute>()
+            SavingsGoalDepositScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                goalId = SavingsGoalId(route.goalId),
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+            )
+        }
         composable<AllowanceRuleRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<AllowanceRuleRoute>()
             AllowanceRuleScreen(
@@ -195,6 +206,9 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
             ChildHomeScreen(
                 childProfileId = ChildProfileId(route.childProfileId),
                 onRequestCashOut = { childId -> navController.navigate(CashOutRequestRoute(childId.value)) },
+                onOpenSavingsGoal = { childId, goalId ->
+                    navController.navigate(SavingsGoalDepositRoute(childId.value, goalId.value))
+                },
                 onParentalGateRequired = { navController.navigate(ParentalGateRoute) },
             )
         }

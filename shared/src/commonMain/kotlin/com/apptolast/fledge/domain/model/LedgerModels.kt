@@ -14,6 +14,14 @@ value class TransactionId(val value: String) {
 
 @Serializable
 @JvmInline
+value class LedgerTransferGroupId(val value: String) {
+    init {
+        require(value.isNotBlank()) { "Ledger transfer group id cannot be blank." }
+    }
+}
+
+@Serializable
+@JvmInline
 value class MoneyCents(val value: Long) {
     init {
         require(value != 0L) { "Transaction amount cannot be zero." }
@@ -73,7 +81,14 @@ data class LedgerTransaction(
     val createdBy: LedgerActor,
     val createdAt: Instant,
     val reversesTransactionId: TransactionId? = null,
-)
+    val transferGroupId: LedgerTransferGroupId? = null,
+) {
+    init {
+        require(type != LedgerTransactionType.GoalTransfer || transferGroupId != null) {
+            "Goal transfer transactions require a transfer group id."
+        }
+    }
+}
 
 @Serializable
 data class ChildLedgerBalances(val childProfileId: ChildProfileId, val main: BalanceCents, val goal: BalanceCents)
@@ -86,10 +101,28 @@ data class LedgerTransactionDraft(
     val amountCents: MoneyCents,
     val concept: LedgerConcept,
     val createdBy: LedgerActor,
+    val transferGroupId: LedgerTransferGroupId? = null,
 ) {
     init {
         require(type != LedgerTransactionType.Reversal) {
             "Use reverseTransaction to create reversal entries."
         }
+        require(type != LedgerTransactionType.GoalTransfer || transferGroupId != null) {
+            "Goal transfer drafts require a transfer group id."
+        }
     }
 }
+
+fun LedgerTransactionDraft.toLedgerTransaction(id: TransactionId, createdAt: Instant): LedgerTransaction =
+    LedgerTransaction(
+        id = id,
+        familyId = familyId,
+        childProfileId = childProfileId,
+        accountType = accountType,
+        type = type,
+        amountCents = amountCents,
+        concept = LedgerConcept(concept.value.trim()),
+        createdBy = createdBy,
+        createdAt = createdAt,
+        transferGroupId = transferGroupId,
+    )
