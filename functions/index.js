@@ -8,20 +8,24 @@ import { DateTime } from "luxon";
 initializeApp();
 setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 
-const db = getFirestore();
 const DEFAULT_TIME_ZONE = "Europe/Madrid";
 const MAX_RULES_PER_RUN = 100;
 
-export const runAllowanceRules = onSchedule(
-  {
-    schedule: "every 1 hours",
-    timeZone: DEFAULT_TIME_ZONE,
-  },
-  async () => {
-    const processed = await processDueAllowanceRules(db, new Date());
-    logger.info("runAllowanceRules completed", { processed });
-  },
-);
+export const runAllowanceRules = makeRunAllowanceRules(getFirestore(), "runAllowanceRules");
+export const runAllowanceRulesDebug = makeRunAllowanceRules(getFirestore("debug"), "runAllowanceRulesDebug");
+
+function makeRunAllowanceRules(database, functionName) {
+  return onSchedule(
+    {
+      schedule: "every 1 hours",
+      timeZone: DEFAULT_TIME_ZONE,
+    },
+    async () => {
+      const processed = await processDueAllowanceRules(database, new Date());
+      logger.info(`${functionName} completed`, { processed });
+    },
+  );
+}
 
 export async function processDueAllowanceRules(database, nowDate) {
   const now = Timestamp.fromDate(nowDate);
