@@ -7,6 +7,7 @@ import com.apptolast.fledge.domain.model.ChildLedgerBalances
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.LedgerTransaction
+import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementReminder
 import com.apptolast.fledge.domain.model.TaskInstance
@@ -15,6 +16,7 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SettlementReminderPolicy
@@ -36,6 +38,7 @@ data class ChildHomeUiState(
     val settlements: List<CashOutSettlement> = emptyList(),
     val settlementReminders: List<SettlementReminder> = emptyList(),
     val taskInstances: List<TaskInstance> = emptyList(),
+    val activeSavingsGoal: SavingsGoal? = null,
     val selectedPhotoEvidenceByTaskId: Map<TaskInstanceId, String> = emptyMap(),
     val currencyCode: String = "EUR",
     val syncNotice: FoundationSyncNotice? = FoundationSyncNotice.Loading,
@@ -53,6 +56,7 @@ class ChildHomeViewModel(
     private val repository: FamilyFoundationRepository,
     private val ledgerRepository: LedgerRepository,
     private val moneyFlowRepository: MoneyFlowRepository,
+    private val savingsGoalRepository: SavingsGoalRepository,
     private val taskInstanceRepository: TaskInstanceRepository,
     private val cashOutProcessor: CashOutProcessor,
 ) : ViewModel() {
@@ -65,9 +69,10 @@ class ChildHomeViewModel(
                 repository.syncStatus,
                 ledgerRepository.syncStatus,
                 moneyFlowRepository.syncStatus,
+                savingsGoalRepository.syncStatus,
                 taskInstanceRepository.syncStatus,
-            ) { foundationStatus, ledgerStatus, moneyStatus, taskStatus ->
-                listOf(foundationStatus, ledgerStatus, moneyStatus, taskStatus)
+            ) { foundationStatus, ledgerStatus, moneyStatus, savingsGoalStatus, taskStatus ->
+                listOf(foundationStatus, ledgerStatus, moneyStatus, savingsGoalStatus, taskStatus)
             }.collect { statuses ->
                 mutableUiState.update { state ->
                     state.copy(syncNotice = statuses.toFoundationSyncNotice(state.hasKnownData()))
@@ -90,6 +95,11 @@ class ChildHomeViewModel(
             }
         }
         viewModelScope.launch {
+            savingsGoalRepository.goals.collect {
+                refreshGoalState()
+            }
+        }
+        viewModelScope.launch {
             taskInstanceRepository.instances.collect {
                 refreshTaskState()
             }
@@ -99,6 +109,7 @@ class ChildHomeViewModel(
     fun load(childProfileId: ChildProfileId) {
         mutableUiState.update { it.copy(childProfileId = childProfileId) }
         refreshMoneyState()
+        refreshGoalState()
         refreshTaskState()
     }
 
@@ -191,6 +202,13 @@ class ChildHomeViewModel(
         }
     }
 
+    private fun refreshGoalState() {
+        val childProfileId = mutableUiState.value.childProfileId ?: return
+        mutableUiState.update {
+            it.copy(activeSavingsGoal = savingsGoalRepository.activeGoalForChild(childProfileId))
+        }
+    }
+
     private suspend fun runOperation(block: suspend () -> Unit): Boolean {
         mutableUiState.update { it.copy(isBusy = true, operationError = null) }
         return runCatching { block() }
@@ -206,8 +224,11 @@ class ChildHomeViewModel(
     }
 }
 
-private fun ChildHomeUiState.hasKnownData(): Boolean =
-    balances != null || ledgerTransactions.isNotEmpty() || settlements.isNotEmpty() || taskInstances.isNotEmpty()
+private fun ChildHomeUiState.hasKnownData(): Boolean = balances != null ||
+    ledgerTransactions.isNotEmpty() ||
+    settlements.isNotEmpty() ||
+    taskInstances.isNotEmpty() ||
+    activeSavingsGoal != null
 
 private fun List<TaskInstance>.sortedForChildHome(): List<TaskInstance> =
     sortedWith(compareBy<TaskInstance> { it.status.childHomeSortOrder }.thenBy { it.dueAt }.thenBy { it.id.value })

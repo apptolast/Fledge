@@ -28,6 +28,7 @@ import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateScr
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeScreen
 import com.apptolast.fledge.presentation.foundation.postlogin.PostLoginScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
+import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupScreen
 import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentScreen
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentScreen
 
@@ -104,12 +105,21 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onPairChild = { childId -> navController.navigate(PairingRoute(childId.value)) },
                 onConfigureAllowance = { childId -> navController.navigate(AllowanceRuleRoute(childId.value)) },
                 onAdjustChild = { childId -> navController.navigate(ManualAdjustmentRoute(childId.value)) },
+                onCreateSavingsGoal = { childId -> navController.navigate(SavingsGoalSetupRoute(childId.value)) },
                 onCreateTask = { navController.navigate(TaskAssignmentRoute) },
                 onRequireParentalGate = { navController.navigate(ParentalGateRoute) },
             )
         }
         composable<TaskAssignmentRoute> {
             TaskAssignmentScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+            )
+        }
+        composable<SavingsGoalSetupRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<SavingsGoalSetupRoute>()
+            SavingsGoalSetupScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() },
             )

@@ -3,6 +3,7 @@ package com.apptolast.fledge.presentation
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
 import com.apptolast.fledge.data.repository.InMemoryMoneyFlowRepository
+import com.apptolast.fledge.data.repository.InMemorySavingsGoalRepository
 import com.apptolast.fledge.data.repository.InMemoryTaskInstanceRepository
 import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.ChildPin
@@ -14,6 +15,7 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.TaskAssignmentId
 import com.apptolast.fledge.domain.model.TaskInstance
 import com.apptolast.fledge.domain.model.TaskInstanceId
@@ -71,6 +73,7 @@ class ChildHomeViewModelTest {
             foundationRepository,
             ledgerRepository,
             moneyFlowRepository,
+            InMemorySavingsGoalRepository(),
             taskInstanceRepository,
             CashOutProcessor(moneyFlowRepository, ledgerRepository),
         )
@@ -139,6 +142,7 @@ class ChildHomeViewModelTest {
             foundationRepository,
             ledgerRepository,
             moneyFlowRepository,
+            InMemorySavingsGoalRepository(),
             taskInstanceRepository,
             CashOutProcessor(moneyFlowRepository, ledgerRepository),
         )
@@ -189,6 +193,7 @@ class ChildHomeViewModelTest {
             foundationRepository,
             ledgerRepository,
             moneyFlowRepository,
+            InMemorySavingsGoalRepository(),
             taskInstanceRepository,
             CashOutProcessor(moneyFlowRepository, ledgerRepository),
         )
@@ -242,6 +247,7 @@ class ChildHomeViewModelTest {
             foundationRepository,
             ledgerRepository,
             moneyFlowRepository,
+            InMemorySavingsGoalRepository(),
             taskInstanceRepository,
             CashOutProcessor(moneyFlowRepository, ledgerRepository),
         )
@@ -254,6 +260,66 @@ class ChildHomeViewModelTest {
         assertEquals(false, submitted)
         assertEquals(ChildTaskSubmissionError.MissingPhotoEvidence, viewModel.uiState.value.taskSubmissionError)
         assertEquals(TaskInstanceStatus.Pending, taskInstanceRepository.instances.value.single().status)
+    }
+
+    @Test
+    fun `FLE-36 child home exposes active savings goal with goal balance`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                accountType = VirtualAccountType.Goal,
+                type = LedgerTransactionType.GoalTransfer,
+                amountCents = MoneyCents(1_230),
+                concept = LedgerConcept("Ahorro bici"),
+                createdBy = LedgerActor.Child,
+            ),
+        )
+        val goal = savingsGoalRepository.saveGoal(
+            SavingsGoalDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                title = "Bici nueva",
+                targetCents = MoneyCents(4_000),
+                iconKey = "bike",
+            ),
+            createdAt = Instant.fromEpochSeconds(1_700_100_000),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        val state = viewModel.uiState.value
+        assertEquals(goal, state.activeSavingsGoal)
+        assertEquals(BalanceCents(1_230), state.balances?.goal)
     }
 
     private fun taskInstance(

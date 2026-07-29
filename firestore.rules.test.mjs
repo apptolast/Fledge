@@ -79,6 +79,10 @@ function ledgerPath(transactionId = "tx-1", familyId = FAMILY_ID) {
   return `${familyPath(familyId)}/ledgerTransactions/${transactionId}`;
 }
 
+function savingsGoalPath(goalId = "goal-1", familyId = FAMILY_ID) {
+  return `${familyPath(familyId)}/savingsGoals/${goalId}`;
+}
+
 function allowanceRulePath(ruleId = "allowance-1", familyId = FAMILY_ID) {
   return `${familyPath(familyId)}/allowanceRules/${ruleId}`;
 }
@@ -151,6 +155,29 @@ function allowanceRuleData({
     timeZone: "Europe/Madrid",
     nextRunAt: NOW,
     active: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+}
+
+function savingsGoalData({
+  familyId = FAMILY_ID,
+  childProfileId = CHILD_ID,
+  title = "Bici nueva",
+  targetCents = 4000,
+  iconKey = "bike",
+  imageUri = null,
+  status = "Active",
+} = {}) {
+  return {
+    familyId,
+    childProfileId,
+    title,
+    targetCents,
+    accountType: "Goal",
+    iconKey,
+    imageUri,
+    status,
     createdAt: NOW,
     updatedAt: NOW,
   };
@@ -350,6 +377,37 @@ describe("FLE-83 Firestore membership rules", () => {
     ));
     await assertFails(updateDoc(doc(child, allowanceRulePath()), {
       amountCents: 10000,
+      updatedAt: LATER,
+    }));
+  });
+
+  test("savings goals are written by parents and read only by the owning child", async () => {
+    await seed(familyPath(), familyData());
+    await seed(savingsGoalPath("own-goal"), savingsGoalData({ childProfileId: CHILD_ID }));
+    await seed(savingsGoalPath("sibling-goal"), savingsGoalData({ childProfileId: SIBLING_ID }));
+
+    const parent = parentDb();
+    const child = childDb();
+    const sibling = childDb({ childProfileId: SIBLING_ID });
+
+    await assertSucceeds(getDoc(doc(child, savingsGoalPath("own-goal"))));
+    await assertFails(getDoc(doc(child, savingsGoalPath("sibling-goal"))));
+    await assertSucceeds(getDoc(doc(sibling, savingsGoalPath("sibling-goal"))));
+
+    await assertSucceeds(setDoc(doc(parent, savingsGoalPath()), savingsGoalData()));
+    await assertSucceeds(updateDoc(doc(parent, savingsGoalPath()), {
+      title: "Patinete",
+      updatedAt: LATER,
+    }));
+    await assertFails(setDoc(doc(parent, savingsGoalPath("blank-title")), savingsGoalData({ title: " " })));
+    await assertFails(setDoc(doc(parent, savingsGoalPath("invalid-target")), savingsGoalData({ targetCents: 0 })));
+    await assertFails(setDoc(
+      doc(parent, savingsGoalPath("no-visual")),
+      savingsGoalData({ iconKey: null, imageUri: null }),
+    ));
+    await assertFails(setDoc(doc(child, savingsGoalPath("child-write")), savingsGoalData()));
+    await assertFails(updateDoc(doc(child, savingsGoalPath("own-goal")), {
+      title: "Hack",
       updatedAt: LATER,
     }));
   });

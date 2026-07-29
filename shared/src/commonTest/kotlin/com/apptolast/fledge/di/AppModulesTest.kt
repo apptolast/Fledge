@@ -19,12 +19,14 @@ import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestoreSavingsGoalRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskAssignmentRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskInstanceRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskAssignmentRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.repository.TaskTemplateRepository
@@ -32,6 +34,7 @@ import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
+import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -55,11 +58,13 @@ class AppModulesTest {
         assertNotNull(application.koin.get<RoleSelectorViewModel>())
         assertNotNull(application.koin.get<LedgerRepository>())
         assertNotNull(application.koin.get<MoneyFlowRepository>())
+        assertNotNull(application.koin.get<SavingsGoalRepository>())
         assertNotNull(application.koin.get<TaskAssignmentRepository>())
         assertNotNull(application.koin.get<TaskInstanceRepository>())
         assertNotNull(application.koin.get<TaskTemplateRepository>())
         assertNotNull(application.koin.get<AllowanceProcessor>())
         assertNotNull(application.koin.get<CashOutProcessor>())
+        assertNotNull(application.koin.get<SavingsGoalSetupViewModel>())
     }
 
     @Test
@@ -111,6 +116,7 @@ class AppModulesTest {
         val familyFoundation = application.koin.get<FamilyFoundationRepository>()
         val ledger = application.koin.get<LedgerRepository>()
         val moneyFlow = application.koin.get<MoneyFlowRepository>()
+        val savingsGoals = application.koin.get<SavingsGoalRepository>()
         val taskAssignments = application.koin.get<TaskAssignmentRepository>()
         val taskInstances = application.koin.get<TaskInstanceRepository>()
         val taskTemplates = application.koin.get<TaskTemplateRepository>()
@@ -119,6 +125,7 @@ class AppModulesTest {
         assertIs<FirestoreFamilyFoundationRepository>(familyFoundation)
         assertIs<FirestoreLedgerRepository>(ledger)
         assertIs<FirestoreMoneyFlowRepository>(moneyFlow)
+        assertIs<FirestoreSavingsGoalRepository>(savingsGoals)
         assertIs<FirestoreTaskAssignmentRepository>(taskAssignments)
         assertIs<FirestoreTaskInstanceRepository>(taskInstances)
         assertIs<FirestoreTaskTemplateRepository>(taskTemplates)

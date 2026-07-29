@@ -66,20 +66,6 @@ service cloud.firestore {
         && request.resource.data[field] == resource.data[field];
     }
 
-    function settlementKeys() {
-      return [
-        "familyId",
-        "childProfileId",
-        "amountCents",
-        "concept",
-        "status",
-        "requestedAt",
-        "paidByParentAt",
-        "confirmedByChildAt",
-        "settlementTransactionId",
-      ];
-    }
-
     function settlementRequestIsValid(familyId) {
       return request.resource.data.keys().hasAll([
           "familyId",
@@ -161,6 +147,48 @@ service cloud.firestore {
           )
         )
         && request.resource.data.active is bool
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function savingsGoalKeys() {
+      return [
+        "familyId",
+        "childProfileId",
+        "title",
+        "targetCents",
+        "accountType",
+        "iconKey",
+        "imageUri",
+        "status",
+        "createdAt",
+        "updatedAt",
+      ];
+    }
+
+    function savingsGoalWriteIsValid(familyId) {
+      return request.resource.data.keys().hasOnly(savingsGoalKeys())
+        && request.resource.data.keys().hasAll([
+          "familyId",
+          "childProfileId",
+          "title",
+          "targetCents",
+          "accountType",
+          "status",
+          "createdAt",
+          "updatedAt",
+        ])
+        && requestMatchesFamily(familyId)
+        && request.resource.data.childProfileId is string
+        && request.resource.data.childProfileId.size() > 0
+        && hasNonBlankText("title")
+        && request.resource.data.targetCents is int
+        && request.resource.data.targetCents > 0
+        && request.resource.data.accountType == "Goal"
+        && optionalNonBlankText("iconKey")
+        && optionalNonBlankText("imageUri")
+        && (hasNonBlankText("iconKey") || hasNonBlankText("imageUri"))
+        && request.resource.data.status in ["Active", "Completed", "Archived"]
         && request.resource.data.createdAt is timestamp
         && request.resource.data.updatedAt is timestamp;
     }
@@ -301,6 +329,18 @@ service cloud.firestore {
         allow create: if childSettlementRequestIsValid(familyId);
         allow update: if isParent(familyId) && requestKeepsFamilyId() && requestKeepsChildProfileId();
         allow update: if childSettlementConfirmationIsValid(familyId);
+        allow delete: if false;
+      }
+
+      match /savingsGoals/{goalId} {
+        allow read: if isParent(familyId)
+          || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
+        allow create: if isParent(familyId) && savingsGoalWriteIsValid(familyId);
+        allow update: if isParent(familyId)
+          && requestKeepsFamilyId()
+          && requestKeepsChildProfileId()
+          && request.resource.data.createdAt == resource.data.createdAt
+          && savingsGoalWriteIsValid(familyId);
         allow delete: if false;
       }
 
