@@ -19,6 +19,7 @@ import com.apptolast.fledge.domain.model.VirtualMoneyConsent
 import kotlinx.coroutines.flow.StateFlow
 
 interface FamilyFoundationRepository {
+    val syncStatus: StateFlow<RepositorySyncStatus>
     val activeFamily: StateFlow<Family?>
     val children: StateFlow<List<ChildProfile>>
     val childDevices: StateFlow<List<ChildDevice>>

@@ -11,14 +11,17 @@ import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.repository.LedgerRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class InMemoryLedgerRepository : LedgerRepository {
     private var transactionCounter = 1
+    private val mutableSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Synced)
     private val mutableTransactions = MutableStateFlow<List<LedgerTransaction>>(emptyList())
 
+    override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val transactions: StateFlow<List<LedgerTransaction>> = mutableTransactions
 
     override suspend fun appendTransaction(draft: LedgerTransactionDraft): LedgerTransaction {

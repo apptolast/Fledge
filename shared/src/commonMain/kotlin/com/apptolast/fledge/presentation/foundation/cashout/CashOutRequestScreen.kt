@@ -25,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
 import fledge.shared.generated.resources.cash_out_amount_label
@@ -39,6 +40,7 @@ import fledge.shared.generated.resources.cash_out_error_missing_concept
 import fledge.shared.generated.resources.cash_out_error_missing_family
 import fledge.shared.generated.resources.cash_out_save
 import fledge.shared.generated.resources.cash_out_title
+import fledge.shared.generated.resources.operation_error_sync
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -91,6 +93,9 @@ fun CashOutRequestContent(
                 text = stringResource(Res.string.cash_out_title),
                 style = MaterialTheme.typography.headlineMedium,
             )
+            state.syncNotice?.let { notice ->
+                SyncNoticeBanner(notice = notice)
+            }
             Text(
                 text = childLabel(state.child),
                 style = MaterialTheme.typography.titleMedium,
@@ -128,10 +133,17 @@ fun CashOutRequestContent(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            state.operationError?.let {
+                Text(
+                    text = stringResource(Res.string.operation_error_sync),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Spacer(Modifier.weight(1f))
             Button(
                 onClick = onSubmit,
-                enabled = state.child != null,
+                enabled = state.canSubmit,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp),
@@ -187,6 +199,7 @@ fun PreviewCashOutRequestContent() {
                 mainBalanceCents = 1_250,
                 amountInput = "5,00",
                 concept = "Cromos",
+                syncNotice = null,
             ),
             onAmountChanged = {},
             onConceptChanged = {},

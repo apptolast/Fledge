@@ -37,6 +37,7 @@ import com.apptolast.fledge.domain.model.SettlementReminderAudience
 import com.apptolast.fledge.domain.model.SettlementReminderLevel
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.SetupAction
+import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
 import fledge.shared.generated.resources.cash_out_mark_paid
@@ -46,6 +47,7 @@ import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
 import fledge.shared.generated.resources.empty_children
+import fledge.shared.generated.resources.operation_error_sync
 import fledge.shared.generated.resources.parent_home_add_child
 import fledge.shared.generated.resources.parent_home_adjustment
 import fledge.shared.generated.resources.parent_home_allowance
@@ -88,8 +90,9 @@ fun ParentHomeScreen(
         },
         onRequireParentalGate = { action ->
             scope.launch {
-                viewModel.requestProtectedAction(action)
-                onRequireParentalGate()
+                if (viewModel.requestProtectedAction(action)) {
+                    onRequireParentalGate()
+                }
             }
         },
     )
@@ -119,6 +122,20 @@ fun ParentHomeContent(
                     text = stringResource(Res.string.parent_home_title),
                     style = MaterialTheme.typography.headlineMedium,
                 )
+            }
+            state.syncNotice?.let { notice ->
+                item {
+                    SyncNoticeBanner(notice = notice)
+                }
+            }
+            state.operationError?.let {
+                item {
+                    Text(
+                        text = stringResource(Res.string.operation_error_sync),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             item {
                 SummaryCard()
@@ -179,6 +196,7 @@ fun ParentHomeContent(
                                 it.audience == SettlementReminderAudience.Parent
                         }?.level,
                         onMarkSettlementPaid = onMarkSettlementPaid,
+                        isBusy = state.isBusy,
                     )
                 }
             }
@@ -288,6 +306,7 @@ private fun ParentSettlementRow(
     currencyCode: String,
     reminderLevel: SettlementReminderLevel?,
     onMarkSettlementPaid: (SettlementId) -> Unit,
+    isBusy: Boolean,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -323,6 +342,7 @@ private fun ParentSettlementRow(
             if (settlement.status == SettlementStatus.Requested) {
                 Button(
                     onClick = { onMarkSettlementPaid(settlement.id) },
+                    enabled = !isBusy,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(Res.string.cash_out_mark_paid))
@@ -402,6 +422,7 @@ fun PreviewParentHomeContent() {
                         requestedAt = kotlin.time.Clock.System.now(),
                     ),
                 ),
+                syncNotice = null,
             ),
             onPairChild = {},
             onConfigureAllowance = {},

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.AllowanceFrequency
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
 import fledge.shared.generated.resources.allowance_amount_label
@@ -44,6 +45,7 @@ import fledge.shared.generated.resources.allowance_frequency_monthly
 import fledge.shared.generated.resources.allowance_frequency_weekly
 import fledge.shared.generated.resources.allowance_save
 import fledge.shared.generated.resources.allowance_title
+import fledge.shared.generated.resources.operation_error_sync
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -100,6 +102,9 @@ fun AllowanceRuleContent(
                 text = stringResource(Res.string.allowance_title),
                 style = MaterialTheme.typography.headlineMedium,
             )
+            state.syncNotice?.let { notice ->
+                SyncNoticeBanner(notice = notice)
+            }
             Text(
                 text = childLabel(state.child),
                 style = MaterialTheme.typography.titleMedium,
@@ -142,10 +147,17 @@ fun AllowanceRuleContent(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            state.operationError?.let {
+                Text(
+                    text = stringResource(Res.string.operation_error_sync),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Spacer(Modifier.weight(1f))
             Button(
                 onClick = onSubmit,
-                enabled = state.child != null,
+                enabled = state.canSubmit,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp),
@@ -216,6 +228,7 @@ fun PreviewAllowanceRuleContent() {
                 dayInput = "31",
                 amountInput = "10,00",
                 concept = "Paga mensual",
+                syncNotice = null,
             ),
             onFrequencySelected = {},
             onDayChanged = {},

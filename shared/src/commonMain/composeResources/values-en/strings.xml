@@ -131,6 +131,15 @@
     <string name="child_home_settings">Open settings</string>
     <string name="child_home_purchase">Request purchase</string>
     <string name="child_home_external_link">Open external link</string>
+    <string name="sync_notice_loading_title">Loading data</string>
+    <string name="sync_notice_loading_body">Preparing the latest family data.</string>
+    <string name="sync_notice_cached_title">Offline</string>
+    <string name="sync_notice_cached_body">Showing the last saved data. Pending changes will sync when the connection returns.</string>
+    <string name="sync_notice_syncing_title">Syncing</string>
+    <string name="sync_notice_syncing_body">Saving pending changes.</string>
+    <string name="sync_notice_error_title">Could not refresh</string>
+    <string name="sync_notice_error_body">The last available data is still visible. Try again when you have a connection.</string>
+    <string name="operation_error_sync">The change could not be saved. Try again when the connection returns.</string>
     <string name="ledger_account_main">Main</string>
     <string name="ledger_account_goal">Goal</string>
     <string name="ledger_actor_parent">Adult</string>

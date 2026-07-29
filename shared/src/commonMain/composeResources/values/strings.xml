@@ -132,6 +132,15 @@
     <string name="child_home_settings">Abrir ajustes</string>
     <string name="child_home_purchase">Solicitar compra</string>
     <string name="child_home_external_link">Abrir enlace externo</string>
+    <string name="sync_notice_loading_title">Cargando datos</string>
+    <string name="sync_notice_loading_body">Estamos preparando los ultimos datos de la familia.</string>
+    <string name="sync_notice_cached_title">Sin conexion</string>
+    <string name="sync_notice_cached_body">Mostrando los ultimos datos guardados. Los cambios pendientes se sincronizaran cuando vuelva la conexion.</string>
+    <string name="sync_notice_syncing_title">Sincronizando</string>
+    <string name="sync_notice_syncing_body">Guardando cambios pendientes.</string>
+    <string name="sync_notice_error_title">No se pudo actualizar</string>
+    <string name="sync_notice_error_body">Conservamos los ultimos datos disponibles. Reintenta cuando tengas conexion.</string>
+    <string name="operation_error_sync">No se pudo guardar el cambio. Reintentalo cuando vuelva la conexion.</string>
     <string name="ledger_account_main">Principal</string>
     <string name="ledger_account_goal">Objetivo</string>
     <string name="ledger_actor_parent">Adulto</string>
