@@ -10,12 +10,12 @@ final class SocialAuthCoordinator: NSObject {
     private var currentNonce: String?
     private var currentController: ASAuthorizationController?
 
-    /// Wires this coordinator into BaseLogin's Apple provider.
+    /// Wires this coordinator into BaseLogin's Apple provider, through the `FledgeIosAuth` bridge.
     ///
-    /// The handler signature is `(String?, (String?) -> Void) -> Void`: the first argument is
-    /// reserved by the library for future configuration and is unused here.
+    /// The bridge exists because `:shared` declares BaseLogin as `implementation`, so its symbols
+    /// are not exported into the `Shared` framework and are not reachable from Swift.
     func registerBridges() {
-        AppleSignInProviderIOS.shared.signInHandler = { [weak self] _, completion in
+        FledgeIosAuth.shared.registerAppleSignInHandler { [weak self] completion in
             self?.signInWithApple { payload in
                 completion(payload)
             }
