@@ -27,6 +27,12 @@ interface TaskInstanceRepository {
         submittedAt: Instant = Clock.System.now(),
     ): TaskInstance
 
+    suspend fun retryRejected(
+        instanceId: TaskInstanceId,
+        childProfileId: ChildProfileId,
+        retriedAt: Instant = Clock.System.now(),
+    ): TaskInstance
+
     suspend fun approve(
         instanceId: TaskInstanceId,
         approvedRewardCents: MoneyCents,

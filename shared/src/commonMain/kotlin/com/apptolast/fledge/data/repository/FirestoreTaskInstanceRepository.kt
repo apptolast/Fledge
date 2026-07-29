@@ -10,6 +10,7 @@ import com.apptolast.fledge.domain.model.TaskInstanceId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.approvedByParent
 import com.apptolast.fledge.domain.model.rejectedByParent
+import com.apptolast.fledge.domain.model.retriedForSameDay
 import com.apptolast.fledge.domain.model.submittedForReview
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
@@ -118,6 +119,22 @@ class FirestoreTaskInstanceRepository(
             .set(approved.toFirestoreMap(), merge = true)
         upsertLocal(approved)
         return approved
+    }
+
+    override suspend fun retryRejected(
+        instanceId: TaskInstanceId,
+        childProfileId: ChildProfileId,
+        retriedAt: Instant,
+    ): TaskInstance {
+        val existing = existingInstance(instanceId)
+        val retried = existing.retriedForSameDay(
+            childProfileId = childProfileId,
+            retriedAt = retriedAt,
+        )
+        taskInstanceCollection(retried.familyId).document(instanceId.value)
+            .set(retried.toFirestoreMap(), merge = true)
+        upsertLocal(retried)
+        return retried
     }
 
     override suspend fun reject(instanceId: TaskInstanceId, reason: String, reviewedAt: Instant): TaskInstance {

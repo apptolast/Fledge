@@ -148,10 +148,16 @@
     <string name="child_home_task_add_photo">Add photo</string>
     <string name="child_home_task_photo_ready">Photo ready</string>
     <string name="child_home_task_submit">Send for review</string>
+    <string name="child_home_task_retry">Try again</string>
     <string name="child_home_task_waiting">Waiting for approval</string>
     <string name="child_home_task_money_after_approval">Money appears when the task is approved.</string>
+    <string name="child_home_task_retry_reason">Helpful note: %1$s</string>
+    <string name="child_home_task_retry_note">Nothing is lost by trying again. Fix what is missing and send it again today.</string>
+    <string name="child_home_task_expired_closed">Cannot send this now</string>
+    <string name="child_home_task_expired_note">This is not a punishment. The day is closed so the agreement stays clear.</string>
     <string name="child_home_task_error_missing_photo">Add a photo before sending this task.</string>
     <string name="child_home_task_error_submit">The task could not be sent. Try again when the connection returns.</string>
+    <string name="child_home_task_error_retry">The retry could not be prepared. Try again when the connection returns.</string>
     <string name="child_home_cash_out">Request cash-out</string>
     <string name="child_home_settlements_title">Cash-outs</string>
     <string name="child_home_settlements_empty">You have no pending cash-outs.</string>

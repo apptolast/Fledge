@@ -10,7 +10,9 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.approvedByParent
+import com.apptolast.fledge.domain.model.expiredBySystem
 import com.apptolast.fledge.domain.model.rejectedByParent
+import com.apptolast.fledge.domain.model.retriedForSameDay
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -250,6 +252,100 @@ class TaskInstanceModelTest {
             pending.rejectedByParent(
                 reason = "No esta terminada.",
                 reviewedAt = reviewedAt,
+            )
+        }
+    }
+
+    @Test
+    fun `FLE-34 TaskInstance rechazada vuelve a pendiente para reintento el mismo dia`() {
+        // Given
+        val submittedAt = Instant.fromEpochSeconds(1_700_100_000)
+        val reviewedAt = Instant.fromEpochSeconds(1_700_110_000)
+        val retriedAt = Instant.fromEpochSeconds(1_700_150_000)
+        val rejected = taskInstance(
+            status = TaskInstanceStatus.Submitted,
+            updatedAt = submittedAt,
+            submittedAt = submittedAt,
+        ).rejectedByParent(
+            reason = "Falta ver toda la mesa.",
+            reviewedAt = reviewedAt,
+        )
+
+        // When
+        val retried = rejected.retriedForSameDay(
+            childProfileId = ChildProfileId("child-1"),
+            retriedAt = retriedAt,
+        )
+
+        // Then
+        assertEquals(TaskInstanceStatus.Pending, retried.status)
+        assertEquals(retriedAt, retried.updatedAt)
+        assertEquals(null, retried.submittedAt)
+        assertEquals(null, retried.reviewedAt)
+        assertEquals(null, retried.photoEvidenceUri)
+        assertEquals(null, retried.rejectionReason)
+    }
+
+    @Test
+    fun `FLE-34 TaskInstance rechazada no puede reintentarse despues del vencimiento`() {
+        // Given
+        val submittedAt = Instant.fromEpochSeconds(1_700_100_000)
+        val rejected = taskInstance(
+            status = TaskInstanceStatus.Submitted,
+            updatedAt = submittedAt,
+            submittedAt = submittedAt,
+        ).rejectedByParent(
+            reason = "Falta ver toda la mesa.",
+            reviewedAt = Instant.fromEpochSeconds(1_700_110_000),
+        )
+
+        // When / Then
+        assertFailsWith<IllegalArgumentException> {
+            rejected.retriedForSameDay(
+                childProfileId = ChildProfileId("child-1"),
+                retriedAt = Instant.fromEpochSeconds(1_700_300_000),
+            )
+        }
+    }
+
+    @Test
+    fun `FLE-34 TaskInstance pendiente caduca con marca temporal`() {
+        // Given
+        val expiredAt = Instant.fromEpochSeconds(1_700_300_000)
+        val pending = taskInstance(status = TaskInstanceStatus.Pending)
+
+        // When
+        val expired = pending.expiredBySystem(expiredAt)
+
+        // Then
+        assertEquals(TaskInstanceStatus.Expired, expired.status)
+        assertEquals(expiredAt, expired.expiredAt)
+        assertEquals(expiredAt, expired.updatedAt)
+        assertEquals(null, expired.submittedAt)
+        assertEquals(null, expired.rejectionReason)
+    }
+
+    @Test
+    fun `FLE-34 TaskInstance vencida requiere expiredAt`() {
+        // Given
+        val now = Instant.fromEpochSeconds(1_700_000_000)
+
+        // When / Then
+        assertFailsWith<IllegalArgumentException> {
+            TaskInstance(
+                id = TaskInstanceId("task-1"),
+                familyId = FamilyId("family-1"),
+                taskAssignmentId = TaskAssignmentId("assignment-1"),
+                taskTemplateId = TaskTemplateId("template-1"),
+                childProfileId = ChildProfileId("child-1"),
+                title = "Poner la mesa",
+                rewardCents = MoneyCents(50),
+                requiresPhoto = false,
+                status = TaskInstanceStatus.Expired,
+                dueAt = now,
+                periodKey = "20260729",
+                createdAt = now,
+                updatedAt = now,
             )
         }
     }

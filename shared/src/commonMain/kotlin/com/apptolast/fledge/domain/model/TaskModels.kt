@@ -187,6 +187,7 @@ data class TaskInstance(
             status = status,
             submittedAt = submittedAt,
             reviewedAt = reviewedAt,
+            expiredAt = expiredAt,
             photoEvidenceUri = photoEvidenceUri,
             approvedRewardCents = approvedRewardCents,
             approvalTransactionId = approvalTransactionId,
@@ -220,8 +221,8 @@ fun TaskInstance.submittedForReview(
     submittedAt: Instant,
 ): TaskInstance {
     require(this.childProfileId == childProfileId) { "Task instance belongs to a different child." }
-    require(status == TaskInstanceStatus.Pending || status == TaskInstanceStatus.Rejected) {
-        "Only pending or rejected task instances can be submitted."
+    require(status == TaskInstanceStatus.Pending) {
+        "Only pending task instances can be submitted."
     }
     val normalizedPhotoEvidenceUri = photoEvidenceUri?.trim()?.takeIf { it.isNotBlank() }
     require(!requiresPhoto || normalizedPhotoEvidenceUri != null) {
@@ -234,6 +235,23 @@ fun TaskInstance.submittedForReview(
         reviewedAt = null,
         expiredAt = null,
         photoEvidenceUri = normalizedPhotoEvidenceUri,
+        approvedRewardCents = null,
+        approvalTransactionId = null,
+        rejectionReason = null,
+    )
+}
+
+fun TaskInstance.retriedForSameDay(childProfileId: ChildProfileId, retriedAt: Instant): TaskInstance {
+    require(this.childProfileId == childProfileId) { "Task instance belongs to a different child." }
+    require(status == TaskInstanceStatus.Rejected) { "Only rejected task instances can be retried." }
+    require(retriedAt <= dueAt) { "Rejected task instances can only be retried before they expire." }
+    return copy(
+        status = TaskInstanceStatus.Pending,
+        updatedAt = retriedAt,
+        submittedAt = null,
+        reviewedAt = null,
+        expiredAt = null,
+        photoEvidenceUri = null,
         approvedRewardCents = null,
         approvalTransactionId = null,
         rejectionReason = null,
@@ -276,6 +294,24 @@ fun TaskInstance.rejectedByParent(reason: String, reviewedAt: Instant): TaskInst
     )
 }
 
+fun TaskInstance.expiredBySystem(expiredAt: Instant): TaskInstance {
+    require(status == TaskInstanceStatus.Pending || status == TaskInstanceStatus.Rejected) {
+        "Only pending or rejected task instances can expire."
+    }
+    require(expiredAt >= dueAt) { "Task instance cannot expire before dueAt." }
+    return copy(
+        status = TaskInstanceStatus.Expired,
+        updatedAt = expiredAt,
+        submittedAt = null,
+        reviewedAt = null,
+        expiredAt = expiredAt,
+        photoEvidenceUri = null,
+        approvedRewardCents = null,
+        approvalTransactionId = null,
+        rejectionReason = null,
+    )
+}
+
 private fun validateTaskInstanceFields(
     title: String,
     rewardCents: MoneyCents,
@@ -284,6 +320,7 @@ private fun validateTaskInstanceFields(
     status: TaskInstanceStatus,
     submittedAt: Instant?,
     reviewedAt: Instant?,
+    expiredAt: Instant?,
     photoEvidenceUri: String?,
     approvedRewardCents: MoneyCents?,
     approvalTransactionId: TransactionId?,
@@ -327,6 +364,11 @@ private fun validateTaskInstanceFields(
         }
     } else {
         require(rejectionReason == null) { "Only rejected task instances can include rejectionReason." }
+    }
+    if (status == TaskInstanceStatus.Expired) {
+        require(expiredAt != null) { "Expired task instance must include expiredAt." }
+    } else {
+        require(expiredAt == null) { "Only expired task instances can include expiredAt." }
     }
 }
 

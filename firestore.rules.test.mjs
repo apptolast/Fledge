@@ -21,6 +21,7 @@ const CHILD_ID = "child-1";
 const SIBLING_ID = "child-2";
 const NOW = Timestamp.fromDate(new Date("2026-07-29T10:00:00.000Z"));
 const LATER = Timestamp.fromDate(new Date("2026-07-29T11:00:00.000Z"));
+const AFTER_DUE = Timestamp.fromDate(new Date("2026-07-29T12:00:00.000Z"));
 
 let testEnv;
 
@@ -500,6 +501,62 @@ describe("FLE-83 Firestore membership rules", () => {
       approvedRewardCents: 75,
       approvalTransactionId: "tx-task-tamper",
       reviewedAt: LATER,
+      updatedAt: LATER,
+    }));
+  });
+
+  test("rejected task instances can only return to pending before due date", async () => {
+    await seed(familyPath(), familyData());
+    await seed(taskInstancePath("retry"), taskInstanceData({
+      status: "Rejected",
+      submittedAt: NOW,
+      reviewedAt: NOW,
+      rejectionReason: "Falta ver toda la mesa.",
+    }));
+    await seed(taskInstancePath("direct-submit"), taskInstanceData({
+      status: "Rejected",
+      submittedAt: NOW,
+      reviewedAt: NOW,
+      rejectionReason: "Falta ver toda la mesa.",
+    }));
+    await seed(taskInstancePath("late-retry"), taskInstanceData({
+      status: "Rejected",
+      submittedAt: NOW,
+      reviewedAt: NOW,
+      rejectionReason: "Falta ver toda la mesa.",
+    }));
+    await seed(taskInstancePath("client-expire"), taskInstanceData());
+
+    const child = childDb();
+    const parent = parentDb();
+
+    await assertSucceeds(updateDoc(doc(child, taskInstancePath("retry")), {
+      status: "Pending",
+      submittedAt: null,
+      reviewedAt: null,
+      photoEvidenceUri: null,
+      rejectionReason: null,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(child, taskInstancePath("direct-submit")), {
+      status: "Submitted",
+      submittedAt: LATER,
+      reviewedAt: null,
+      expiredAt: null,
+      rejectionReason: null,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(child, taskInstancePath("late-retry")), {
+      status: "Pending",
+      submittedAt: null,
+      reviewedAt: null,
+      photoEvidenceUri: null,
+      rejectionReason: null,
+      updatedAt: AFTER_DUE,
+    }));
+    await assertFails(updateDoc(doc(parent, taskInstancePath("client-expire")), {
+      status: "Expired",
+      expiredAt: LATER,
       updatedAt: LATER,
     }));
   });

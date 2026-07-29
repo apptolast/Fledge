@@ -231,7 +231,7 @@ service cloud.firestore {
     function taskInstanceSubmissionIsValid(familyId) {
       return taskInstanceSubmissionActorIsValid(familyId)
         && request.resource.data.keys().hasOnly(taskInstanceKeys())
-        && resource.data.status in ["Pending", "Rejected"]
+        && resource.data.status == "Pending"
         && request.resource.data.status == "Submitted"
         && taskInstanceSnapshotIsUnchanged()
         && request.resource.data.updatedAt is timestamp
@@ -243,6 +243,23 @@ service cloud.firestore {
         && nullOrAbsent("rejectionReason")
         && optionalNonBlankText("photoEvidenceUri")
         && (!resource.data.requiresPhoto || hasNonBlankText("photoEvidenceUri"));
+    }
+
+    function taskInstanceRetryIsValid(familyId) {
+      return taskInstanceSubmissionActorIsValid(familyId)
+        && request.resource.data.keys().hasOnly(taskInstanceKeys())
+        && resource.data.status == "Rejected"
+        && request.resource.data.status == "Pending"
+        && taskInstanceSnapshotIsUnchanged()
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt <= resource.data.dueAt
+        && nullOrAbsent("submittedAt")
+        && nullOrAbsent("reviewedAt")
+        && nullOrAbsent("expiredAt")
+        && nullOrAbsent("photoEvidenceUri")
+        && nullOrAbsent("approvedRewardCents")
+        && nullOrAbsent("approvalTransactionId")
+        && nullOrAbsent("rejectionReason");
     }
 
     function taskInstanceReviewBaseIsValid(familyId) {
@@ -322,6 +339,8 @@ service cloud.firestore {
         allow read: if isParent(familyId)
           || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
         allow create, delete: if false;
+        allow update: if request.resource.data.status == "Pending"
+          && taskInstanceRetryIsValid(familyId);
         allow update: if request.resource.data.status == "Submitted"
           && taskInstanceSubmissionIsValid(familyId);
         allow update: if request.resource.data.status in ["Approved", "Rejected"]

@@ -47,6 +47,7 @@ data class ChildHomeUiState(
 enum class ChildTaskSubmissionError {
     MissingPhotoEvidence,
     SubmitFailed,
+    RetryFailed,
 }
 
 class ChildHomeViewModel(
@@ -166,6 +167,36 @@ class ChildHomeViewModel(
                 it.copy(
                     isBusy = false,
                     taskSubmissionError = ChildTaskSubmissionError.SubmitFailed,
+                )
+            }
+        }.isSuccess
+    }
+
+    suspend fun retryTask(instanceId: TaskInstanceId): Boolean {
+        val childProfileId = mutableUiState.value.childProfileId ?: return false
+        mutableUiState.update {
+            it.copy(isBusy = true, taskSubmissionError = null, operationError = null)
+        }
+        return runCatching {
+            taskInstanceRepository.retryRejected(
+                instanceId = instanceId,
+                childProfileId = childProfileId,
+                retriedAt = Clock.System.now(),
+            )
+            refreshTaskState()
+        }.onSuccess {
+            mutableUiState.update {
+                it.copy(
+                    isBusy = false,
+                    taskSubmissionError = null,
+                    selectedPhotoEvidenceByTaskId = it.selectedPhotoEvidenceByTaskId - instanceId,
+                )
+            }
+        }.onFailure {
+            mutableUiState.update {
+                it.copy(
+                    isBusy = false,
+                    taskSubmissionError = ChildTaskSubmissionError.RetryFailed,
                 )
             }
         }.isSuccess

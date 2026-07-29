@@ -105,7 +105,42 @@ class InMemoryTaskInstanceRepositoryTest {
     }
 
     @Test
-    fun `FLE-30 repository allows resubmitting rejected task`() = runTest {
+    fun `FLE-34 repository returns rejected task to pending before resubmission`() = runTest {
+        // Given
+        val childId = ChildProfileId("child-1")
+        val retriedAt = Instant.fromEpochSeconds(20)
+        val repository = InMemoryTaskInstanceRepository(
+            listOf(
+                taskInstance(
+                    id = "task-1",
+                    childProfileId = childId,
+                    dueAt = Instant.fromEpochSeconds(30),
+                    status = TaskInstanceStatus.Rejected,
+                    submittedAt = Instant.fromEpochSeconds(5),
+                    reviewedAt = Instant.fromEpochSeconds(6),
+                    rejectionReason = "Falta ver toda la mesa.",
+                ),
+            ),
+        )
+
+        // When
+        val retried = repository.retryRejected(
+            instanceId = TaskInstanceId("task-1"),
+            childProfileId = childId,
+            retriedAt = retriedAt,
+        )
+
+        // Then
+        assertEquals(TaskInstanceStatus.Pending, retried.status)
+        assertEquals(retriedAt, retried.updatedAt)
+        assertEquals(null, retried.submittedAt)
+        assertEquals(null, retried.reviewedAt)
+        assertEquals(null, retried.rejectionReason)
+        assertEquals(TaskInstanceStatus.Pending, repository.instances.value.single().status)
+    }
+
+    @Test
+    fun `FLE-34 repository does not submit rejected task without retry step`() = runTest {
         // Given
         val childId = ChildProfileId("child-1")
         val repository = InMemoryTaskInstanceRepository(
@@ -113,23 +148,23 @@ class InMemoryTaskInstanceRepositoryTest {
                 taskInstance(
                     id = "task-1",
                     childProfileId = childId,
-                    requiresPhoto = true,
                     status = TaskInstanceStatus.Rejected,
+                    submittedAt = Instant.fromEpochSeconds(5),
+                    reviewedAt = Instant.fromEpochSeconds(6),
+                    rejectionReason = "Falta ver toda la mesa.",
                 ),
             ),
         )
 
-        // When
-        val submitted = repository.submitForReview(
-            instanceId = TaskInstanceId("task-1"),
-            childProfileId = childId,
-            photoEvidenceUri = "local://retry-photo",
-            submittedAt = Instant.fromEpochSeconds(1_700_300_000),
-        )
-
-        // Then
-        assertEquals(TaskInstanceStatus.Submitted, submitted.status)
-        assertEquals("local://retry-photo", submitted.photoEvidenceUri)
+        // When / Then
+        assertFailsWith<IllegalArgumentException> {
+            repository.submitForReview(
+                instanceId = TaskInstanceId("task-1"),
+                childProfileId = childId,
+                photoEvidenceUri = null,
+                submittedAt = Instant.fromEpochSeconds(20),
+            )
+        }
     }
 
     @Test
@@ -203,6 +238,9 @@ class InMemoryTaskInstanceRepositoryTest {
         status: TaskInstanceStatus = TaskInstanceStatus.Pending,
         updatedAt: Instant = Instant.fromEpochSeconds(1),
         submittedAt: Instant? = null,
+        reviewedAt: Instant? = null,
+        expiredAt: Instant? = null,
+        rejectionReason: String? = null,
     ): TaskInstance = TaskInstance(
         id = TaskInstanceId(id),
         familyId = familyId,
@@ -218,5 +256,8 @@ class InMemoryTaskInstanceRepositoryTest {
         createdAt = Instant.fromEpochSeconds(1),
         updatedAt = updatedAt,
         submittedAt = submittedAt,
+        reviewedAt = reviewedAt,
+        expiredAt = expiredAt,
+        rejectionReason = rejectionReason,
     )
 }

@@ -76,9 +76,15 @@ import fledge.shared.generated.resources.child_home_settlements_title
 import fledge.shared.generated.resources.child_home_task_add_photo
 import fledge.shared.generated.resources.child_home_task_due_today
 import fledge.shared.generated.resources.child_home_task_error_missing_photo
+import fledge.shared.generated.resources.child_home_task_error_retry
 import fledge.shared.generated.resources.child_home_task_error_submit
+import fledge.shared.generated.resources.child_home_task_expired_closed
+import fledge.shared.generated.resources.child_home_task_expired_note
 import fledge.shared.generated.resources.child_home_task_money_after_approval
 import fledge.shared.generated.resources.child_home_task_photo_ready
+import fledge.shared.generated.resources.child_home_task_retry
+import fledge.shared.generated.resources.child_home_task_retry_note
+import fledge.shared.generated.resources.child_home_task_retry_reason
 import fledge.shared.generated.resources.child_home_task_reward
 import fledge.shared.generated.resources.child_home_task_status_approved
 import fledge.shared.generated.resources.child_home_task_status_expired
@@ -139,6 +145,11 @@ fun ChildHomeScreen(
                 viewModel.submitTask(instanceId)
             }
         },
+        onRetryTask = { instanceId ->
+            scope.launch {
+                viewModel.retryTask(instanceId)
+            }
+        },
         onProtectedAction = { action ->
             scope.launch {
                 if (viewModel.requestProtectedAction(action)) {
@@ -156,6 +167,7 @@ fun ChildHomeContent(
     onConfirmSettlement: (SettlementId) -> Unit,
     onAttachPhotoEvidence: (TaskInstanceId) -> Unit,
     onSubmitTask: (TaskInstanceId) -> Unit,
+    onRetryTask: (TaskInstanceId) -> Unit,
     onProtectedAction: (FoundationAction) -> Unit,
 ) {
     Surface(
@@ -233,6 +245,7 @@ fun ChildHomeContent(
                         isBusy = state.isBusy,
                         onAttachPhotoEvidence = onAttachPhotoEvidence,
                         onSubmitTask = onSubmitTask,
+                        onRetryTask = onRetryTask,
                     )
                 }
             }
@@ -363,9 +376,11 @@ private fun ChildTaskInstanceRow(
     isBusy: Boolean,
     onAttachPhotoEvidence: (TaskInstanceId) -> Unit,
     onSubmitTask: (TaskInstanceId) -> Unit,
+    onRetryTask: (TaskInstanceId) -> Unit,
 ) {
     val hasPhotoEvidence = !selectedPhotoEvidenceUri.isNullOrBlank() || !instance.photoEvidenceUri.isNullOrBlank()
-    val isActionable = instance.status == TaskInstanceStatus.Pending || instance.status == TaskInstanceStatus.Rejected
+    val isPending = instance.status == TaskInstanceStatus.Pending
+    val isRejected = instance.status == TaskInstanceStatus.Rejected
     Card(
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -405,7 +420,50 @@ private fun ChildTaskInstanceRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (instance.requiresPhoto && isActionable) {
+            if (instance.status == TaskInstanceStatus.Rejected) {
+                instance.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
+                    Text(
+                        text = stringResource(Res.string.child_home_task_retry_reason, reason),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.child_home_task_retry_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (instance.status == TaskInstanceStatus.Expired) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.child_home_task_expired_closed),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(Res.string.child_home_task_expired_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (instance.requiresPhoto && isPending) {
                 OutlinedButton(
                     onClick = { onAttachPhotoEvidence(instance.id) },
                     enabled = !isBusy,
@@ -424,7 +482,7 @@ private fun ChildTaskInstanceRow(
                     )
                 }
             }
-            if (isActionable) {
+            if (isPending) {
                 Button(
                     onClick = { onSubmitTask(instance.id) },
                     enabled = !isBusy,
@@ -435,6 +493,18 @@ private fun ChildTaskInstanceRow(
                         .heightIn(min = 52.dp),
                 ) {
                     Text(stringResource(Res.string.child_home_task_submit))
+                }
+            } else if (isRejected) {
+                Button(
+                    onClick = { onRetryTask(instance.id) },
+                    enabled = !isBusy,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp),
+                ) {
+                    Text(stringResource(Res.string.child_home_task_retry))
                 }
             } else if (instance.status == TaskInstanceStatus.Submitted) {
                 Surface(
@@ -609,6 +679,7 @@ private fun LedgerTransactionRow(transaction: LedgerTransaction, currencyCode: S
 private fun taskSubmissionErrorText(error: ChildTaskSubmissionError): String = when (error) {
     ChildTaskSubmissionError.MissingPhotoEvidence -> stringResource(Res.string.child_home_task_error_missing_photo)
     ChildTaskSubmissionError.SubmitFailed -> stringResource(Res.string.child_home_task_error_submit)
+    ChildTaskSubmissionError.RetryFailed -> stringResource(Res.string.child_home_task_error_retry)
 }
 
 @Composable
@@ -742,6 +813,7 @@ fun PreviewChildHomeContent() {
             onConfirmSettlement = {},
             onAttachPhotoEvidence = {},
             onSubmitTask = {},
+            onRetryTask = {},
             onProtectedAction = {},
         )
     }

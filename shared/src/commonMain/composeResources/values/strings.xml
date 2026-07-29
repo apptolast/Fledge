@@ -176,10 +176,16 @@
     <string name="child_home_task_add_photo">Anadir foto</string>
     <string name="child_home_task_photo_ready">Foto lista</string>
     <string name="child_home_task_submit">Enviar para revisar</string>
+    <string name="child_home_task_retry">Volver a intentar</string>
     <string name="child_home_task_waiting">Esperando aprobacion</string>
     <string name="child_home_task_money_after_approval">El dinero aparece cuando la tarea este aprobada.</string>
+    <string name="child_home_task_retry_reason">Nota para ayudarte: %1$s</string>
+    <string name="child_home_task_retry_note">No pierdes nada por intentarlo otra vez. Corrige lo que falte y vuelve a enviarla hoy.</string>
+    <string name="child_home_task_expired_closed">No se puede enviar ya</string>
+    <string name="child_home_task_expired_note">No es un castigo. Cerramos el dia para mantener el acuerdo claro.</string>
     <string name="child_home_task_error_missing_photo">Anade una foto antes de enviar esta tarea.</string>
     <string name="child_home_task_error_submit">No se pudo enviar la tarea. Reintentalo cuando vuelva la conexion.</string>
+    <string name="child_home_task_error_retry">No se pudo preparar el reintento. Reintentalo cuando vuelva la conexion.</string>
     <string name="child_home_cash_out">Solicitar retirada</string>
     <string name="child_home_settlements_title">Retiradas</string>
     <string name="child_home_settlements_empty">No tienes retiradas pendientes.</string>
