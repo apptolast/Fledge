@@ -149,10 +149,28 @@ escribiendo `local.properties`.
 
 ## Autenticación
 
-Fledge usa **BaseLogin** (`com.github.apptolast.BaseLogin:baselogin`, pineado por commit) como módulo
-de login, no pantallas propias copiadas. El `AuthProvider` es `FledgeFirebaseAuthProvider`, que habla
-con la REST de Firebase Identity Toolkit desde `data/remote/firebase/`. Google Sign-In se resuelve en
-`androidMain` con Credential Manager; Apple Sign-In en `iosMain` con el ID token y raw nonce.
+Fledge **no implementa autenticación**: la delega entera en **BaseLogin**
+(`com.github.apptolast.BaseLogin:baselogin`, pineado por commit). El módulo se cablea llamando a
+`loginDataModule()` en `fledgeModules`, que registra el `FirebaseAuthProvider` de la librería sobre
+`dev.gitlive:firebase-auth` y su `FirebaseAuthGateway`.
+
+**No escribas un `AuthProvider` propio.** Fledge tuvo uno sobre la REST de Identity Toolkit hasta
+FLE-88, y no fue una decisión de diseño: era un apaño de cuando la integración SPM de iOS se había
+revertido y no había Firebase nativo. Se eliminó junto con Ktor y `multiplatform-settings`.
+
+Cableado por plataforma, ambos obligatorios:
+
+- **Android**: `MainActivity` llama a `FledgeAndroidAuth.attach(this)` en `onCreate` y `detach` en
+  `onDestroy`. Envuelve `CustomLoginAndroid` para que `androidApp` no dependa de BaseLogin. Sin ese
+  `attach`, Google Sign-In revienta con un `lateinit` sin inicializar: es Credential Manager quien
+  necesita el contexto de aplicación.
+- **iOS**: `SocialAuthCoordinator.swift` asigna `AppleSignInProviderIOS.shared.signInHandler` y
+  devuelve la cadena empaquetada `idToken|||rawNonce|||<nonce>|||displayName|||<name>`. Los
+  separadores son literales y compartidos con la librería; el segmento del nombre solo se añade
+  cuando Apple lo envía, que es **solo en la primerísima autorización** de cada usuario.
+
+Si hace falta tocar el comportamiento de auth, el sitio es BaseLogin, no Fledge: allí está testeado
+y lo aprovecha toda la flota.
 
 ## Flujo de trabajo: harness SDD
 

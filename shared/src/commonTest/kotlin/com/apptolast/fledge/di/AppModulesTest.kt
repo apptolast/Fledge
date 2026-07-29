@@ -1,20 +1,24 @@
 package com.apptolast.fledge.di
 
+import com.apptolast.customlogin.data.FirebaseAuthProvider
 import com.apptolast.customlogin.domain.AuthProvider
+import com.apptolast.customlogin.domain.model.AuthError
+import com.apptolast.customlogin.domain.model.AuthResult
+import com.apptolast.customlogin.domain.model.AuthState
+import com.apptolast.customlogin.domain.model.Credentials
+import com.apptolast.customlogin.domain.model.PhoneAuthResult
+import com.apptolast.customlogin.domain.model.SignUpData
+import com.apptolast.customlogin.domain.model.UserSession
 import com.apptolast.customlogin.presentation.screens.login.LoginViewModel
 import com.apptolast.customlogin.presentation.screens.register.RegisterViewModel
-import com.apptolast.fledge.data.auth.FledgeFirebaseAuthProvider
-import com.apptolast.fledge.data.auth.SocialAuthClient
-import com.apptolast.fledge.data.auth.SocialAuthUnavailableException
-import com.apptolast.fledge.data.auth.SocialSignInResult
 import com.apptolast.fledge.data.remote.firebase.FakeFirebaseInitializer
 import com.apptolast.fledge.data.remote.firebase.FirebaseBootstrap
 import com.apptolast.fledge.data.remote.firebase.FirebaseEnvironment
 import com.apptolast.fledge.data.remote.firebase.FirebaseInitializer
 import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
-import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
-import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
-import com.apptolast.fledge.data.repository.InMemoryMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
+import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
+import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
@@ -22,12 +26,12 @@ import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
-import com.apptolast.fledge.testing.TestSettings
-import com.russhwolf.settings.Settings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 
@@ -37,7 +41,7 @@ class AppModulesTest {
     fun `AC-09 presentation module resolves role selector graph`() {
         // Given
         val application = koinApplication {
-            modules(dataModule, presentationModule)
+            modules(fledgeModules(testPlatformModule(), FakeAuthProvider()))
         }
 
         // When / Then
@@ -50,21 +54,14 @@ class AppModulesTest {
     }
 
     @Test
-    fun `FLE-8 BaseLogin graph resolves with the real Firebase provider`() {
-        // Given
+    fun `FLE-88 BaseLogin graph resolves its own Firebase provider`() {
+        // Given the production graph: auth now comes from the library, not from a Fledge REST provider
         val application = koinApplication {
-            modules(
-                fledgeModules(
-                    module {
-                        single<Settings> { TestSettings() }
-                        single<SocialAuthClient> { FakeSocialAuthClient() }
-                    },
-                ),
-            )
+            modules(fledgeModules(module { }))
         }
 
         // When / Then
-        assertEquals(FledgeFirebaseAuthProvider.PROVIDER_ID, application.koin.get<AuthProvider>().id)
+        assertEquals(FirebaseAuthProvider.PROVIDER_ID, application.koin.get<AuthProvider>().id)
         assertNotNull(application.koin.get<LoginViewModel>())
         assertNotNull(application.koin.get<RegisterViewModel>())
     }
@@ -76,14 +73,8 @@ class AppModulesTest {
         val application = koinApplication {
             modules(
                 fledgeModules(
-                    module {
-                        single<Settings> { TestSettings() }
-                        single<SocialAuthClient> { FakeSocialAuthClient() }
-                        single<FirebaseInitializer> { initializer }
-                        single<FirestoreProvider> {
-                            FakeFirestoreProvider(databaseId = get<FirebaseEnvironment>().databaseId)
-                        }
-                    },
+                    testPlatformModule(initializer),
+                    FakeAuthProvider(),
                 ),
             )
         }
@@ -101,10 +92,10 @@ class AppModulesTest {
     }
 
     @Test
-    fun `FLE-78 repositories remain in memory after firestore integration`() {
-        // Given the production data module alone: it declares no FirestoreProvider at all
+    fun `FLE-77 production repositories use firestore after sdk integration`() {
+        // Given the production graph with test platform bindings
         val application = koinApplication {
-            modules(dataModule)
+            modules(fledgeModules(testPlatformModule(), FakeAuthProvider()))
         }
 
         // When
@@ -112,23 +103,51 @@ class AppModulesTest {
         val ledger = application.koin.get<LedgerRepository>()
         val moneyFlow = application.koin.get<MoneyFlowRepository>()
 
-        // Then every repository is still in memory, and none of them needed a FirestoreProvider to resolve
-        assertIs<InMemoryFamilyFoundationRepository>(familyFoundation)
-        assertIs<InMemoryLedgerRepository>(ledger)
-        assertIs<InMemoryMoneyFlowRepository>(moneyFlow)
+        // Then production bindings now point to Firestore-backed repositories
+        assertIs<FirestoreFamilyFoundationRepository>(familyFoundation)
+        assertIs<FirestoreLedgerRepository>(ledger)
+        assertIs<FirestoreMoneyFlowRepository>(moneyFlow)
     }
 }
 
-private class FakeSocialAuthClient : SocialAuthClient {
-    override val isGoogleAvailable: Boolean = false
-    override val isAppleAvailable: Boolean = false
-
-    override suspend fun signInWithGoogle(): SocialSignInResult =
-        throw SocialAuthUnavailableException("Google no esta disponible.")
-
-    override suspend fun signInWithApple(): SocialSignInResult =
-        throw SocialAuthUnavailableException("Apple no esta disponible.")
-}
+private fun testPlatformModule(initializer: FirebaseInitializer = FakeFirebaseInitializer(initialized = false)) =
+    module {
+        single<FirebaseInitializer> { initializer }
+        single<FirestoreProvider> {
+            FakeFirestoreProvider(databaseId = get<FirebaseEnvironment>().databaseId)
+        }
+    }
 
 private class FakeFirestoreProvider(override val databaseId: String, override val isAvailable: Boolean = false) :
     FirestoreProvider
+
+private class FakeAuthProvider : AuthProvider {
+    override val id: String = "fake-auth"
+
+    private val failure = AuthError.Unknown("Fake auth provider does not sign users in.")
+
+    override suspend fun signIn(credentials: Credentials): AuthResult = AuthResult.Failure(failure)
+    override suspend fun signUp(data: SignUpData): AuthResult = AuthResult.Failure(failure)
+    override suspend fun signOut(): Result<Unit> = Result.success(Unit)
+    override suspend fun sendPasswordResetEmail(email: String): AuthResult = AuthResult.Failure(failure)
+    override suspend fun confirmPasswordReset(code: String, newPassword: String): AuthResult =
+        AuthResult.Failure(failure)
+    override fun observeAuthState(): Flow<AuthState> = flowOf(AuthState.Unauthenticated)
+    override suspend fun getCurrentSession(): UserSession? = null
+    override suspend fun refreshSession(): AuthResult = AuthResult.Failure(failure)
+    override suspend fun isSignedIn(): Boolean = false
+    override suspend fun getIdToken(forceRefresh: Boolean): String? = null
+    override suspend fun deleteAccount(): Result<Unit> = Result.success(Unit)
+    override suspend fun updateDisplayName(displayName: String): Result<Unit> = Result.success(Unit)
+    override suspend fun updateEmail(newEmail: String): Result<Unit> = Result.success(Unit)
+    override suspend fun updatePassword(newPassword: String): Result<Unit> = Result.success(Unit)
+    override suspend fun sendEmailVerification(): Result<Unit> = Result.success(Unit)
+    override suspend fun reauthenticate(credentials: Credentials): AuthResult = AuthResult.Failure(failure)
+    override suspend fun sendPhoneOtp(phoneNumber: String): PhoneAuthResult = PhoneAuthResult.Failure(failure)
+    override suspend fun verifyPhoneOtp(verificationId: String, otpCode: String): AuthResult =
+        AuthResult.Failure(failure)
+    override suspend fun sendMagicLink(email: String, continueUrl: String, iosBundleId: String?): AuthResult =
+        AuthResult.Failure(failure)
+
+    override suspend fun signInWithMagicLink(email: String, link: String): AuthResult = AuthResult.Failure(failure)
+}
