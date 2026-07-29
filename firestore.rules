@@ -6,31 +6,152 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isParent(familyId) {
+      return signedIn() && request.auth.uid == familyId;
+    }
+
+    function isChild(familyId) {
+      return signedIn()
+        && request.auth.token.keys().hasAll(["role", "familyId", "childProfileId"])
+        && request.auth.token.role == "child"
+        && request.auth.token.familyId == familyId
+        && request.auth.token.childProfileId is string;
+    }
+
+    function isFamilyMember(familyId) {
+      return isParent(familyId) || isChild(familyId);
+    }
+
+    function authChildProfileId() {
+      return request.auth.token.childProfileId;
+    }
+
+    function requestMatchesFamily(familyId) {
+      return request.resource.data.familyId == familyId;
+    }
+
+    function requestMatchesChild(familyId, childProfileId) {
+      return requestMatchesFamily(familyId)
+        && request.resource.data.childProfileId == childProfileId;
+    }
+
+    function requestKeepsFamilyId() {
+      return request.resource.data.keys().hasAny(["familyId"])
+        && resource.data.keys().hasAny(["familyId"])
+        && request.resource.data.familyId == resource.data.familyId;
+    }
+
+    function requestKeepsChildProfileId() {
+      return request.resource.data.keys().hasAny(["childProfileId"])
+        && resource.data.keys().hasAny(["childProfileId"])
+        && request.resource.data.childProfileId == resource.data.childProfileId;
+    }
+
+    function nullOrAbsent(field) {
+      return !request.resource.data.keys().hasAny([field]) || request.resource.data[field] == null;
+    }
+
+    function settlementKeys() {
+      return [
+        "familyId",
+        "childProfileId",
+        "amountCents",
+        "concept",
+        "status",
+        "requestedAt",
+        "paidByParentAt",
+        "confirmedByChildAt",
+        "settlementTransactionId",
+      ];
+    }
+
+    function settlementRequestIsValid(familyId) {
+      return request.resource.data.keys().hasAll([
+          "familyId",
+          "childProfileId",
+          "amountCents",
+          "concept",
+          "status",
+          "requestedAt",
+        ])
+        && requestMatchesFamily(familyId)
+        && request.resource.data.amountCents is int
+        && request.resource.data.amountCents > 0
+        && request.resource.data.concept is string
+        && request.resource.data.requestedAt is timestamp
+        && request.resource.data.status == "Requested"
+        && nullOrAbsent("paidByParentAt")
+        && nullOrAbsent("confirmedByChildAt")
+        && nullOrAbsent("settlementTransactionId");
+    }
+
+    function childSettlementRequestIsValid(familyId) {
+      return isChild(familyId)
+        && request.resource.data.childProfileId == authChildProfileId()
+        && settlementRequestIsValid(familyId);
+    }
+
+    function childSettlementConfirmationIsValid(familyId) {
+      return isChild(familyId)
+        && resource.data.childProfileId == authChildProfileId()
+        && resource.data.status == "PaidByParent"
+        && request.resource.data.status == "ConfirmedByChild"
+        && requestKeepsFamilyId()
+        && requestKeepsChildProfileId()
+        && request.resource.data.amountCents == resource.data.amountCents
+        && request.resource.data.concept == resource.data.concept
+        && request.resource.data.requestedAt == resource.data.requestedAt
+        && request.resource.data.paidByParentAt == resource.data.paidByParentAt
+        && request.resource.data.confirmedByChildAt is timestamp
+        && request.resource.data.settlementTransactionId is string;
+    }
+
     match /families/{familyId} {
-      allow read, write: if signedIn();
+      allow read: if isFamilyMember(familyId);
+      allow create: if isParent(familyId) && requestMatchesFamily(familyId);
+      allow update: if isParent(familyId) && requestKeepsFamilyId();
+      allow delete: if false;
 
       match /allowanceRules/{ruleId} {
-        allow read, write: if signedIn();
+        allow read: if isParent(familyId)
+          || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
+        allow create: if isParent(familyId) && requestMatchesFamily(familyId);
+        allow update: if isParent(familyId) && requestKeepsFamilyId() && requestKeepsChildProfileId();
+        allow delete: if false;
       }
 
       match /settlements/{settlementId} {
-        allow read, write: if signedIn();
+        allow read: if isParent(familyId)
+          || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
+        allow create: if isParent(familyId) && settlementRequestIsValid(familyId);
+        allow create: if childSettlementRequestIsValid(familyId);
+        allow update: if isParent(familyId) && requestKeepsFamilyId() && requestKeepsChildProfileId();
+        allow update: if childSettlementConfirmationIsValid(familyId);
+        allow delete: if false;
       }
 
       match /childProfiles/{childProfileId} {
-        allow read, write: if signedIn();
+        allow read: if isParent(familyId)
+          || (isChild(familyId) && childProfileId == authChildProfileId());
+        allow create, update: if isParent(familyId) && requestMatchesChild(familyId, childProfileId);
+        allow delete: if false;
       }
 
       match /childDevices/{deviceId} {
-        allow read, write: if signedIn();
+        allow read: if isParent(familyId)
+          || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
+        allow create, update: if isParent(familyId) && requestMatchesFamily(familyId);
+        allow delete: if false;
       }
 
       match /pairingSessions/{pairingCode} {
-        allow read, write: if signedIn();
+        allow read, write: if isParent(familyId) && requestMatchesFamily(familyId);
       }
 
       match /ledgerTransactions/{transactionId} {
-        allow read, create: if signedIn();
+        allow read: if isParent(familyId)
+          || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
+        allow create: if isParent(familyId) && requestMatchesFamily(familyId);
         allow update, delete: if false;
       }
     }
