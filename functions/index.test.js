@@ -32,6 +32,10 @@ describe("FLE-29 task instance scheduler", () => {
     assert.equal(docs[0].data.rewardCents, 50);
     assert.equal(docs[0].data.requiresPhoto, false);
     assert.equal(docs[0].data.submittedAt, null);
+    assert.equal(docs[0].data.reviewedAt, null);
+    assert.equal(docs[0].data.approvedRewardCents, null);
+    assert.equal(docs[0].data.approvalTransactionId, null);
+    assert.equal(docs[0].data.rejectionReason, null);
   });
 
   test("calculates recurrence dates without losing local wall clock time", () => {

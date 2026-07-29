@@ -103,6 +103,7 @@ import fledge.shared.generated.resources.ledger_type_goal_transfer
 import fledge.shared.generated.resources.ledger_type_penalty
 import fledge.shared.generated.resources.ledger_type_reversal
 import fledge.shared.generated.resources.ledger_type_settlement
+import fledge.shared.generated.resources.ledger_type_task_reward
 import fledge.shared.generated.resources.operation_error_sync
 import kotlin.time.Clock
 import kotlinx.coroutines.launch
@@ -635,6 +636,7 @@ private fun childReminderText(level: SettlementReminderLevel): String = when (le
 @Composable
 private fun ledgerTransactionTypeLabel(type: LedgerTransactionType): String = when (type) {
     LedgerTransactionType.Allowance -> stringResource(Res.string.ledger_type_allowance)
+    LedgerTransactionType.TaskReward -> stringResource(Res.string.ledger_type_task_reward)
     LedgerTransactionType.Bonus -> stringResource(Res.string.ledger_type_bonus)
     LedgerTransactionType.Penalty -> stringResource(Res.string.ledger_type_penalty)
     LedgerTransactionType.Gift -> stringResource(Res.string.ledger_type_gift)

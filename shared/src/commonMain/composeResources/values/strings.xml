@@ -39,6 +39,16 @@
     <string name="parent_home_pending_total">Total pendiente de liquidar: %1$s</string>
     <string name="parent_home_pending_liquidation">Debes a tus hijos</string>
     <string name="parent_home_pending_count">%d retiradas pendientes</string>
+    <string name="parent_home_task_approvals_title">Tareas por aprobar</string>
+    <string name="parent_home_task_approval_empty">No hay tareas esperando aprobacion.</string>
+    <string name="parent_home_task_approval_original">Original: %1$s</string>
+    <string name="parent_home_task_approval_photo">Foto adjunta</string>
+    <string name="parent_home_task_approval_amount">Importe</string>
+    <string name="parent_home_task_approval_approve">Aprobar</string>
+    <string name="parent_home_task_approval_reason">Motivo del rechazo</string>
+    <string name="parent_home_task_approval_reject">Rechazar</string>
+    <string name="parent_home_task_approval_error_amount">Introduce un importe positivo en euros y centimos.</string>
+    <string name="parent_home_task_approval_error_reason">Escribe un motivo antes de rechazar.</string>
     <string name="parent_home_setup">Siguientes pasos</string>
     <string name="parent_home_add_child">Anadir hijo</string>
     <string name="parent_home_pairing">Emparejar dispositivo</string>
@@ -195,6 +205,7 @@
     <string name="ledger_actor_child">Hijo</string>
     <string name="ledger_actor_system">Sistema</string>
     <string name="ledger_type_allowance">Paga</string>
+    <string name="ledger_type_task_reward">Tarea</string>
     <string name="ledger_type_bonus">Bonus</string>
     <string name="ledger_type_penalty">Multa</string>
     <string name="ledger_type_gift">Regalo</string>

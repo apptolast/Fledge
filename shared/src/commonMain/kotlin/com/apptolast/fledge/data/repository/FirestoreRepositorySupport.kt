@@ -355,6 +355,9 @@ internal fun TaskInstance.toFirestoreMap(): Map<String, Any?> = mapOf(
     "reviewedAt" to reviewedAt?.toFirestoreTimestamp(),
     "expiredAt" to expiredAt?.toFirestoreTimestamp(),
     "photoEvidenceUri" to photoEvidenceUri,
+    "approvedRewardCents" to approvedRewardCents?.value,
+    "approvalTransactionId" to approvalTransactionId?.value,
+    "rejectionReason" to rejectionReason,
 )
 
 internal fun DocumentSnapshot.toTaskInstance(): TaskInstance = TaskInstance(
@@ -375,6 +378,9 @@ internal fun DocumentSnapshot.toTaskInstance(): TaskInstance = TaskInstance(
     reviewedAt = optionalTimestamp("reviewedAt"),
     expiredAt = optionalTimestamp("expiredAt"),
     photoEvidenceUri = optionalString("photoEvidenceUri"),
+    approvedRewardCents = optionalLong("approvedRewardCents")?.let(::MoneyCents),
+    approvalTransactionId = optionalString("approvalTransactionId")?.let(::TransactionId),
+    rejectionReason = optionalString("rejectionReason"),
 )
 
 internal fun VirtualMoneyConsent.toFirestorePatch(): Map<String, Any?> = mapOf(

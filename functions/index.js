@@ -280,6 +280,9 @@ export function buildTaskInstanceDocuments({ familyId, assignmentId, assignment,
       reviewedAt: null,
       expiredAt: null,
       photoEvidenceUri: null,
+      approvedRewardCents: null,
+      approvalTransactionId: null,
+      rejectionReason: null,
     },
   }));
 }

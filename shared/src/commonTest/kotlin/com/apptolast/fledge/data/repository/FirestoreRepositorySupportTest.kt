@@ -237,6 +237,9 @@ class FirestoreRepositorySupportTest {
         assertEquals(null, data["reviewedAt"])
         assertEquals(null, data["expiredAt"])
         assertEquals(null, data["photoEvidenceUri"])
+        assertEquals(null, data["approvedRewardCents"])
+        assertEquals(null, data["approvalTransactionId"])
+        assertEquals(null, data["rejectionReason"])
     }
 
     @Test
@@ -269,6 +272,42 @@ class FirestoreRepositorySupportTest {
         assertEquals("local://task-photo-1", data["photoEvidenceUri"])
         assertIs<Timestamp>(data["submittedAt"])
         assertIs<Timestamp>(data["updatedAt"])
+    }
+
+    @Test
+    fun `FLE-31 task instance document stores parent approval metadata`() {
+        // Given
+        val submittedAt = Instant.fromEpochSeconds(1_700_300_000)
+        val reviewedAt = Instant.fromEpochSeconds(1_700_300_600)
+        val instance = TaskInstance(
+            id = TaskInstanceId("task-assignment-1-child-1-20260729"),
+            familyId = FamilyId("family-1"),
+            taskAssignmentId = TaskAssignmentId("assignment-1"),
+            taskTemplateId = TaskTemplateId("template-1"),
+            childProfileId = ChildProfileId("child-1"),
+            title = "Poner la mesa",
+            rewardCents = MoneyCents(50),
+            requiresPhoto = false,
+            status = TaskInstanceStatus.Approved,
+            dueAt = Instant.fromEpochSeconds(1_700_200_000),
+            periodKey = "20260729",
+            createdAt = Instant.fromEpochSeconds(1_700_100_000),
+            updatedAt = reviewedAt,
+            submittedAt = submittedAt,
+            reviewedAt = reviewedAt,
+            approvedRewardCents = MoneyCents(75),
+            approvalTransactionId = TransactionId("tx-task-1"),
+        )
+
+        // When
+        val data = instance.toFirestoreMap()
+
+        // Then
+        assertEquals("Approved", data["status"])
+        assertEquals(75L, data["approvedRewardCents"])
+        assertEquals("tx-task-1", data["approvalTransactionId"])
+        assertEquals(null, data["rejectionReason"])
+        assertIs<Timestamp>(data["reviewedAt"])
     }
 
     @Test
