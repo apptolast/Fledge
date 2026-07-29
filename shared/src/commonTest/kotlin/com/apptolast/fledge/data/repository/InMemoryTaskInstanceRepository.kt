@@ -8,6 +8,7 @@ import com.apptolast.fledge.domain.model.TaskInstanceId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.approvedByParent
 import com.apptolast.fledge.domain.model.rejectedByParent
+import com.apptolast.fledge.domain.model.retriedForSameDay
 import com.apptolast.fledge.domain.model.submittedForReview
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
@@ -65,6 +66,19 @@ class InMemoryTaskInstanceRepository(initialInstances: List<TaskInstance> = empt
         )
         upsert(approved)
         return approved
+    }
+
+    override suspend fun retryRejected(
+        instanceId: TaskInstanceId,
+        childProfileId: ChildProfileId,
+        retriedAt: Instant,
+    ): TaskInstance {
+        val retried = existingInstance(instanceId).retriedForSameDay(
+            childProfileId = childProfileId,
+            retriedAt = retriedAt,
+        )
+        upsert(retried)
+        return retried
     }
 
     override suspend fun reject(instanceId: TaskInstanceId, reason: String, reviewedAt: Instant): TaskInstance {

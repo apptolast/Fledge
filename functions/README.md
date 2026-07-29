@@ -67,6 +67,19 @@ After processing:
 - `Daily`, `Weekly` and `Custom` assignments advance `dueAt`.
 - No ledger money is created here. Task rewards are paid only when later approved.
 
+## Task instance expiration scheduler
+
+`runTaskInstanceExpirations` runs hourly in `europe-west1`. It scans task instances in:
+
+```text
+families/{familyId}/taskInstances/{taskInstanceId}
+```
+
+Pending or rejected instances with `dueAt` in the past are marked as `Expired`. The function writes
+`expiredAt`, clears submission/review fields, and does not create ledger money.
+
+The debug database uses the `Debug` function variant.
+
 ## Task approval push
 
 `notifyTaskInstancePush` reacts to writes in:

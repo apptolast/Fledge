@@ -13,6 +13,7 @@ setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 const DEFAULT_TIME_ZONE = "Europe/Madrid";
 const MAX_RULES_PER_RUN = 100;
 const MAX_TASK_ASSIGNMENTS_PER_RUN = 100;
+const MAX_TASK_EXPIRATIONS_PER_RUN = 500;
 const MAX_APPROVAL_REMINDER_INSTANCES_PER_RUN = 500;
 const APPROVAL_QUEUE_COUNT_THRESHOLD = 5;
 const APPROVAL_QUEUE_STALE_HOURS = 72;
@@ -22,6 +23,14 @@ export const runAllowanceRules = makeRunAllowanceRules(getFirestore(), "runAllow
 export const runAllowanceRulesDebug = makeRunAllowanceRules(getFirestore("debug"), "runAllowanceRulesDebug");
 export const runTaskAssignments = makeRunTaskAssignments(getFirestore(), "runTaskAssignments");
 export const runTaskAssignmentsDebug = makeRunTaskAssignments(getFirestore("debug"), "runTaskAssignmentsDebug");
+export const runTaskInstanceExpirations = makeRunTaskInstanceExpirations(
+  getFirestore(),
+  "runTaskInstanceExpirations",
+);
+export const runTaskInstanceExpirationsDebug = makeRunTaskInstanceExpirations(
+  getFirestore("debug"),
+  "runTaskInstanceExpirationsDebug",
+);
 export const runApprovalQueueReminders = makeRunApprovalQueueReminders(
   getFirestore(),
   getMessaging(),
@@ -68,6 +77,19 @@ function makeRunTaskAssignments(database, functionName) {
     },
     async () => {
       const processed = await processDueTaskAssignments(database, new Date());
+      logger.info(`${functionName} completed`, { processed });
+    },
+  );
+}
+
+function makeRunTaskInstanceExpirations(database, functionName) {
+  return onSchedule(
+    {
+      schedule: "every 1 hours",
+      timeZone: DEFAULT_TIME_ZONE,
+    },
+    async () => {
+      const processed = await processExpiredTaskInstances(database, new Date());
       logger.info(`${functionName} completed`, { processed });
     },
   );
@@ -146,6 +168,23 @@ export async function processDueTaskAssignments(database, nowDate) {
   return processed;
 }
 
+export async function processExpiredTaskInstances(database, nowDate) {
+  const now = Timestamp.fromDate(nowDate);
+  const snapshot = await database
+    .collectionGroup("taskInstances")
+    .where("status", "in", ["Pending", "Rejected"])
+    .where("dueAt", "<=", now)
+    .limit(MAX_TASK_EXPIRATIONS_PER_RUN)
+    .get();
+
+  let processed = 0;
+  for (const instanceSnapshot of snapshot.docs) {
+    const didProcess = await processTaskInstanceExpiration(database, instanceSnapshot.ref, nowDate);
+    if (didProcess) processed += 1;
+  }
+  return processed;
+}
+
 export async function processApprovalQueueReminders(database, messaging, appEnv, nowDate) {
   const snapshot = await database
     .collectionGroup("taskInstances")
@@ -194,6 +233,32 @@ export async function processApprovalQueueReminders(database, messaging, appEnv,
   }
 
   return processed;
+}
+
+async function processTaskInstanceExpiration(database, instanceRef, nowDate) {
+  return database.runTransaction(async (transaction) => {
+    const instanceSnapshot = await transaction.get(instanceRef);
+    if (!instanceSnapshot.exists) return false;
+
+    const instance = instanceSnapshot.data();
+    if (!["Pending", "Rejected"].includes(instance.status)) return false;
+
+    const dueAt = asDate(instance.dueAt);
+    if (!dueAt || dueAt > nowDate) return false;
+
+    transaction.update(instanceRef, {
+      status: "Expired",
+      updatedAt: Timestamp.fromDate(nowDate),
+      expiredAt: Timestamp.fromDate(nowDate),
+      submittedAt: null,
+      reviewedAt: null,
+      photoEvidenceUri: null,
+      approvedRewardCents: null,
+      approvalTransactionId: null,
+      rejectionReason: null,
+    });
+    return true;
+  });
 }
 
 async function processRule(database, ruleRef, nowDate) {

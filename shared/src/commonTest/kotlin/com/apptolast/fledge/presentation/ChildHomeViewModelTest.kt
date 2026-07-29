@@ -26,6 +26,7 @@ import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildTaskSubmissionError
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 
@@ -256,14 +257,69 @@ class ChildHomeViewModelTest {
         assertEquals(TaskInstanceStatus.Pending, taskInstanceRepository.instances.value.single().status)
     }
 
+    @Test
+    fun `FLE-34 child home returns rejected task to pending before retrying`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        val taskInstanceRepository = InMemoryTaskInstanceRepository(
+            listOf(
+                taskInstance(
+                    id = "retry-task",
+                    familyId = family.id,
+                    childProfileId = child.id,
+                    status = TaskInstanceStatus.Rejected,
+                    dueAt = Instant.fromEpochSeconds(1_900_000_000),
+                    submittedAt = Instant.fromEpochSeconds(1_700_300_000),
+                    reviewedAt = Instant.fromEpochSeconds(1_700_300_600),
+                    rejectionReason = "Falta ver toda la mesa.",
+                ),
+            ),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+        viewModel.load(child.id)
+
+        // When
+        val retried = viewModel.retryTask(TaskInstanceId("retry-task"))
+
+        // Then
+        val instance = viewModel.uiState.value.taskInstances.single { it.id.value == "retry-task" }
+        assertEquals(true, retried)
+        assertEquals(TaskInstanceStatus.Pending, instance.status)
+        assertNull(instance.rejectionReason)
+        assertNull(instance.submittedAt)
+    }
+
     private fun taskInstance(
         id: String,
         familyId: FamilyId,
         childProfileId: ChildProfileId,
         requiresPhoto: Boolean = false,
         status: TaskInstanceStatus = TaskInstanceStatus.Pending,
+        dueAt: Instant = Instant.fromEpochSeconds(1_700_200_000),
         submittedAt: Instant? = null,
         reviewedAt: Instant? = null,
+        rejectionReason: String? = null,
     ): TaskInstance = TaskInstance(
         id = TaskInstanceId(id),
         familyId = familyId,
@@ -274,11 +330,12 @@ class ChildHomeViewModelTest {
         rewardCents = MoneyCents(50),
         requiresPhoto = requiresPhoto,
         status = status,
-        dueAt = Instant.fromEpochSeconds(1_700_200_000),
+        dueAt = dueAt,
         periodKey = "20260729",
         createdAt = Instant.fromEpochSeconds(1_700_100_000),
         updatedAt = Instant.fromEpochSeconds(1_700_100_000),
         submittedAt = submittedAt,
         reviewedAt = reviewedAt,
+        rejectionReason = rejectionReason,
     )
 }

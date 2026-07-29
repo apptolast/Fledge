@@ -9,6 +9,7 @@ import {
   nextTaskDueDateAfter,
   processApprovalQueueReminders,
   processDueTaskAssignments,
+  processExpiredTaskInstances,
   taskPeriodKey,
 } from "./index.js";
 
@@ -295,6 +296,67 @@ describe("FLE-33 approval queue reminders", () => {
   });
 });
 
+describe("FLE-34 task expiration scheduler", () => {
+  test("expires overdue pending and rejected task instances", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": familyData(),
+      "families/family-1/taskInstances/pending-overdue": taskInstanceData({
+        status: "Pending",
+        dueAt: new Date("2026-07-29T08:00:00.000Z"),
+      }),
+      "families/family-1/taskInstances/rejected-overdue": taskInstanceData({
+        status: "Rejected",
+        dueAt: new Date("2026-07-29T08:00:00.000Z"),
+        submittedAt: new Date("2026-07-29T07:00:00.000Z"),
+        reviewedAt: new Date("2026-07-29T07:30:00.000Z"),
+        photoEvidenceUri: "local://photo",
+        rejectionReason: "Falta ver toda la mesa.",
+      }),
+      "families/family-1/taskInstances/submitted-overdue": taskInstanceData({
+        status: "Submitted",
+        dueAt: new Date("2026-07-29T08:00:00.000Z"),
+        submittedAt: new Date("2026-07-29T07:00:00.000Z"),
+      }),
+      "families/family-1/taskInstances/pending-future": taskInstanceData({
+        status: "Pending",
+        dueAt: new Date("2026-07-29T11:00:00.000Z"),
+      }),
+    });
+
+    const processed = await processExpiredTaskInstances(database, NOW);
+
+    assert.equal(processed, 2);
+    assert.equal(database.docs.get("families/family-1/taskInstances/pending-overdue").status, "Expired");
+    assert.equal(
+      database.docs.get("families/family-1/taskInstances/pending-overdue").expiredAt.toDate().toISOString(),
+      NOW.toISOString(),
+    );
+    assert.equal(database.docs.get("families/family-1/taskInstances/rejected-overdue").status, "Expired");
+    assert.equal(database.docs.get("families/family-1/taskInstances/rejected-overdue").rejectionReason, null);
+    assert.equal(database.docs.get("families/family-1/taskInstances/submitted-overdue").status, "Submitted");
+    assert.equal(database.docs.get("families/family-1/taskInstances/pending-future").status, "Pending");
+  });
+
+  test("does not reprocess already expired task instances", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": familyData(),
+      "families/family-1/taskInstances/expired": taskInstanceData({
+        status: "Expired",
+        dueAt: new Date("2026-07-29T08:00:00.000Z"),
+        expiredAt: new Date("2026-07-29T09:00:00.000Z"),
+      }),
+    });
+
+    const processed = await processExpiredTaskInstances(database, NOW);
+
+    assert.equal(processed, 0);
+    assert.equal(
+      database.docs.get("families/family-1/taskInstances/expired").expiredAt.toDate().toISOString(),
+      "2026-07-29T09:00:00.000Z",
+    );
+  });
+});
+
 function familyData() {
   return {
     familyId: "family-1",
@@ -335,6 +397,7 @@ function taskInstanceData({
   childProfileId = "child-1",
   periodKey = "20260729",
   status = "Pending",
+  dueAt = DUE_AT,
   submittedAt = null,
   reviewedAt = null,
   expiredAt = null,
@@ -352,18 +415,24 @@ function taskInstanceData({
     rewardCents: 50,
     requiresPhoto: false,
     status,
-    dueAt: Timestamp.fromDate(DUE_AT),
+    dueAt: Timestamp.fromDate(dueAt),
     periodKey,
     createdAt: Timestamp.fromDate(NOW),
     updatedAt: Timestamp.fromDate(NOW),
-    submittedAt,
-    reviewedAt,
-    expiredAt,
+    submittedAt: optionalTimestamp(submittedAt),
+    reviewedAt: optionalTimestamp(reviewedAt),
+    expiredAt: optionalTimestamp(expiredAt),
     photoEvidenceUri,
     approvedRewardCents,
     approvalTransactionId,
     rejectionReason,
   };
+}
+
+function optionalTimestamp(value) {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value;
+  return Timestamp.fromDate(value);
 }
 
 function taskInstanceCount(database) {
@@ -507,6 +576,9 @@ class FakeCollectionRef {
 function matchesFilter(data, filter) {
   if (filter.operator === "==") {
     return data[filter.field] === filter.value;
+  }
+  if (filter.operator === "in") {
+    return filter.value.includes(data[filter.field]);
   }
   if (filter.operator === "<=") {
     return timestampMillis(data[filter.field]) <= timestampMillis(filter.value);
