@@ -1,12 +1,9 @@
 package com.apptolast.fledge.di
 
+import com.apptolast.customlogin.data.FirebaseAuthProvider
 import com.apptolast.customlogin.domain.AuthProvider
 import com.apptolast.customlogin.presentation.screens.login.LoginViewModel
 import com.apptolast.customlogin.presentation.screens.register.RegisterViewModel
-import com.apptolast.fledge.data.auth.FledgeFirebaseAuthProvider
-import com.apptolast.fledge.data.auth.SocialAuthClient
-import com.apptolast.fledge.data.auth.SocialAuthUnavailableException
-import com.apptolast.fledge.data.auth.SocialSignInResult
 import com.apptolast.fledge.data.remote.firebase.FakeFirebaseInitializer
 import com.apptolast.fledge.data.remote.firebase.FirebaseBootstrap
 import com.apptolast.fledge.data.remote.firebase.FirebaseEnvironment
@@ -22,8 +19,6 @@ import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
-import com.apptolast.fledge.testing.TestSettings
-import com.russhwolf.settings.Settings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -50,21 +45,14 @@ class AppModulesTest {
     }
 
     @Test
-    fun `FLE-8 BaseLogin graph resolves with the real Firebase provider`() {
-        // Given
+    fun `FLE-88 BaseLogin graph resolves its own Firebase provider`() {
+        // Given the production graph: auth now comes from the library, not from a Fledge REST provider
         val application = koinApplication {
-            modules(
-                fledgeModules(
-                    module {
-                        single<Settings> { TestSettings() }
-                        single<SocialAuthClient> { FakeSocialAuthClient() }
-                    },
-                ),
-            )
+            modules(fledgeModules(module { }))
         }
 
         // When / Then
-        assertEquals(FledgeFirebaseAuthProvider.PROVIDER_ID, application.koin.get<AuthProvider>().id)
+        assertEquals(FirebaseAuthProvider.PROVIDER_ID, application.koin.get<AuthProvider>().id)
         assertNotNull(application.koin.get<LoginViewModel>())
         assertNotNull(application.koin.get<RegisterViewModel>())
     }
@@ -77,8 +65,6 @@ class AppModulesTest {
             modules(
                 fledgeModules(
                     module {
-                        single<Settings> { TestSettings() }
-                        single<SocialAuthClient> { FakeSocialAuthClient() }
                         single<FirebaseInitializer> { initializer }
                         single<FirestoreProvider> {
                             FakeFirestoreProvider(databaseId = get<FirebaseEnvironment>().databaseId)
@@ -117,17 +103,6 @@ class AppModulesTest {
         assertIs<InMemoryLedgerRepository>(ledger)
         assertIs<InMemoryMoneyFlowRepository>(moneyFlow)
     }
-}
-
-private class FakeSocialAuthClient : SocialAuthClient {
-    override val isGoogleAvailable: Boolean = false
-    override val isAppleAvailable: Boolean = false
-
-    override suspend fun signInWithGoogle(): SocialSignInResult =
-        throw SocialAuthUnavailableException("Google no esta disponible.")
-
-    override suspend fun signInWithApple(): SocialSignInResult =
-        throw SocialAuthUnavailableException("Apple no esta disponible.")
 }
 
 private class FakeFirestoreProvider(override val databaseId: String, override val isAvailable: Boolean = false) :

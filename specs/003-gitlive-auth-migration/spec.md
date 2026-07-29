@@ -1,9 +1,9 @@
 # Spec 003: Migrar la autenticación al SDK GitLive firebase-auth (FLE-88)
 
 > Rama: `feature/003-gitlive-auth-migration` · Proyecto: `Fledge`
-> **Estado: PAUSADO — bloqueado por FLE-90 (repo `apptolast/BaseLogin`, spec 001).**
+> **Estado: implementado (29-07-2026)** — desbloqueado tras FLE-91 y FLE-90 en `apptolast/BaseLogin`.
 
-## ⚠️ Cambio de dirección (2026-07-28) — leer antes que nada
+## Cambio de dirección (2026-07-28) y resultado
 
 La versión original de este spec proponía escribir en Fledge un `FledgeGitLiveAuthProvider` propio
 sobre un puerto local. **Esa decisión se ha revertido.** Todo lo que sigue por debajo de la sección
@@ -28,8 +28,47 @@ para esquivarlo.
 | **FLE-90** | `apptolast/BaseLogin` | El puerto que hace testeable `FirebaseAuthProvider`, el `displayName` de Apple, el `signOut` social y la higiene de `Platform.android.kt`. Ver `specs/001-firebase-auth-gateway/spec.md` allí |
 | **FLE-88** | `apptolast/Fledge` | Consumir `loginDataModule()`, **borrar** el transporte REST y **borrar** la capa social duplicada de Fledge, repinear BaseLogin |
 
-FLE-88 se vuelve a especificar cuando FLE-90 aterrice, porque su superficie exacta depende de la API
-que quede allí. Lo único de este spec que sigue vigente y ya ejecutado es **T1** y su evidencia.
+### Lo que finalmente se hizo (29-07-2026)
+
+FLE-91 y FLE-90 aterrizaron en `develop` de BaseLogin, y Fledge pasó a consumir la librería:
+
+| Cambio | Detalle |
+|---|---|
+| Pin de BaseLogin | `35a5e15` → `f0c8620` |
+| Auth | `loginDataModule()` sustituye al registro manual de `AuthProvider` y `AuthRepository` |
+| Transporte REST | **borrado**: `FledgeFirebaseAuthProvider`, `FirebaseAuthService`, `FirebaseAuthDto`, `FirebaseAuthHttpClient`, `FirebaseIdToken`, `FirebaseConfig`, `TokenManager`, `InMemoryLoginAuthProvider` |
+| Capa social propia | **borrada**: `SocialAuthClient`, `AndroidSocialAuthClient`, `IosSocialAuthClient`. Se usa la de BaseLogin |
+| Dependencias | fuera Ktor (6 artefactos, 4 source sets) y `multiplatform-settings` |
+| Android | `MainActivity` llama a `FledgeAndroidAuth.attach/detach`, que envuelve `CustomLoginAndroid` para que el entry point no dependa de BaseLogin |
+| iOS | `SocialAuthCoordinator.swift` apunta a `AppleSignInProviderIOS` y emite el formato de la librería |
+
+**Balance: 1.493 líneas eliminadas, 62 añadidas.**
+
+Los tests bajan de 78 a 67, y conviene decir por qué en vez de disimularlo: desaparecen los 8 de
+`FledgeFirebaseAuthProviderTest` —que probaban el transporte HTTP, no el provider— y los de
+`InMemoryLoginAuthProvider`, un vestigio nunca registrado en Koin. Esa cobertura no se pierde: vive
+ahora en BaseLogin, donde **FLE-90 la subió de 0 tests reales del provider a 18**.
+
+### Formato del token de Apple
+
+El coordinador Swift pasa del formato propio de Fledge al de la librería:
+
+```
+antes:  idToken|||<rawNonce>|||<name>            ← tres campos posicionales
+ahora:  idToken|||rawNonce|||<nonce>|||displayName|||<name>
+```
+
+El segmento del nombre solo se añade cuando Apple lo envía, que es únicamente en la primerísima
+autorización de cada usuario.
+
+### Pendiente de smoke manual
+
+Ningún test cubre esto, y no se marca como hecho hasta ejecutarlo en dispositivo:
+
+- **Android**: login con Google. Verifica de paso `FledgeAndroidAuth.attach`, sin el cual Credential
+  Manager revienta con un `lateinit` sin inicializar.
+- **iOS**: login con Apple con una cuenta **nueva**, comprobando que el nombre llega. Con una cuenta
+  ya autorizada no sirve: Apple no reenvía el nombre.
 
 ## Contexto y objetivo
 

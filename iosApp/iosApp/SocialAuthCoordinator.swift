@@ -10,10 +10,14 @@ final class SocialAuthCoordinator: NSObject {
     private var currentNonce: String?
     private var currentController: ASAuthorizationController?
 
+    /// Wires this coordinator into BaseLogin's Apple provider.
+    ///
+    /// The handler signature is `(String?, (String?) -> Void) -> Void`: the first argument is
+    /// reserved by the library for future configuration and is unused here.
     func registerBridges() {
-        IosAppleAuthBridge.shared.signInHandler = { [weak self] completion in
+        AppleSignInProviderIOS.shared.signInHandler = { [weak self] _, completion in
             self?.signInWithApple { payload in
-                _ = completion(payload)
+                completion(payload)
             }
         }
     }
@@ -90,10 +94,22 @@ extension SocialAuthCoordinator: ASAuthorizationControllerDelegate {
             return
         }
 
+        // BaseLogin's packed format. The separators are named and literal — see
+        // FirebaseAuthProvider.APPLE_NONCE_SEPARATOR / APPLE_DISPLAY_NAME_SEPARATOR.
+        //
+        // The display name segment is appended only when Apple actually sends one, which happens
+        // on the very first authorisation of each user and never again. If it is dropped here the
+        // account is left without a name for good.
         let name = [credential.fullName?.givenName, credential.fullName?.familyName]
             .compactMap { $0 }
             .joined(separator: " ")
-        finish("\(idToken)|||\(rawNonce)|||\(name)")
+            .trimmingCharacters(in: .whitespaces)
+
+        var payload = "\(idToken)|||rawNonce|||\(rawNonce)"
+        if !name.isEmpty {
+            payload += "|||displayName|||\(name)"
+        }
+        finish(payload)
     }
 
     func authorizationController(
