@@ -140,6 +140,7 @@
     <string name="sync_notice_error_title">Could not refresh</string>
     <string name="sync_notice_error_body">The last available data is still visible. Try again when you have a connection.</string>
     <string name="operation_error_sync">The change could not be saved. Try again when the connection returns.</string>
+    <string name="post_login_loading">Loading your family...</string>
     <string name="ledger_account_main">Main</string>
     <string name="ledger_account_goal">Goal</string>
     <string name="ledger_actor_parent">Adult</string>

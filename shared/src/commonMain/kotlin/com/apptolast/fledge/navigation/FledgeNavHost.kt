@@ -26,6 +26,7 @@ import com.apptolast.fledge.presentation.foundation.onboarding.OnboardingScreen
 import com.apptolast.fledge.presentation.foundation.pairing.PairingScreen
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateScreen
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeScreen
+import com.apptolast.fledge.presentation.foundation.postlogin.PostLoginScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentScreen
 
@@ -59,11 +60,35 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
         authRoutesFlow(
             navController = navController,
             onNavigateToHome = {
-                navController.navigate(FamilySetupRoute) {
+                navController.navigate(PostLoginRoute) {
                     popUpTo(AuthRoutesFlow) { inclusive = true }
                 }
             },
         )
+        composable<PostLoginRoute> {
+            PostLoginScreen(
+                onNavigateToFamilySetup = {
+                    navController.navigate(FamilySetupRoute) {
+                        popUpTo(PostLoginRoute) { inclusive = true }
+                    }
+                },
+                onNavigateToVirtualMoneyConsent = {
+                    navController.navigate(VirtualMoneyConsentRoute) {
+                        popUpTo(PostLoginRoute) { inclusive = true }
+                    }
+                },
+                onNavigateToChildProfileSetup = {
+                    navController.navigate(ChildProfileSetupRoute) {
+                        popUpTo(PostLoginRoute) { inclusive = true }
+                    }
+                },
+                onNavigateToParentHome = {
+                    navController.navigate(ParentHomeRoute) {
+                        popUpTo(PostLoginRoute) { inclusive = true }
+                    }
+                },
+            )
+        }
         composable<FamilySetupRoute> {
             FamilySetupScreen(onFamilyCreated = { navController.navigate(VirtualMoneyConsentRoute) })
         }

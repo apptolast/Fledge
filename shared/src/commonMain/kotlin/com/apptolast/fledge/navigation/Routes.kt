@@ -12,6 +12,9 @@ data object RoleSelectorRoute
 data object FamilySetupRoute
 
 @Serializable
+data object PostLoginRoute
+
+@Serializable
 data object VirtualMoneyConsentRoute
 
 @Serializable

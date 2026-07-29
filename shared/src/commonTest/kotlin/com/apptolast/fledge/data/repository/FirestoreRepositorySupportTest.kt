@@ -16,6 +16,7 @@ import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import dev.gitlive.firebase.firestore.Timestamp
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -109,5 +110,37 @@ class FirestoreRepositorySupportTest {
         assertEquals(500L, data["amountCents"])
         assertEquals("Europe/Madrid", data["timeZone"])
         assertIs<Timestamp>(data["nextRunAt"])
+    }
+
+    @Test
+    fun `FLE-92 aggregate sync status keeps loading before cache when a collection has not emitted`() {
+        // Given
+        val statuses = listOf(
+            RepositorySyncStatus.FromCache,
+            RepositorySyncStatus.Loading,
+            RepositorySyncStatus.Synced,
+        )
+
+        // When
+        val aggregate = statuses.aggregateRepositorySyncStatus()
+
+        // Then
+        assertEquals(RepositorySyncStatus.Loading, aggregate)
+    }
+
+    @Test
+    fun `FLE-92 aggregate sync status reports cache after all initial listeners emitted`() {
+        // Given
+        val statuses = listOf(
+            RepositorySyncStatus.FromCache,
+            RepositorySyncStatus.Synced,
+            RepositorySyncStatus.Synced,
+        )
+
+        // When
+        val aggregate = statuses.aggregateRepositorySyncStatus()
+
+        // Then
+        assertEquals(RepositorySyncStatus.FromCache, aggregate)
     }
 }

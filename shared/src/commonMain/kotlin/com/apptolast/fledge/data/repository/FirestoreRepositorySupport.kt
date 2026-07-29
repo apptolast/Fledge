@@ -76,8 +76,8 @@ internal fun SnapshotMetadata.toRepositorySyncStatus(): RepositorySyncStatus = w
 internal fun Iterable<RepositorySyncStatus>.aggregateRepositorySyncStatus(): RepositorySyncStatus = when {
     any { it is RepositorySyncStatus.Error } -> first { it is RepositorySyncStatus.Error }
     any { it == RepositorySyncStatus.PendingWrites } -> RepositorySyncStatus.PendingWrites
-    any { it == RepositorySyncStatus.FromCache } -> RepositorySyncStatus.FromCache
     any { it == RepositorySyncStatus.Loading } -> RepositorySyncStatus.Loading
+    any { it == RepositorySyncStatus.FromCache } -> RepositorySyncStatus.FromCache
     else -> RepositorySyncStatus.Synced
 }
 

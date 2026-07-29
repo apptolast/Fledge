@@ -141,6 +141,7 @@
     <string name="sync_notice_error_title">No se pudo actualizar</string>
     <string name="sync_notice_error_body">Conservamos los ultimos datos disponibles. Reintenta cuando tengas conexion.</string>
     <string name="operation_error_sync">No se pudo guardar el cambio. Reintentalo cuando vuelva la conexion.</string>
+    <string name="post_login_loading">Cargando tu familia...</string>
     <string name="ledger_account_main">Principal</string>
     <string name="ledger_account_goal">Objetivo</string>
     <string name="ledger_actor_parent">Adulto</string>
