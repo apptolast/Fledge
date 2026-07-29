@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:rules",
+    "test": "npm run test:rules && npm run test:functions",
+    "test:functions": "npm --prefix functions test",
     "test:rules": "firebase --project fledge-rules-test --config firebase.rules-test.json emulators:exec --only firestore \"node --test firestore.rules.test.mjs\""
   },
   "devDependencies": {
