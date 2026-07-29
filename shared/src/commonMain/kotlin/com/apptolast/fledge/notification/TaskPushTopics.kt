@@ -7,6 +7,7 @@ import com.apptolast.fledge.shared.BuildKonfig
 enum class FledgePushType(val wireValue: String) {
     TaskSubmitted("task_submitted"),
     TaskApproved("task_approved"),
+    ApprovalQueueReminder("approval_queue_reminder"),
     ;
 
     companion object {
@@ -17,6 +18,9 @@ enum class FledgePushType(val wireValue: String) {
 object TaskPushTopics {
     fun parentApprovals(familyId: FamilyId, appEnv: String = BuildKonfig.APP_ENV): String =
         "fledge_${normalizedEnv(appEnv)}_family_${safeTopicPart(familyId.value)}_parents"
+
+    fun parentApprovalReminders(familyId: FamilyId, appEnv: String = BuildKonfig.APP_ENV): String =
+        parentApprovals(familyId = familyId, appEnv = appEnv)
 
     fun childApprovals(
         familyId: FamilyId,

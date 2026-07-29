@@ -30,4 +30,12 @@ class TaskPushTopicsTest {
             ),
         )
     }
+
+    @Test
+    fun `FLE-33 approval queue reminders reuse the parent approval topic`() {
+        assertEquals(
+            TaskPushTopics.parentApprovals(FamilyId("family-1"), appEnv = "release"),
+            TaskPushTopics.parentApprovalReminders(FamilyId("family-1"), appEnv = "release"),
+        )
+    }
 }

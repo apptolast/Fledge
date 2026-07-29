@@ -55,4 +55,22 @@ class DeepLinkManagerTest {
             ),
         )
     }
+
+    @Test
+    fun `FLE-33 approval queue reminder payload creates parent approvals deep link`() {
+        val deepLink = deepLinkFromNotificationPayload(
+            type = FledgePushType.ApprovalQueueReminder.wireValue,
+            familyId = "family-1",
+            childProfileId = null,
+            taskInstanceId = null,
+        )
+
+        assertEquals(
+            DeepLink.ParentApprovalQueue(
+                familyId = "family-1",
+                taskInstanceId = null,
+            ),
+            deepLink,
+        )
+    }
 }

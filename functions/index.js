@@ -13,11 +13,27 @@ setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 const DEFAULT_TIME_ZONE = "Europe/Madrid";
 const MAX_RULES_PER_RUN = 100;
 const MAX_TASK_ASSIGNMENTS_PER_RUN = 100;
+const MAX_APPROVAL_REMINDER_INSTANCES_PER_RUN = 500;
+const APPROVAL_QUEUE_COUNT_THRESHOLD = 5;
+const APPROVAL_QUEUE_STALE_HOURS = 72;
+const APPROVAL_QUEUE_REMINDER_COOLDOWN_HOURS = 24;
 
 export const runAllowanceRules = makeRunAllowanceRules(getFirestore(), "runAllowanceRules");
 export const runAllowanceRulesDebug = makeRunAllowanceRules(getFirestore("debug"), "runAllowanceRulesDebug");
 export const runTaskAssignments = makeRunTaskAssignments(getFirestore(), "runTaskAssignments");
 export const runTaskAssignmentsDebug = makeRunTaskAssignments(getFirestore("debug"), "runTaskAssignmentsDebug");
+export const runApprovalQueueReminders = makeRunApprovalQueueReminders(
+  getFirestore(),
+  getMessaging(),
+  "release",
+  "runApprovalQueueReminders",
+);
+export const runApprovalQueueRemindersDebug = makeRunApprovalQueueReminders(
+  getFirestore("debug"),
+  getMessaging(),
+  "debug",
+  "runApprovalQueueRemindersDebug",
+);
 export const notifyTaskInstancePush = makeNotifyTaskInstancePush(
   getMessaging(),
   "release",
@@ -52,6 +68,19 @@ function makeRunTaskAssignments(database, functionName) {
     },
     async () => {
       const processed = await processDueTaskAssignments(database, new Date());
+      logger.info(`${functionName} completed`, { processed });
+    },
+  );
+}
+
+function makeRunApprovalQueueReminders(database, messaging, appEnv, functionName) {
+  return onSchedule(
+    {
+      schedule: "every 6 hours",
+      timeZone: DEFAULT_TIME_ZONE,
+    },
+    async () => {
+      const processed = await processApprovalQueueReminders(database, messaging, appEnv, new Date());
       logger.info(`${functionName} completed`, { processed });
     },
   );
@@ -114,6 +143,56 @@ export async function processDueTaskAssignments(database, nowDate) {
     const didProcess = await processTaskAssignment(database, assignmentSnapshot.ref, nowDate);
     if (didProcess) processed += 1;
   }
+  return processed;
+}
+
+export async function processApprovalQueueReminders(database, messaging, appEnv, nowDate) {
+  const snapshot = await database
+    .collectionGroup("taskInstances")
+    .where("status", "==", "Submitted")
+    .limit(MAX_APPROVAL_REMINDER_INSTANCES_PER_RUN)
+    .get();
+
+  const queuesByFamily = submittedTaskQueuesByFamily(snapshot.docs, nowDate);
+  let processed = 0;
+
+  for (const queue of queuesByFamily.values()) {
+    if (!shouldSendApprovalQueueReminder(queue, nowDate)) continue;
+
+    const familyRef = database.doc(`families/${queue.familyId}`);
+    const shouldSend = await database.runTransaction(async (transaction) => {
+      const familySnapshot = await transaction.get(familyRef);
+      if (!familySnapshot.exists) {
+        logger.warn("Skipping approval queue reminder for missing family", { familyId: queue.familyId });
+        return false;
+      }
+
+      const family = familySnapshot.data();
+      const lastSentAt = asDate(family.approvalQueueReminderLastSentAt);
+      if (lastSentAt && hoursBetween(lastSentAt, nowDate) < APPROVAL_QUEUE_REMINDER_COOLDOWN_HOURS) {
+        return false;
+      }
+
+      transaction.update(familyRef, {
+        approvalQueueReminderLastSentAt: Timestamp.fromDate(nowDate),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return true;
+    });
+
+    if (!shouldSend) continue;
+
+    await messaging.send(
+      buildApprovalQueueReminderMessage({
+        appEnv,
+        familyId: queue.familyId,
+        pendingCount: queue.pendingCount,
+        oldestSubmittedAt: queue.oldestSubmittedAt,
+      }),
+    );
+    processed += 1;
+  }
+
   return processed;
 }
 
@@ -390,6 +469,26 @@ export function buildTaskInstancePushMessage({ before, after, params, appEnv = "
   return null;
 }
 
+export function buildApprovalQueueReminderMessage({ appEnv = "debug", familyId, pendingCount, oldestSubmittedAt }) {
+  return withDefaultPushOptions({
+    topic: taskPushTopic({
+      appEnv,
+      familyId,
+      audience: "parents",
+    }),
+    notification: {
+      title: "Tareas pendientes de revisar",
+      body: approvalQueueReminderBody(pendingCount),
+    },
+    data: {
+      type: "approval_queue_reminder",
+      familyId,
+      pendingCount: String(pendingCount),
+      oldestSubmittedAt: oldestSubmittedAt.toISOString(),
+    },
+  });
+}
+
 export function taskPushTopic({ appEnv = "debug", familyId, childProfileId = null, audience }) {
   const base = `fledge_${normalizeAppEnv(appEnv)}_family_${safeTopicPart(familyId)}`;
   if (audience === "parents") return `${base}_parents`;
@@ -453,6 +552,46 @@ function normalizeTaskRecurrence(value) {
   if (normalized === "weekly") return "weekly";
   if (normalized === "custom") return "custom";
   return null;
+}
+
+function submittedTaskQueuesByFamily(docs, nowDate) {
+  const queues = new Map();
+  for (const doc of docs) {
+    const data = doc.data();
+    const submittedAt = asDate(data.submittedAt);
+    if (!submittedAt || submittedAt > nowDate) continue;
+
+    const familyId = doc.ref?.parent?.parent?.id || asNonBlankString(data.familyId);
+    if (!familyId) continue;
+
+    const queue = queues.get(familyId) ?? {
+      familyId,
+      pendingCount: 0,
+      oldestSubmittedAt: submittedAt,
+    };
+    queue.pendingCount += 1;
+    if (submittedAt < queue.oldestSubmittedAt) {
+      queue.oldestSubmittedAt = submittedAt;
+    }
+    queues.set(familyId, queue);
+  }
+  return queues;
+}
+
+function shouldSendApprovalQueueReminder(queue, nowDate) {
+  if (queue.pendingCount > APPROVAL_QUEUE_COUNT_THRESHOLD) return true;
+  return hoursBetween(queue.oldestSubmittedAt, nowDate) >= APPROVAL_QUEUE_STALE_HOURS;
+}
+
+function approvalQueueReminderBody(pendingCount) {
+  if (pendingCount === 1) {
+    return "Hay 1 tarea esperando aprobacion.";
+  }
+  return `Hay ${pendingCount} tareas esperando aprobacion.`;
+}
+
+function hoursBetween(from, to) {
+  return (to.getTime() - from.getTime()) / (60 * 60 * 1000);
 }
 
 function safeDocumentIdPart(value) {
