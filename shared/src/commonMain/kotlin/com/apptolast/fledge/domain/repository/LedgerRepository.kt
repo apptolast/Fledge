@@ -55,8 +55,9 @@ internal fun requireValidTransferDraftPair(debitDraft: LedgerTransactionDraft, c
     require(debitDraft.childProfileId == creditDraft.childProfileId) { "Transfer pair must stay in the same child." }
     require(debitDraft.type == LedgerTransactionType.GoalTransfer) { "Debit must be a goal transfer." }
     require(creditDraft.type == LedgerTransactionType.GoalTransfer) { "Credit must be a goal transfer." }
-    require(debitDraft.accountType == VirtualAccountType.Main) { "Debit must come from MAIN." }
-    require(creditDraft.accountType == VirtualAccountType.Goal) { "Credit must go to GOAL." }
+    require(isMainGoalPair(debitDraft.accountType, creditDraft.accountType)) {
+        "Transfer pair must move between MAIN and GOAL."
+    }
     require(debitDraft.amountCents.value < 0) { "Debit amount must be negative." }
     require(creditDraft.amountCents.value > 0) { "Credit amount must be positive." }
     require(debitDraft.amountCents.value.absoluteValue == creditDraft.amountCents.value) {
@@ -72,8 +73,9 @@ internal fun requireValidTransferPair(pair: LedgerTransferPair) {
     require(pair.debit.childProfileId == pair.credit.childProfileId) { "Transfer pair must stay in the same child." }
     require(pair.debit.type == LedgerTransactionType.GoalTransfer) { "Debit must be a goal transfer." }
     require(pair.credit.type == LedgerTransactionType.GoalTransfer) { "Credit must be a goal transfer." }
-    require(pair.debit.accountType == VirtualAccountType.Main) { "Debit must come from MAIN." }
-    require(pair.credit.accountType == VirtualAccountType.Goal) { "Credit must go to GOAL." }
+    require(isMainGoalPair(pair.debit.accountType, pair.credit.accountType)) {
+        "Transfer pair must move between MAIN and GOAL."
+    }
     require(pair.debit.amountCents.value < 0) { "Debit amount must be negative." }
     require(pair.credit.amountCents.value > 0) { "Credit amount must be positive." }
     require(pair.debit.amountCents.value.absoluteValue == pair.credit.amountCents.value) {
@@ -83,3 +85,7 @@ internal fun requireValidTransferPair(pair: LedgerTransferPair) {
         "Transfer pair must share transfer group id."
     }
 }
+
+private fun isMainGoalPair(debitAccountType: VirtualAccountType, creditAccountType: VirtualAccountType): Boolean =
+    (debitAccountType == VirtualAccountType.Main && creditAccountType == VirtualAccountType.Goal) ||
+        (debitAccountType == VirtualAccountType.Goal && creditAccountType == VirtualAccountType.Main)

@@ -69,6 +69,7 @@ import fledge.shared.generated.resources.child_home_active_goal_amount
 import fledge.shared.generated.resources.child_home_active_goal_deposit
 import fledge.shared.generated.resources.child_home_active_goal_progress
 import fledge.shared.generated.resources.child_home_active_goal_title
+import fledge.shared.generated.resources.child_home_active_goal_withdraw
 import fledge.shared.generated.resources.child_home_body
 import fledge.shared.generated.resources.child_home_cash_out
 import fledge.shared.generated.resources.child_home_external_link
@@ -123,6 +124,7 @@ fun ChildHomeScreen(
     childProfileId: ChildProfileId,
     onRequestCashOut: (ChildProfileId) -> Unit,
     onOpenSavingsGoal: (ChildProfileId, SavingsGoalId) -> Unit,
+    onWithdrawSavingsGoal: (ChildProfileId, SavingsGoalId) -> Unit,
     onParentalGateRequired: () -> Unit,
     viewModel: ChildHomeViewModel = koinViewModel(),
 ) {
@@ -136,6 +138,7 @@ fun ChildHomeScreen(
         state = state,
         onRequestCashOut = onRequestCashOut,
         onOpenSavingsGoal = onOpenSavingsGoal,
+        onWithdrawSavingsGoal = onWithdrawSavingsGoal,
         onConfirmSettlement = { settlementId ->
             scope.launch {
                 viewModel.confirmSettlement(settlementId)
@@ -164,6 +167,7 @@ fun ChildHomeContent(
     state: ChildHomeUiState,
     onRequestCashOut: (ChildProfileId) -> Unit,
     onOpenSavingsGoal: (ChildProfileId, SavingsGoalId) -> Unit,
+    onWithdrawSavingsGoal: (ChildProfileId, SavingsGoalId) -> Unit,
     onConfirmSettlement: (SettlementId) -> Unit,
     onAttachPhotoEvidence: (TaskInstanceId) -> Unit,
     onSubmitTask: (TaskInstanceId) -> Unit,
@@ -218,6 +222,11 @@ fun ChildHomeContent(
                         onDeposit = {
                             state.childProfileId?.let { childProfileId ->
                                 onOpenSavingsGoal(childProfileId, goal.id)
+                            }
+                        },
+                        onWithdraw = {
+                            state.childProfileId?.let { childProfileId ->
+                                onWithdrawSavingsGoal(childProfileId, goal.id)
                             }
                         },
                     )
@@ -497,7 +506,13 @@ private fun ChildTaskInstanceRow(
 }
 
 @Composable
-private fun ActiveSavingsGoalCard(goal: SavingsGoal, currentCents: Long, currencyCode: String, onDeposit: () -> Unit) {
+private fun ActiveSavingsGoalCard(
+    goal: SavingsGoal,
+    currentCents: Long,
+    currencyCode: String,
+    onDeposit: () -> Unit,
+    onWithdraw: () -> Unit,
+) {
     val progress = (currentCents.toFloat() / goal.targetCents.value.toFloat()).coerceIn(0f, 1f)
     val progressPercent = (progress * 100).toInt()
 
@@ -577,6 +592,17 @@ private fun ActiveSavingsGoalCard(goal: SavingsGoal, currentCents: Long, currenc
                     .heightIn(min = 48.dp),
             ) {
                 Text(stringResource(Res.string.child_home_active_goal_deposit))
+            }
+            OutlinedButton(
+                onClick = onWithdraw,
+                enabled = currentCents > 0,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.child_home_active_goal_withdraw))
             }
         }
     }
@@ -861,6 +887,7 @@ fun PreviewChildHomeContent() {
             ),
             onRequestCashOut = {},
             onOpenSavingsGoal = { _, _ -> },
+            onWithdrawSavingsGoal = { _, _ -> },
             onConfirmSettlement = {},
             onAttachPhotoEvidence = {},
             onSubmitTask = {},

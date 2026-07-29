@@ -33,6 +33,9 @@ data class SavingsGoalSetupRoute(val childProfileId: String)
 data class SavingsGoalDepositRoute(val childProfileId: String, val goalId: String)
 
 @Serializable
+data class SavingsGoalWithdrawalRoute(val childProfileId: String, val goalId: String)
+
+@Serializable
 data class AllowanceRuleRoute(val childProfileId: String)
 
 @Serializable
