@@ -4,8 +4,12 @@ import com.apptolast.customlogin.domain.AuthProvider
 import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FamilyId
+import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.TaskInstance
 import com.apptolast.fledge.domain.model.TaskInstanceId
+import com.apptolast.fledge.domain.model.TransactionId
+import com.apptolast.fledge.domain.model.approvedByParent
+import com.apptolast.fledge.domain.model.rejectedByParent
 import com.apptolast.fledge.domain.model.submittedForReview
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
@@ -77,14 +81,16 @@ class FirestoreTaskInstanceRepository(
         .filter { it.childProfileId == childProfileId }
         .sortedForInstances()
 
+    override fun instanceById(instanceId: TaskInstanceId): TaskInstance? =
+        instances.value.firstOrNull { it.id == instanceId }
+
     override suspend fun submitForReview(
         instanceId: TaskInstanceId,
         childProfileId: ChildProfileId,
         photoEvidenceUri: String?,
         submittedAt: Instant,
     ): TaskInstance {
-        val existing = instanceById(instanceId) ?: instanceByIdFromFirestore(instanceId)
-        requireNotNull(existing) { "Task instance does not exist." }
+        val existing = existingInstance(instanceId)
         val submitted = existing.submittedForReview(
             childProfileId = childProfileId,
             photoEvidenceUri = photoEvidenceUri,
@@ -96,8 +102,37 @@ class FirestoreTaskInstanceRepository(
         return submitted
     }
 
-    private fun instanceById(instanceId: TaskInstanceId): TaskInstance? =
-        instances.value.firstOrNull { it.id == instanceId }
+    override suspend fun approve(
+        instanceId: TaskInstanceId,
+        approvedRewardCents: MoneyCents,
+        transactionId: TransactionId,
+        reviewedAt: Instant,
+    ): TaskInstance {
+        val existing = existingInstance(instanceId)
+        val approved = existing.approvedByParent(
+            approvedRewardCents = approvedRewardCents,
+            transactionId = transactionId,
+            reviewedAt = reviewedAt,
+        )
+        taskInstanceCollection(approved.familyId).document(instanceId.value)
+            .set(approved.toFirestoreMap(), merge = true)
+        upsertLocal(approved)
+        return approved
+    }
+
+    override suspend fun reject(instanceId: TaskInstanceId, reason: String, reviewedAt: Instant): TaskInstance {
+        val existing = existingInstance(instanceId)
+        val rejected = existing.rejectedByParent(reason = reason, reviewedAt = reviewedAt)
+        taskInstanceCollection(rejected.familyId).document(instanceId.value)
+            .set(rejected.toFirestoreMap(), merge = true)
+        upsertLocal(rejected)
+        return rejected
+    }
+
+    private suspend fun existingInstance(instanceId: TaskInstanceId): TaskInstance {
+        val existing = instanceById(instanceId) ?: instanceByIdFromFirestore(instanceId)
+        return requireNotNull(existing) { "Task instance does not exist." }
+    }
 
     private suspend fun instanceByIdFromFirestore(instanceId: TaskInstanceId): TaskInstance? {
         val fallbackFamilyId = authProvider.currentFamilyId()

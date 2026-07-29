@@ -9,6 +9,7 @@ import com.apptolast.fledge.domain.model.TaskInstance
 import com.apptolast.fledge.domain.model.TaskInstanceId
 import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
+import com.apptolast.fledge.domain.model.TransactionId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -131,6 +132,68 @@ class InMemoryTaskInstanceRepositoryTest {
         assertEquals("local://retry-photo", submitted.photoEvidenceUri)
     }
 
+    @Test
+    fun `FLE-31 repository approves submitted task and stores transaction reference`() = runTest {
+        // Given
+        val submittedAt = Instant.fromEpochSeconds(1_700_300_000)
+        val reviewedAt = Instant.fromEpochSeconds(1_700_300_600)
+        val repository = InMemoryTaskInstanceRepository(
+            listOf(
+                taskInstance(
+                    id = "task-1",
+                    childProfileId = ChildProfileId("child-1"),
+                    status = TaskInstanceStatus.Submitted,
+                    updatedAt = submittedAt,
+                    submittedAt = submittedAt,
+                ),
+            ),
+        )
+
+        // When
+        val approved = repository.approve(
+            instanceId = TaskInstanceId("task-1"),
+            approvedRewardCents = MoneyCents(75),
+            transactionId = TransactionId("tx-task-1"),
+            reviewedAt = reviewedAt,
+        )
+
+        // Then
+        assertEquals(TaskInstanceStatus.Approved, approved.status)
+        assertEquals(MoneyCents(75), approved.approvedRewardCents)
+        assertEquals(TransactionId("tx-task-1"), approved.approvalTransactionId)
+        assertEquals(TaskInstanceStatus.Approved, repository.instanceById(TaskInstanceId("task-1"))?.status)
+    }
+
+    @Test
+    fun `FLE-31 repository rejects submitted task with reason`() = runTest {
+        // Given
+        val submittedAt = Instant.fromEpochSeconds(1_700_300_000)
+        val reviewedAt = Instant.fromEpochSeconds(1_700_300_600)
+        val repository = InMemoryTaskInstanceRepository(
+            listOf(
+                taskInstance(
+                    id = "task-1",
+                    childProfileId = ChildProfileId("child-1"),
+                    status = TaskInstanceStatus.Submitted,
+                    updatedAt = submittedAt,
+                    submittedAt = submittedAt,
+                ),
+            ),
+        )
+
+        // When
+        val rejected = repository.reject(
+            instanceId = TaskInstanceId("task-1"),
+            reason = "Falta recoger los vasos.",
+            reviewedAt = reviewedAt,
+        )
+
+        // Then
+        assertEquals(TaskInstanceStatus.Rejected, rejected.status)
+        assertEquals("Falta recoger los vasos.", rejected.rejectionReason)
+        assertEquals(TaskInstanceStatus.Rejected, repository.instanceById(TaskInstanceId("task-1"))?.status)
+    }
+
     private fun taskInstance(
         id: String,
         familyId: FamilyId = FamilyId("family-1"),
@@ -138,6 +201,8 @@ class InMemoryTaskInstanceRepositoryTest {
         dueAt: Instant = Instant.fromEpochSeconds(10),
         requiresPhoto: Boolean = false,
         status: TaskInstanceStatus = TaskInstanceStatus.Pending,
+        updatedAt: Instant = Instant.fromEpochSeconds(1),
+        submittedAt: Instant? = null,
     ): TaskInstance = TaskInstance(
         id = TaskInstanceId(id),
         familyId = familyId,
@@ -151,6 +216,7 @@ class InMemoryTaskInstanceRepositoryTest {
         dueAt = dueAt,
         periodKey = "20260729",
         createdAt = Instant.fromEpochSeconds(1),
-        updatedAt = Instant.fromEpochSeconds(1),
+        updatedAt = updatedAt,
+        submittedAt = submittedAt,
     )
 }

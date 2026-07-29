@@ -204,6 +204,9 @@ service cloud.firestore {
         "reviewedAt",
         "expiredAt",
         "photoEvidenceUri",
+        "approvedRewardCents",
+        "approvalTransactionId",
+        "rejectionReason",
       ];
     }
 
@@ -235,8 +238,46 @@ service cloud.firestore {
         && request.resource.data.submittedAt is timestamp
         && nullOrAbsent("reviewedAt")
         && nullOrAbsent("expiredAt")
+        && nullOrAbsent("approvedRewardCents")
+        && nullOrAbsent("approvalTransactionId")
+        && nullOrAbsent("rejectionReason")
         && optionalNonBlankText("photoEvidenceUri")
         && (!resource.data.requiresPhoto || hasNonBlankText("photoEvidenceUri"));
+    }
+
+    function taskInstanceReviewBaseIsValid(familyId) {
+      return isParent(familyId)
+        && request.resource.data.keys().hasOnly(taskInstanceKeys())
+        && resource.data.status == "Submitted"
+        && taskInstanceSnapshotIsUnchanged()
+        && request.resource.data.submittedAt == resource.data.submittedAt
+        && request.resource.data.photoEvidenceUri == resource.data.photoEvidenceUri
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.reviewedAt is timestamp
+        && nullOrAbsent("expiredAt");
+    }
+
+    function taskInstanceApprovalFieldsAreValid() {
+      return request.resource.data.status == "Approved"
+        && request.resource.data.approvedRewardCents is int
+        && request.resource.data.approvedRewardCents > 0
+        && hasNonBlankText("approvalTransactionId")
+        && nullOrAbsent("rejectionReason");
+    }
+
+    function taskInstanceRejectionFieldsAreValid() {
+      return request.resource.data.status == "Rejected"
+        && hasNonBlankText("rejectionReason")
+        && nullOrAbsent("approvedRewardCents")
+        && nullOrAbsent("approvalTransactionId");
+    }
+
+    function taskInstanceReviewIsValid(familyId) {
+      return taskInstanceReviewBaseIsValid(familyId)
+        && (
+          taskInstanceApprovalFieldsAreValid()
+          || taskInstanceRejectionFieldsAreValid()
+        );
     }
 
     match /families/{familyId} {
@@ -281,7 +322,10 @@ service cloud.firestore {
         allow read: if isParent(familyId)
           || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
         allow create, delete: if false;
-        allow update: if taskInstanceSubmissionIsValid(familyId);
+        allow update: if request.resource.data.status == "Submitted"
+          && taskInstanceSubmissionIsValid(familyId);
+        allow update: if request.resource.data.status in ["Approved", "Rejected"]
+          && taskInstanceReviewIsValid(familyId);
       }
 
       match /childProfiles/{childProfileId} {

@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.BalanceCents
@@ -43,6 +46,11 @@ import com.apptolast.fledge.domain.model.SettlementReminderAudience
 import com.apptolast.fledge.domain.model.SettlementReminderLevel
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.SetupAction
+import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskInstance
+import com.apptolast.fledge.domain.model.TaskInstanceId
+import com.apptolast.fledge.domain.model.TaskInstanceStatus
+import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -70,6 +78,16 @@ import fledge.shared.generated.resources.parent_home_pending_total
 import fledge.shared.generated.resources.parent_home_settlements_empty
 import fledge.shared.generated.resources.parent_home_settlements_title
 import fledge.shared.generated.resources.parent_home_setup
+import fledge.shared.generated.resources.parent_home_task_approval_amount
+import fledge.shared.generated.resources.parent_home_task_approval_approve
+import fledge.shared.generated.resources.parent_home_task_approval_empty
+import fledge.shared.generated.resources.parent_home_task_approval_error_amount
+import fledge.shared.generated.resources.parent_home_task_approval_error_reason
+import fledge.shared.generated.resources.parent_home_task_approval_original
+import fledge.shared.generated.resources.parent_home_task_approval_photo
+import fledge.shared.generated.resources.parent_home_task_approval_reason
+import fledge.shared.generated.resources.parent_home_task_approval_reject
+import fledge.shared.generated.resources.parent_home_task_approvals_title
 import fledge.shared.generated.resources.parent_home_title
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -98,6 +116,18 @@ fun ParentHomeScreen(
                 viewModel.markSettlementPaid(settlementId)
             }
         },
+        onUpdateApprovalAmount = viewModel::updateApprovalAmount,
+        onUpdateRejectionReason = viewModel::updateRejectionReason,
+        onApproveTask = { instanceId ->
+            scope.launch {
+                viewModel.approveTask(instanceId)
+            }
+        },
+        onRejectTask = { instanceId ->
+            scope.launch {
+                viewModel.rejectTask(instanceId)
+            }
+        },
         onRequireParentalGate = { action ->
             scope.launch {
                 if (viewModel.requestProtectedAction(action)) {
@@ -116,6 +146,10 @@ fun ParentHomeContent(
     onAdjustChild: (ChildProfileId) -> Unit,
     onCreateTask: () -> Unit,
     onMarkSettlementPaid: (SettlementId) -> Unit,
+    onUpdateApprovalAmount: (TaskInstanceId, String) -> Unit,
+    onUpdateRejectionReason: (TaskInstanceId, String) -> Unit,
+    onApproveTask: (TaskInstanceId) -> Unit,
+    onRejectTask: (TaskInstanceId) -> Unit,
     onRequireParentalGate: (FoundationAction) -> Unit,
 ) {
     Surface(
@@ -166,6 +200,46 @@ fun ParentHomeContent(
                         .height(52.dp),
                 ) {
                     Text(stringResource(Res.string.parent_home_create_task))
+                }
+            }
+            item {
+                Text(
+                    text = stringResource(Res.string.parent_home_task_approvals_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
+            state.taskApprovalError?.let { error ->
+                item {
+                    Text(
+                        text = taskApprovalErrorText(error),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            if (state.pendingTaskApprovals.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(Res.string.parent_home_task_approval_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                items(state.pendingTaskApprovals, key = { it.id.value }) { instance ->
+                    ParentTaskApprovalRow(
+                        instance = instance,
+                        childName = state.children.firstOrNull { it.id == instance.childProfileId }?.displayName
+                            ?: instance.childProfileId.value,
+                        currencyCode = state.currencyCode,
+                        amountInput = state.approvalAmountInputs[instance.id].orEmpty(),
+                        rejectionReason = state.rejectionReasonInputs[instance.id].orEmpty(),
+                        onUpdateApprovalAmount = { onUpdateApprovalAmount(instance.id, it) },
+                        onUpdateRejectionReason = { onUpdateRejectionReason(instance.id, it) },
+                        onApproveTask = { onApproveTask(instance.id) },
+                        onRejectTask = { onRejectTask(instance.id) },
+                        isBusy = state.isBusy,
+                    )
                 }
             }
             item {
@@ -286,6 +360,104 @@ private fun SummaryCard(pendingTotal: Long, pendingCount: Int, currencyCode: Str
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun ParentTaskApprovalRow(
+    instance: TaskInstance,
+    childName: String,
+    currencyCode: String,
+    amountInput: String,
+    rejectionReason: String,
+    onUpdateApprovalAmount: (String) -> Unit,
+    onUpdateRejectionReason: (String) -> Unit,
+    onApproveTask: () -> Unit,
+    onRejectTask: () -> Unit,
+    isBusy: Boolean,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = childName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = instance.title,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Text(
+                    text = stringResource(
+                        Res.string.parent_home_task_approval_original,
+                        formatCents(instance.rewardCents.value, currencyCode),
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (instance.photoEvidenceUri != null) {
+                Text(
+                    text = stringResource(Res.string.parent_home_task_approval_photo),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedTextField(
+                value = amountInput,
+                onValueChange = onUpdateApprovalAmount,
+                enabled = !isBusy,
+                singleLine = true,
+                label = { Text(stringResource(Res.string.parent_home_task_approval_amount)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = onApproveTask,
+                enabled = !isBusy,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.parent_home_task_approval_approve))
+            }
+            OutlinedTextField(
+                value = rejectionReason,
+                onValueChange = onUpdateRejectionReason,
+                enabled = !isBusy,
+                label = { Text(stringResource(Res.string.parent_home_task_approval_reason)) },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedButton(
+                onClick = onRejectTask,
+                enabled = !isBusy,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.parent_home_task_approval_reject))
+            }
         }
     }
 }
@@ -470,6 +642,12 @@ private fun formatCents(value: Long, currencyCode: String): String {
 }
 
 @Composable
+private fun taskApprovalErrorText(error: ParentTaskApprovalError): String = when (error) {
+    ParentTaskApprovalError.InvalidAmount -> stringResource(Res.string.parent_home_task_approval_error_amount)
+    ParentTaskApprovalError.MissingRejectionReason -> stringResource(Res.string.parent_home_task_approval_error_reason)
+}
+
+@Composable
 private fun SetupActionRow(action: SetupAction, onRequireParentalGate: (FoundationAction) -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -524,6 +702,26 @@ fun PreviewParentHomeContent() {
                         requestedAt = kotlin.time.Clock.System.now(),
                     ),
                 ),
+                pendingTaskApprovals = listOf(
+                    TaskInstance(
+                        id = TaskInstanceId("task-1"),
+                        familyId = FamilyId("family-1"),
+                        taskAssignmentId = TaskAssignmentId("assignment-1"),
+                        taskTemplateId = TaskTemplateId("template-1"),
+                        childProfileId = ChildProfileId("child-1"),
+                        title = "Poner la mesa",
+                        rewardCents = MoneyCents(50),
+                        requiresPhoto = false,
+                        status = TaskInstanceStatus.Submitted,
+                        dueAt = kotlin.time.Clock.System.now(),
+                        periodKey = "20260729",
+                        createdAt = kotlin.time.Clock.System.now(),
+                        updatedAt = kotlin.time.Clock.System.now(),
+                        submittedAt = kotlin.time.Clock.System.now(),
+                    ),
+                ),
+                approvalAmountInputs = mapOf(TaskInstanceId("task-1") to "0,50"),
+                rejectionReasonInputs = mapOf(TaskInstanceId("task-1") to "Falta recoger los vasos."),
                 syncNotice = null,
             ),
             onPairChild = {},
@@ -531,6 +729,10 @@ fun PreviewParentHomeContent() {
             onAdjustChild = {},
             onCreateTask = {},
             onMarkSettlementPaid = {},
+            onUpdateApprovalAmount = { _, _ -> },
+            onUpdateRejectionReason = { _, _ -> },
+            onApproveTask = {},
+            onRejectTask = {},
             onRequireParentalGate = {},
         )
     }

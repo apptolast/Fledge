@@ -45,6 +45,7 @@ enum class VirtualAccountType {
 @Serializable
 enum class LedgerTransactionType {
     Allowance,
+    TaskReward,
     Bonus,
     Penalty,
     Gift,

@@ -174,6 +174,9 @@ data class TaskInstance(
     val reviewedAt: Instant? = null,
     val expiredAt: Instant? = null,
     val photoEvidenceUri: String? = null,
+    val approvedRewardCents: MoneyCents? = null,
+    val approvalTransactionId: TransactionId? = null,
+    val rejectionReason: String? = null,
 ) {
     init {
         validateTaskInstanceFields(
@@ -183,7 +186,11 @@ data class TaskInstance(
             requiresPhoto = requiresPhoto,
             status = status,
             submittedAt = submittedAt,
+            reviewedAt = reviewedAt,
             photoEvidenceUri = photoEvidenceUri,
+            approvedRewardCents = approvedRewardCents,
+            approvalTransactionId = approvalTransactionId,
+            rejectionReason = rejectionReason,
         )
     }
 }
@@ -227,6 +234,45 @@ fun TaskInstance.submittedForReview(
         reviewedAt = null,
         expiredAt = null,
         photoEvidenceUri = normalizedPhotoEvidenceUri,
+        approvedRewardCents = null,
+        approvalTransactionId = null,
+        rejectionReason = null,
+    )
+}
+
+fun TaskInstance.approvedByParent(
+    approvedRewardCents: MoneyCents,
+    transactionId: TransactionId,
+    reviewedAt: Instant,
+): TaskInstance {
+    require(status == TaskInstanceStatus.Submitted) { "Only submitted task instances can be approved." }
+    require(approvedRewardCents.value > 0) { "Approved reward must be positive." }
+    return copy(
+        status = TaskInstanceStatus.Approved,
+        updatedAt = reviewedAt,
+        reviewedAt = reviewedAt,
+        expiredAt = null,
+        approvedRewardCents = approvedRewardCents,
+        approvalTransactionId = transactionId,
+        rejectionReason = null,
+    )
+}
+
+fun TaskInstance.rejectedByParent(reason: String, reviewedAt: Instant): TaskInstance {
+    require(status == TaskInstanceStatus.Submitted) { "Only submitted task instances can be rejected." }
+    val normalizedReason = reason.trim()
+    require(normalizedReason.isNotBlank()) { "Rejection reason cannot be blank." }
+    require(normalizedReason.length <= MAX_REJECTION_REASON_LENGTH) {
+        "Rejection reason cannot exceed $MAX_REJECTION_REASON_LENGTH characters."
+    }
+    return copy(
+        status = TaskInstanceStatus.Rejected,
+        updatedAt = reviewedAt,
+        reviewedAt = reviewedAt,
+        expiredAt = null,
+        approvedRewardCents = null,
+        approvalTransactionId = null,
+        rejectionReason = normalizedReason,
     )
 }
 
@@ -237,7 +283,11 @@ private fun validateTaskInstanceFields(
     requiresPhoto: Boolean,
     status: TaskInstanceStatus,
     submittedAt: Instant?,
+    reviewedAt: Instant?,
     photoEvidenceUri: String?,
+    approvedRewardCents: MoneyCents?,
+    approvalTransactionId: TransactionId?,
+    rejectionReason: String?,
 ) {
     require(title.isNotBlank()) { "Task instance title cannot be blank." }
     require(rewardCents.value > 0) { "Task instance reward must be positive." }
@@ -245,13 +295,42 @@ private fun validateTaskInstanceFields(
     require(photoEvidenceUri == null || photoEvidenceUri.isNotBlank()) {
         "Task instance photo evidence cannot be blank."
     }
-    if (status == TaskInstanceStatus.Submitted) {
+    val requiresSubmissionMetadata = status == TaskInstanceStatus.Submitted ||
+        status == TaskInstanceStatus.Approved ||
+        (status == TaskInstanceStatus.Rejected && rejectionReason != null)
+    if (requiresSubmissionMetadata) {
         require(submittedAt != null) { "Submitted task instance must include submittedAt." }
         require(!requiresPhoto || photoEvidenceUri != null) {
             "Photo evidence is required before submitting this task."
         }
     }
+    if (status == TaskInstanceStatus.Approved) {
+        require(reviewedAt != null) { "Approved task instance must include reviewedAt." }
+        if (approvedRewardCents != null || approvalTransactionId != null) {
+            require(approvedRewardCents != null && approvedRewardCents.value > 0) {
+                "Approved task instance must include a positive approvedRewardCents."
+            }
+            require(approvalTransactionId != null) { "Approved task instance must include approvalTransactionId." }
+        }
+        require(rejectionReason == null) { "Approved task instance cannot include rejectionReason." }
+    } else {
+        require(approvedRewardCents == null) { "Only approved task instances can include approvedRewardCents." }
+        require(approvalTransactionId == null) { "Only approved task instances can include approvalTransactionId." }
+    }
+    if (status == TaskInstanceStatus.Rejected) {
+        if (rejectionReason != null) {
+            require(reviewedAt != null) { "Rejected task instance must include reviewedAt." }
+            require(rejectionReason.isNotBlank()) { "Rejected task instance rejectionReason cannot be blank." }
+            require(rejectionReason.length <= MAX_REJECTION_REASON_LENGTH) {
+                "Rejection reason cannot exceed $MAX_REJECTION_REASON_LENGTH characters."
+            }
+        }
+    } else {
+        require(rejectionReason == null) { "Only rejected task instances can include rejectionReason." }
+    }
 }
+
+private const val MAX_REJECTION_REASON_LENGTH = 240
 
 private fun validateTaskAssignmentFields(
     title: String,

@@ -189,6 +189,9 @@ function taskInstanceData({
   reviewedAt = null,
   expiredAt = null,
   photoEvidenceUri = null,
+  approvedRewardCents = null,
+  approvalTransactionId = null,
+  rejectionReason = null,
 } = {}) {
   return {
     familyId,
@@ -207,6 +210,9 @@ function taskInstanceData({
     reviewedAt,
     expiredAt,
     photoEvidenceUri,
+    approvedRewardCents,
+    approvalTransactionId,
+    rejectionReason,
   };
 }
 
@@ -440,6 +446,60 @@ describe("FLE-83 Firestore membership rules", () => {
     await assertFails(updateDoc(doc(sibling, taskInstancePath("parent-submit")), {
       status: "Submitted",
       submittedAt: LATER,
+      updatedAt: LATER,
+    }));
+  });
+
+  test("submitted task instances can only be approved or rejected by the parent", async () => {
+    await seed(familyPath(), familyData());
+    await seed(taskInstancePath("approve"), taskInstanceData({ status: "Submitted", submittedAt: NOW }));
+    await seed(taskInstancePath("reject"), taskInstanceData({ status: "Submitted", submittedAt: NOW }));
+    await seed(taskInstancePath("child-approval"), taskInstanceData({ status: "Submitted", submittedAt: NOW }));
+    await seed(taskInstancePath("missing-transaction"), taskInstanceData({ status: "Submitted", submittedAt: NOW }));
+    await seed(taskInstancePath("blank-reason"), taskInstanceData({ status: "Submitted", submittedAt: NOW }));
+    await seed(taskInstancePath("tamper-approval"), taskInstanceData({ status: "Submitted", submittedAt: NOW }));
+
+    const parent = parentDb();
+    const child = childDb();
+
+    await assertSucceeds(updateDoc(doc(parent, taskInstancePath("approve")), {
+      status: "Approved",
+      approvedRewardCents: 75,
+      approvalTransactionId: "tx-task-1",
+      reviewedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertSucceeds(updateDoc(doc(parent, taskInstancePath("reject")), {
+      status: "Rejected",
+      rejectionReason: "Falta recoger los vasos.",
+      reviewedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(child, taskInstancePath("child-approval")), {
+      status: "Approved",
+      approvedRewardCents: 50,
+      approvalTransactionId: "tx-task-child",
+      reviewedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(parent, taskInstancePath("missing-transaction")), {
+      status: "Approved",
+      approvedRewardCents: 50,
+      reviewedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(parent, taskInstancePath("blank-reason")), {
+      status: "Rejected",
+      rejectionReason: " ",
+      reviewedAt: LATER,
+      updatedAt: LATER,
+    }));
+    await assertFails(updateDoc(doc(parent, taskInstancePath("tamper-approval")), {
+      rewardCents: 10000,
+      status: "Approved",
+      approvedRewardCents: 75,
+      approvalTransactionId: "tx-task-tamper",
+      reviewedAt: LATER,
       updatedAt: LATER,
     }));
   });
