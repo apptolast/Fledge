@@ -18,6 +18,7 @@ import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.security.Sha256
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
@@ -36,8 +37,10 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
     private val mutableChildPinPolicy = MutableStateFlow(ChildPinPolicy())
     private val mutableVirtualMoneyConsent = MutableStateFlow<VirtualMoneyConsent?>(null)
     private val mutableParentalGateRequest = MutableStateFlow<ParentalGateRequest?>(null)
+    private val mutableSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Synced)
     private val activePairingSessions = mutableListOf<PairingSession>()
 
+    override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val activeFamily: StateFlow<Family?> = mutableActiveFamily
     override val children: StateFlow<List<ChildProfile>> = mutableChildren
     override val childDevices: StateFlow<List<ChildDevice>> = mutableChildDevices

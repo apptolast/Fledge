@@ -1,0 +1,13 @@
+{
+  "name": "fledge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:rules",
+    "test:rules": "firebase --project fledge-rules-test --config firebase.rules-test.json emulators:exec --only firestore \"node --test firestore.rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
+    "firebase": "12.16.0"
+  }
+}

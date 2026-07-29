@@ -14,6 +14,7 @@ import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.repository.LedgerRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -34,8 +36,10 @@ class FirestoreLedgerRepository(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var syncJob: Job? = null
+    private val mutableSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
     private val mutableTransactions = MutableStateFlow<List<LedgerTransaction>>(emptyList())
 
+    override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val transactions: StateFlow<List<LedgerTransaction>> = mutableTransactions
 
     init {
@@ -44,7 +48,9 @@ class FirestoreLedgerRepository(
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableTransactions.value = emptyList()
+                    mutableSyncStatus.value = RepositorySyncStatus.Synced
                 } else {
+                    mutableSyncStatus.value = RepositorySyncStatus.Loading
                     syncJob = launch { bindLedger(familyId) }
                 }
             }
@@ -58,7 +64,10 @@ class FirestoreLedgerRepository(
             .collection(LEDGER_COLLECTION)
         val jobs = listOf(
             launch {
-                ref.snapshots.collect { snapshot ->
+                ref.snapshots(includeMetadataChanges = true).catch { error ->
+                    mutableSyncStatus.value = error.toRepositorySyncError()
+                }.collect { snapshot ->
+                    mutableSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
                     mutableTransactions.value = snapshot.documents
                         .filter { it.exists }
                         .mapNotNull { runCatching { it.toLedgerTransaction() }.getOrNull() }

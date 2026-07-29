@@ -10,6 +10,7 @@ import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,9 @@ class InMemoryMoneyFlowRepository : MoneyFlowRepository {
 
     private val mutableAllowanceRules = MutableStateFlow<List<AllowanceRule>>(emptyList())
     private val mutableSettlements = MutableStateFlow<List<CashOutSettlement>>(emptyList())
+    private val mutableSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Synced)
 
+    override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val allowanceRules: StateFlow<List<AllowanceRule>> = mutableAllowanceRules
     override val settlements: StateFlow<List<CashOutSettlement>> = mutableSettlements
 

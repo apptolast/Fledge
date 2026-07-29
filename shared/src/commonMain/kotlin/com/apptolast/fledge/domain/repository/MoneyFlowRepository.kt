@@ -12,6 +12,7 @@ import kotlin.time.Instant
 import kotlinx.coroutines.flow.StateFlow
 
 interface MoneyFlowRepository {
+    val syncStatus: StateFlow<RepositorySyncStatus>
     val allowanceRules: StateFlow<List<AllowanceRule>>
     val settlements: StateFlow<List<CashOutSettlement>>
 

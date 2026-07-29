@@ -32,8 +32,10 @@ import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import dev.gitlive.firebase.firestore.DocumentSnapshot
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.firestore.SnapshotMetadata
 import dev.gitlive.firebase.firestore.Timestamp
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
@@ -64,6 +66,22 @@ internal fun AuthProvider.authenticatedFamilyIds(): Flow<FamilyId?> = observeAut
 internal fun Instant.toFirestoreTimestamp(): Timestamp = Timestamp(epochSeconds, nanosecondsOfSecond)
 
 internal fun Timestamp.toKotlinInstant(): Instant = Instant.fromEpochSeconds(seconds, nanoseconds)
+
+internal fun SnapshotMetadata.toRepositorySyncStatus(): RepositorySyncStatus = when {
+    hasPendingWrites -> RepositorySyncStatus.PendingWrites
+    isFromCache -> RepositorySyncStatus.FromCache
+    else -> RepositorySyncStatus.Synced
+}
+
+internal fun Iterable<RepositorySyncStatus>.aggregateRepositorySyncStatus(): RepositorySyncStatus = when {
+    any { it is RepositorySyncStatus.Error } -> first { it is RepositorySyncStatus.Error }
+    any { it == RepositorySyncStatus.PendingWrites } -> RepositorySyncStatus.PendingWrites
+    any { it == RepositorySyncStatus.FromCache } -> RepositorySyncStatus.FromCache
+    any { it == RepositorySyncStatus.Loading } -> RepositorySyncStatus.Loading
+    else -> RepositorySyncStatus.Synced
+}
+
+internal fun Throwable.toRepositorySyncError(): RepositorySyncStatus.Error = RepositorySyncStatus.Error(message)
 
 internal fun DocumentSnapshot.requiredString(field: String): String = get(field)
 

@@ -14,9 +14,14 @@ import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SettlementReminderPolicy
+import com.apptolast.fledge.presentation.foundation.FoundationOperationError
+import com.apptolast.fledge.presentation.foundation.FoundationSyncNotice
+import com.apptolast.fledge.presentation.foundation.toFoundationOperationError
+import com.apptolast.fledge.presentation.foundation.toFoundationSyncNotice
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -27,6 +32,9 @@ data class ChildHomeUiState(
     val settlements: List<CashOutSettlement> = emptyList(),
     val settlementReminders: List<SettlementReminder> = emptyList(),
     val currencyCode: String = "EUR",
+    val syncNotice: FoundationSyncNotice? = FoundationSyncNotice.Loading,
+    val operationError: FoundationOperationError? = null,
+    val isBusy: Boolean = false,
 )
 
 class ChildHomeViewModel(
@@ -39,6 +47,19 @@ class ChildHomeViewModel(
     val uiState: StateFlow<ChildHomeUiState> = mutableUiState
 
     init {
+        viewModelScope.launch {
+            combine(
+                repository.syncStatus,
+                ledgerRepository.syncStatus,
+                moneyFlowRepository.syncStatus,
+            ) { foundationStatus, ledgerStatus, moneyStatus ->
+                listOf(foundationStatus, ledgerStatus, moneyStatus)
+            }.collect { statuses ->
+                mutableUiState.update { state ->
+                    state.copy(syncNotice = statuses.toFoundationSyncNotice(state.hasKnownData()))
+                }
+            }
+        }
         viewModelScope.launch {
             repository.activeFamily.collect { family ->
                 mutableUiState.update { it.copy(currencyCode = family?.currency?.value ?: "EUR") }
@@ -61,14 +82,13 @@ class ChildHomeViewModel(
         refreshMoneyState()
     }
 
-    suspend fun requestProtectedAction(action: FoundationAction) {
+    suspend fun requestProtectedAction(action: FoundationAction): Boolean = runOperation {
         repository.requireParentalGate(action)
     }
 
-    suspend fun confirmSettlement(settlementId: SettlementId): Boolean {
+    suspend fun confirmSettlement(settlementId: SettlementId): Boolean = runOperation {
         cashOutProcessor.confirmByChild(settlementId, Clock.System.now())
         refreshMoneyState()
-        return true
     }
 
     private fun refreshMoneyState() {
@@ -83,4 +103,21 @@ class ChildHomeViewModel(
             )
         }
     }
+
+    private suspend fun runOperation(block: suspend () -> Unit): Boolean {
+        mutableUiState.update { it.copy(isBusy = true, operationError = null) }
+        return runCatching { block() }
+            .onSuccess {
+                mutableUiState.update { state -> state.copy(isBusy = false, operationError = null) }
+            }
+            .onFailure { error ->
+                mutableUiState.update { state ->
+                    state.copy(isBusy = false, operationError = error.toFoundationOperationError())
+                }
+            }
+            .isSuccess
+    }
 }
+
+private fun ChildHomeUiState.hasKnownData(): Boolean =
+    balances != null || ledgerTransactions.isNotEmpty() || settlements.isNotEmpty()

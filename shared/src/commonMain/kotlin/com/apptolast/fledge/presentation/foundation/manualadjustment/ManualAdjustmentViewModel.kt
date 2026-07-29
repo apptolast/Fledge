@@ -1,6 +1,7 @@
 package com.apptolast.fledge.presentation.foundation.manualadjustment
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.LedgerActor
@@ -12,9 +13,16 @@ import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
+import com.apptolast.fledge.presentation.foundation.FoundationOperationError
+import com.apptolast.fledge.presentation.foundation.FoundationSyncNotice
+import com.apptolast.fledge.presentation.foundation.toFoundationOperationError
+import com.apptolast.fledge.presentation.foundation.toFoundationSyncNotice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class ManualAdjustmentUiState(
     val child: ChildProfile? = null,
@@ -23,9 +31,12 @@ data class ManualAdjustmentUiState(
     val concept: String = "",
     val error: ManualAdjustmentError? = null,
     val savedTransaction: LedgerTransaction? = null,
+    val syncNotice: FoundationSyncNotice? = FoundationSyncNotice.Loading,
+    val operationError: FoundationOperationError? = null,
+    val isSaving: Boolean = false,
 ) {
     val canSubmit: Boolean
-        get() = child != null && amountInput.isNotBlank() && concept.isNotBlank()
+        get() = !isSaving && child != null && amountInput.isNotBlank() && concept.isNotBlank()
 }
 
 enum class ManualAdjustmentKind {
@@ -46,28 +57,42 @@ class ManualAdjustmentViewModel(
     private val ledgerRepository: LedgerRepository,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(ManualAdjustmentUiState())
+    private var loadedChildProfileId: ChildProfileId? = null
     val uiState: StateFlow<ManualAdjustmentUiState> = mutableUiState
 
-    fun load(childProfileId: ChildProfileId) {
-        val child = familyRepository.children.value.firstOrNull { it.id == childProfileId }
-        mutableUiState.update { state ->
-            state.copy(
-                child = child,
-                error = if (child == null) ManualAdjustmentError.MissingChild else null,
-            )
+    init {
+        viewModelScope.launch {
+            combine(familyRepository.syncStatus, ledgerRepository.syncStatus) { familyStatus, ledgerStatus ->
+                listOf(familyStatus, ledgerStatus)
+            }.collect { statuses ->
+                mutableUiState.update { state ->
+                    state.copy(syncNotice = statuses.toFoundationSyncNotice(state.child != null))
+                }
+                refreshSelectedChild()
+            }
+        }
+        viewModelScope.launch {
+            familyRepository.children.collect {
+                refreshSelectedChild()
+            }
         }
     }
 
+    fun load(childProfileId: ChildProfileId) {
+        loadedChildProfileId = childProfileId
+        refreshSelectedChild()
+    }
+
     fun selectKind(kind: ManualAdjustmentKind) {
-        mutableUiState.update { it.copy(kind = kind, error = null) }
+        mutableUiState.update { it.copy(kind = kind, error = null, operationError = null) }
     }
 
     fun updateAmount(input: String) {
-        mutableUiState.update { it.copy(amountInput = input, error = null) }
+        mutableUiState.update { it.copy(amountInput = input, error = null, operationError = null) }
     }
 
     fun updateConcept(input: String) {
-        mutableUiState.update { it.copy(concept = input, error = null) }
+        mutableUiState.update { it.copy(concept = input, error = null, operationError = null) }
     }
 
     suspend fun submit(): Boolean {
@@ -79,19 +104,19 @@ class ManualAdjustmentViewModel(
 
         when {
             family == null -> {
-                mutableUiState.update { it.copy(error = ManualAdjustmentError.MissingFamily) }
+                mutableUiState.update { it.copy(error = ManualAdjustmentError.MissingFamily, operationError = null) }
                 return false
             }
             child == null -> {
-                mutableUiState.update { it.copy(error = ManualAdjustmentError.MissingChild) }
+                mutableUiState.update { it.copy(error = ManualAdjustmentError.MissingChild, operationError = null) }
                 return false
             }
             concept.isBlank() -> {
-                mutableUiState.update { it.copy(error = ManualAdjustmentError.MissingConcept) }
+                mutableUiState.update { it.copy(error = ManualAdjustmentError.MissingConcept, operationError = null) }
                 return false
             }
             absoluteAmountCents == null || absoluteAmountCents <= 0L -> {
-                mutableUiState.update { it.copy(error = ManualAdjustmentError.InvalidAmount) }
+                mutableUiState.update { it.copy(error = ManualAdjustmentError.InvalidAmount, operationError = null) }
                 return false
             }
         }
@@ -102,19 +127,49 @@ class ManualAdjustmentViewModel(
             -> absoluteAmountCents
             ManualAdjustmentKind.Penalty -> -absoluteAmountCents
         }
-        val transaction = ledgerRepository.appendTransaction(
-            LedgerTransactionDraft(
-                familyId = family.id,
-                childProfileId = child.id,
-                accountType = VirtualAccountType.Main,
-                type = state.kind.toTransactionType(),
-                amountCents = MoneyCents(signedAmount),
-                concept = LedgerConcept(concept),
-                createdBy = LedgerActor.Parent,
-            ),
+        mutableUiState.update { it.copy(isSaving = true, operationError = null) }
+        return runCatching {
+            ledgerRepository.appendTransaction(
+                LedgerTransactionDraft(
+                    familyId = family.id,
+                    childProfileId = child.id,
+                    accountType = VirtualAccountType.Main,
+                    type = state.kind.toTransactionType(),
+                    amountCents = MoneyCents(signedAmount),
+                    concept = LedgerConcept(concept),
+                    createdBy = LedgerActor.Parent,
+                ),
+            )
+        }.fold(
+            onSuccess = { transaction ->
+                mutableUiState.update {
+                    it.copy(error = null, savedTransaction = transaction, isSaving = false)
+                }
+                true
+            },
+            onFailure = { error ->
+                mutableUiState.update {
+                    it.copy(isSaving = false, operationError = error.toFoundationOperationError())
+                }
+                false
+            },
         )
-        mutableUiState.update { it.copy(error = null, savedTransaction = transaction) }
-        return true
+    }
+
+    private fun refreshSelectedChild() {
+        val childProfileId = loadedChildProfileId ?: return
+        val child = familyRepository.children.value.firstOrNull { it.id == childProfileId }
+        val shouldShowMissingChild = child == null && familyRepository.syncStatus.value != RepositorySyncStatus.Loading
+        mutableUiState.update { state ->
+            state.copy(
+                child = child,
+                error = when {
+                    shouldShowMissingChild -> ManualAdjustmentError.MissingChild
+                    state.error == ManualAdjustmentError.MissingChild -> null
+                    else -> state.error
+                },
+            )
+        }
     }
 }
 

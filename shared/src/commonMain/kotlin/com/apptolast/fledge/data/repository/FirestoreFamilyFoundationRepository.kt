@@ -20,6 +20,7 @@ import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.security.Sha256
 import kotlin.random.Random
 import kotlin.time.Clock
@@ -32,7 +33,9 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
@@ -50,7 +53,12 @@ class FirestoreFamilyFoundationRepository(
     private val mutableChildPinPolicy = MutableStateFlow(ChildPinPolicy())
     private val mutableVirtualMoneyConsent = MutableStateFlow<VirtualMoneyConsent?>(null)
     private val mutableParentalGateRequest = MutableStateFlow<ParentalGateRequest?>(null)
+    private val mutableSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
+    private val familyDocumentSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
+    private val childrenSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
+    private val childDevicesSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
 
+    override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val activeFamily: StateFlow<Family?> = mutableActiveFamily
     override val children: StateFlow<List<ChildProfile>> = mutableChildren
     override val childDevices: StateFlow<List<ChildDevice>> = mutableChildDevices
@@ -60,11 +68,19 @@ class FirestoreFamilyFoundationRepository(
 
     init {
         scope.launch {
+            combine(familyDocumentSyncStatus, childrenSyncStatus, childDevicesSyncStatus) { family, children, devices ->
+                listOf(family, children, devices).aggregateRepositorySyncStatus()
+            }.collect { status ->
+                mutableSyncStatus.value = status
+            }
+        }
+        scope.launch {
             authProvider.authenticatedFamilyIds().collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     clearLocalState()
                 } else {
+                    resetSyncStatuses(RepositorySyncStatus.Loading)
                     syncJob = launch { bindFamily(familyId) }
                 }
             }
@@ -276,7 +292,10 @@ class FirestoreFamilyFoundationRepository(
         val familyRef = familyDoc(familyId)
         val jobs = listOf(
             launch {
-                familyRef.snapshots.collect { snapshot ->
+                familyRef.snapshots(includeMetadataChanges = true).catch { error ->
+                    familyDocumentSyncStatus.value = error.toRepositorySyncError()
+                }.collect { snapshot ->
+                    familyDocumentSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
                     if (snapshot.exists) {
                         mutableActiveFamily.value = snapshot.toFamily()
                         mutableChildPinPolicy.value =
@@ -292,7 +311,10 @@ class FirestoreFamilyFoundationRepository(
                 }
             },
             launch {
-                familyRef.collection(CHILDREN_COLLECTION).snapshots.collect { snapshot ->
+                familyRef.collection(CHILDREN_COLLECTION).snapshots(includeMetadataChanges = true).catch { error ->
+                    childrenSyncStatus.value = error.toRepositorySyncError()
+                }.collect { snapshot ->
+                    childrenSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
                     mutableChildren.value = snapshot.documents
                         .filter { it.exists }
                         .mapNotNull { runCatching { it.toChildProfile() }.getOrNull() }
@@ -300,7 +322,10 @@ class FirestoreFamilyFoundationRepository(
                 }
             },
             launch {
-                familyRef.collection(CHILD_DEVICES_COLLECTION).snapshots.collect { snapshot ->
+                familyRef.collection(CHILD_DEVICES_COLLECTION).snapshots(includeMetadataChanges = true).catch { error ->
+                    childDevicesSyncStatus.value = error.toRepositorySyncError()
+                }.collect { snapshot ->
+                    childDevicesSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
                     mutableChildDevices.value = snapshot.documents
                         .filter { it.exists }
                         .mapNotNull { runCatching { it.toChildDevice() }.getOrNull() }
@@ -318,6 +343,14 @@ class FirestoreFamilyFoundationRepository(
         mutableChildPinPolicy.value = ChildPinPolicy()
         mutableVirtualMoneyConsent.value = null
         mutableParentalGateRequest.value = null
+        resetSyncStatuses(RepositorySyncStatus.Synced)
+    }
+
+    private fun resetSyncStatuses(status: RepositorySyncStatus) {
+        familyDocumentSyncStatus.value = status
+        childrenSyncStatus.value = status
+        childDevicesSyncStatus.value = status
+        mutableSyncStatus.value = status
     }
 
     private fun familyDoc(familyId: FamilyId) = firestoreProvider.firestoreOrThrow()

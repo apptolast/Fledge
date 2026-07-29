@@ -13,6 +13,7 @@ import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,9 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
@@ -33,20 +36,33 @@ class FirestoreMoneyFlowRepository(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var syncJob: Job? = null
+    private val mutableSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
+    private val allowanceRulesSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
+    private val settlementsSyncStatus = MutableStateFlow<RepositorySyncStatus>(RepositorySyncStatus.Loading)
     private val mutableAllowanceRules = MutableStateFlow<List<AllowanceRule>>(emptyList())
     private val mutableSettlements = MutableStateFlow<List<CashOutSettlement>>(emptyList())
 
+    override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val allowanceRules: StateFlow<List<AllowanceRule>> = mutableAllowanceRules
     override val settlements: StateFlow<List<CashOutSettlement>> = mutableSettlements
 
     init {
+        scope.launch {
+            combine(allowanceRulesSyncStatus, settlementsSyncStatus) { allowanceRules, settlements ->
+                listOf(allowanceRules, settlements).aggregateRepositorySyncStatus()
+            }.collect { status ->
+                mutableSyncStatus.value = status
+            }
+        }
         scope.launch {
             authProvider.authenticatedFamilyIds().collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableAllowanceRules.value = emptyList()
                     mutableSettlements.value = emptyList()
+                    resetSyncStatuses(RepositorySyncStatus.Synced)
                 } else {
+                    resetSyncStatuses(RepositorySyncStatus.Loading)
                     syncJob = launch { bindMoneyFlows(familyId) }
                 }
             }
@@ -59,23 +75,39 @@ class FirestoreMoneyFlowRepository(
             .document(familyId.value)
         val jobs = listOf(
             launch {
-                familyRef.collection(ALLOWANCE_RULES_COLLECTION).snapshots.collect { snapshot ->
-                    mutableAllowanceRules.value = snapshot.documents
-                        .filter { it.exists }
-                        .mapNotNull { runCatching { it.toAllowanceRule() }.getOrNull() }
-                        .sortedBy { it.createdAt }
-                }
+                familyRef.collection(ALLOWANCE_RULES_COLLECTION).snapshots(includeMetadataChanges = true)
+                    .catch { error ->
+                        allowanceRulesSyncStatus.value = error.toRepositorySyncError()
+                    }
+                    .collect { snapshot ->
+                        allowanceRulesSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
+                        mutableAllowanceRules.value = snapshot.documents
+                            .filter { it.exists }
+                            .mapNotNull { runCatching { it.toAllowanceRule() }.getOrNull() }
+                            .sortedBy { it.createdAt }
+                    }
             },
             launch {
-                familyRef.collection(SETTLEMENTS_COLLECTION).snapshots.collect { snapshot ->
-                    mutableSettlements.value = snapshot.documents
-                        .filter { it.exists }
-                        .mapNotNull { runCatching { it.toCashOutSettlement() }.getOrNull() }
-                        .sortedBy { it.requestedAt }
-                }
+                familyRef.collection(SETTLEMENTS_COLLECTION).snapshots(includeMetadataChanges = true)
+                    .catch { error ->
+                        settlementsSyncStatus.value = error.toRepositorySyncError()
+                    }
+                    .collect { snapshot ->
+                        settlementsSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
+                        mutableSettlements.value = snapshot.documents
+                            .filter { it.exists }
+                            .mapNotNull { runCatching { it.toCashOutSettlement() }.getOrNull() }
+                            .sortedBy { it.requestedAt }
+                    }
             },
         )
         jobs.joinAll()
+    }
+
+    private fun resetSyncStatuses(status: RepositorySyncStatus) {
+        allowanceRulesSyncStatus.value = status
+        settlementsSyncStatus.value = status
+        mutableSyncStatus.value = status
     }
 
     override suspend fun saveAllowanceRule(

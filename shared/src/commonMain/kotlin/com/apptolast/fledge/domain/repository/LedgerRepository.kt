@@ -12,6 +12,7 @@ import com.apptolast.fledge.domain.model.VirtualAccountType
 import kotlinx.coroutines.flow.StateFlow
 
 interface LedgerRepository {
+    val syncStatus: StateFlow<RepositorySyncStatus>
     val transactions: StateFlow<List<LedgerTransaction>>
 
     suspend fun appendTransaction(draft: LedgerTransactionDraft): LedgerTransaction

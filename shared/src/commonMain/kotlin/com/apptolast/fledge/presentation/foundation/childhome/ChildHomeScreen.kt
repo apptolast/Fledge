@@ -41,6 +41,7 @@ import com.apptolast.fledge.domain.model.SettlementReminderLevel
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
 import fledge.shared.generated.resources.cash_out_child_reminder_fourteen_days
@@ -75,6 +76,7 @@ import fledge.shared.generated.resources.ledger_type_goal_transfer
 import fledge.shared.generated.resources.ledger_type_penalty
 import fledge.shared.generated.resources.ledger_type_reversal
 import fledge.shared.generated.resources.ledger_type_settlement
+import fledge.shared.generated.resources.operation_error_sync
 import kotlin.time.Clock
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -103,8 +105,9 @@ fun ChildHomeScreen(
         },
         onProtectedAction = { action ->
             scope.launch {
-                viewModel.requestProtectedAction(action)
-                onParentalGateRequired()
+                if (viewModel.requestProtectedAction(action)) {
+                    onParentalGateRequired()
+                }
             }
         },
     )
@@ -132,6 +135,20 @@ fun ChildHomeContent(
                     text = stringResource(Res.string.child_home_title),
                     style = MaterialTheme.typography.headlineMedium,
                 )
+            }
+            state.syncNotice?.let { notice ->
+                item {
+                    SyncNoticeBanner(notice = notice)
+                }
+            }
+            state.operationError?.let {
+                item {
+                    Text(
+                        text = stringResource(Res.string.operation_error_sync),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             item {
                 Text(
@@ -186,6 +203,7 @@ fun ChildHomeContent(
                                 it.audience == SettlementReminderAudience.Child
                         }?.level,
                         onConfirmSettlement = onConfirmSettlement,
+                        isBusy = state.isBusy,
                     )
                 }
             }
@@ -297,6 +315,7 @@ private fun ChildSettlementRow(
     hasReminder: Boolean,
     reminderLevel: SettlementReminderLevel?,
     onConfirmSettlement: (SettlementId) -> Unit,
+    isBusy: Boolean,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -326,6 +345,7 @@ private fun ChildSettlementRow(
             if (settlement.status == SettlementStatus.PaidByParent) {
                 Button(
                     onClick = { onConfirmSettlement(settlement.id) },
+                    enabled = !isBusy,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(Res.string.cash_out_mark_received))
@@ -459,6 +479,7 @@ fun PreviewChildHomeContent() {
                         paidByParentAt = Clock.System.now(),
                     ),
                 ),
+                syncNotice = null,
             ),
             onRequestCashOut = {},
             onConfirmSettlement = {},
