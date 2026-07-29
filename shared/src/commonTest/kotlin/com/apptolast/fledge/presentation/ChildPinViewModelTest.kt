@@ -4,8 +4,10 @@ import app.cash.turbine.test
 import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.CurrencyCode
+import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.TimeZoneId
+import com.apptolast.fledge.notification.FakePushNotificationManager
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -69,5 +71,30 @@ class ChildPinViewModelTest {
         assertTrue(correctUnlock)
         assertNotNull(viewModel.uiState.value.childSession)
         assertEquals(15, viewModel.uiState.value.timeoutMinutes)
+    }
+
+    @Test
+    fun `FLE-32 successful child unlock subscribes the child approval topic`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val pushNotifications = FakePushNotificationManager()
+        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
+        val child = repository.addChildProfile(
+            family.id,
+            "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        val viewModel = ChildPinViewModel(repository, pushNotifications)
+
+        // When
+        viewModel.updatePin("1234")
+        val unlocked = viewModel.unlock(child.id)
+
+        // Then
+        assertTrue(unlocked)
+        assertEquals(listOf(FamilyId("family-1") to child.id), pushNotifications.childSubscriptions)
     }
 }

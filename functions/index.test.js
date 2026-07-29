@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { Timestamp } from "firebase-admin/firestore";
 import {
+  buildTaskInstancePushMessage,
   buildTaskInstanceDocuments,
   createTaskInstanceId,
   nextTaskDueDateAfter,
@@ -121,6 +122,61 @@ describe("FLE-29 task instance scheduler", () => {
   });
 });
 
+describe("FLE-32 task approval push", () => {
+  test("builds parent notification when a task is submitted", () => {
+    const message = buildTaskInstancePushMessage({
+      before: taskInstanceData({ status: "Pending" }),
+      after: taskInstanceData({ status: "Submitted", submittedAt: NOW }),
+      params: { familyId: "family-1", taskInstanceId: "task-1" },
+      appEnv: "debug",
+    });
+
+    assert.equal(message.topic, "fledge_debug_family_family-1_parents");
+    assert.deepEqual(message.data, {
+      type: "task_submitted",
+      familyId: "family-1",
+      childProfileId: "child-1",
+      taskInstanceId: "task-1",
+    });
+    assert.equal(message.notification.title, "Tarea lista para revisar");
+  });
+
+  test("builds child notification when a task is approved", () => {
+    const message = buildTaskInstancePushMessage({
+      before: taskInstanceData({ status: "Submitted", submittedAt: NOW }),
+      after: taskInstanceData({
+        status: "Approved",
+        submittedAt: NOW,
+        reviewedAt: NOW,
+        approvedRewardCents: 75,
+      }),
+      params: { familyId: "family-1", taskInstanceId: "task-1" },
+      appEnv: "release",
+    });
+
+    assert.equal(message.topic, "fledge_release_family_family-1_child_child-1");
+    assert.deepEqual(message.data, {
+      type: "task_approved",
+      familyId: "family-1",
+      childProfileId: "child-1",
+      taskInstanceId: "task-1",
+      approvedRewardCents: "75",
+    });
+    assert.equal(message.notification.title, "Tarea aprobada");
+  });
+
+  test("does not notify when task status is unchanged", () => {
+    const message = buildTaskInstancePushMessage({
+      before: taskInstanceData({ status: "Submitted", submittedAt: NOW }),
+      after: taskInstanceData({ status: "Submitted", submittedAt: NOW }),
+      params: { familyId: "family-1", taskInstanceId: "task-1" },
+      appEnv: "debug",
+    });
+
+    assert.equal(message, null);
+  });
+});
+
 function familyData() {
   return {
     familyId: "family-1",
@@ -160,6 +216,14 @@ function taskInstanceData({
   taskTemplateId = "template-1",
   childProfileId = "child-1",
   periodKey = "20260729",
+  status = "Pending",
+  submittedAt = null,
+  reviewedAt = null,
+  expiredAt = null,
+  photoEvidenceUri = null,
+  approvedRewardCents = null,
+  approvalTransactionId = null,
+  rejectionReason = null,
 } = {}) {
   return {
     familyId,
@@ -169,14 +233,18 @@ function taskInstanceData({
     title: "Poner la mesa",
     rewardCents: 50,
     requiresPhoto: false,
-    status: "Pending",
+    status,
     dueAt: Timestamp.fromDate(DUE_AT),
     periodKey,
     createdAt: Timestamp.fromDate(NOW),
     updatedAt: Timestamp.fromDate(NOW),
-    submittedAt: null,
-    reviewedAt: null,
-    expiredAt: null,
+    submittedAt,
+    reviewedAt,
+    expiredAt,
+    photoEvidenceUri,
+    approvedRewardCents,
+    approvalTransactionId,
+    rejectionReason,
   };
 }
 

@@ -1,7 +1,9 @@
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { DateTime } from "luxon";
 
@@ -16,6 +18,18 @@ export const runAllowanceRules = makeRunAllowanceRules(getFirestore(), "runAllow
 export const runAllowanceRulesDebug = makeRunAllowanceRules(getFirestore("debug"), "runAllowanceRulesDebug");
 export const runTaskAssignments = makeRunTaskAssignments(getFirestore(), "runTaskAssignments");
 export const runTaskAssignmentsDebug = makeRunTaskAssignments(getFirestore("debug"), "runTaskAssignmentsDebug");
+export const notifyTaskInstancePush = makeNotifyTaskInstancePush(
+  getMessaging(),
+  "release",
+  "(default)",
+  "notifyTaskInstancePush",
+);
+export const notifyTaskInstancePushDebug = makeNotifyTaskInstancePush(
+  getMessaging(),
+  "debug",
+  "debug",
+  "notifyTaskInstancePushDebug",
+);
 
 function makeRunAllowanceRules(database, functionName) {
   return onSchedule(
@@ -39,6 +53,32 @@ function makeRunTaskAssignments(database, functionName) {
     async () => {
       const processed = await processDueTaskAssignments(database, new Date());
       logger.info(`${functionName} completed`, { processed });
+    },
+  );
+}
+
+function makeNotifyTaskInstancePush(messaging, appEnv, databaseId, functionName) {
+  return onDocumentWritten(
+    {
+      document: "families/{familyId}/taskInstances/{taskInstanceId}",
+      database: databaseId,
+    },
+    async (event) => {
+      const message = buildTaskInstancePushMessage({
+        before: event.data?.before?.data() ?? null,
+        after: event.data?.after?.data() ?? null,
+        params: event.params,
+        appEnv,
+      });
+      if (!message) return;
+
+      await messaging.send(message);
+      logger.info(`${functionName} sent`, {
+        type: message.data.type,
+        topic: message.topic,
+        familyId: message.data.familyId,
+        taskInstanceId: message.data.taskInstanceId,
+      });
     },
   );
 }
@@ -291,6 +331,72 @@ export function createTaskInstanceId(assignmentId, childProfileId, periodKey) {
   return `task_${safeDocumentIdPart(assignmentId)}_${safeDocumentIdPart(childProfileId)}_${periodKey}`;
 }
 
+export function buildTaskInstancePushMessage({ before, after, params, appEnv = "debug" }) {
+  if (!after) return null;
+  const previousStatus = before?.status ?? null;
+  const nextStatus = after.status ?? null;
+  if (!nextStatus || previousStatus === nextStatus) return null;
+
+  const familyId = asNonBlankString(after.familyId) || asNonBlankString(params?.familyId);
+  const childProfileId = asNonBlankString(after.childProfileId);
+  const taskInstanceId = asNonBlankString(params?.taskInstanceId);
+  const title = asNonBlankString(after.title) || "la tarea";
+  if (!familyId || !childProfileId || !taskInstanceId) return null;
+
+  if (nextStatus === "Submitted") {
+    return withDefaultPushOptions({
+      topic: taskPushTopic({
+        appEnv,
+        familyId,
+        audience: "parents",
+      }),
+      notification: {
+        title: "Tarea lista para revisar",
+        body: `Revisa "${title}" en la cola de aprobacion.`,
+      },
+      data: {
+        type: "task_submitted",
+        familyId,
+        childProfileId,
+        taskInstanceId,
+      },
+    });
+  }
+
+  if (nextStatus === "Approved") {
+    const approvedRewardCents = Number(after.approvedRewardCents);
+    if (!Number.isInteger(approvedRewardCents) || approvedRewardCents <= 0) return null;
+    return withDefaultPushOptions({
+      topic: taskPushTopic({
+        appEnv,
+        familyId,
+        childProfileId,
+        audience: "child",
+      }),
+      notification: {
+        title: "Tarea aprobada",
+        body: `Has ganado saldo por "${title}".`,
+      },
+      data: {
+        type: "task_approved",
+        familyId,
+        childProfileId,
+        taskInstanceId,
+        approvedRewardCents: String(approvedRewardCents),
+      },
+    });
+  }
+
+  return null;
+}
+
+export function taskPushTopic({ appEnv = "debug", familyId, childProfileId = null, audience }) {
+  const base = `fledge_${normalizeAppEnv(appEnv)}_family_${safeTopicPart(familyId)}`;
+  if (audience === "parents") return `${base}_parents`;
+  if (audience === "child") return `${base}_child_${safeTopicPart(childProfileId)}`;
+  throw new Error(`Unsupported task push audience: ${audience}`);
+}
+
 function nextRunDateAfter(rule, previousRunDate) {
   const frequency = normalizeFrequency(rule.frequency);
   const day = Number(rule.day);
@@ -351,6 +457,36 @@ function normalizeTaskRecurrence(value) {
 
 function safeDocumentIdPart(value) {
   return String(value || "").replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
+function safeTopicPart(value) {
+  return String(value || "").replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
+function normalizeAppEnv(value) {
+  return String(value || "").toLowerCase() === "release" ? "release" : "debug";
+}
+
+function withDefaultPushOptions(message) {
+  return {
+    ...message,
+    android: {
+      priority: "high",
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+        },
+      },
+    },
+  };
+}
+
+function asNonBlankString(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function asDate(value) {

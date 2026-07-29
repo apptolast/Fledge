@@ -7,5 +7,6 @@ import com.apptolast.fledge.di.initFledgeKoin
 @Suppress("ktlint:standard:function-naming")
 fun MainViewController() = run {
     initFledgeKoin()
+    initializeFledgePushNotificationsIos()
     ComposeUIViewController { App() }
 }
