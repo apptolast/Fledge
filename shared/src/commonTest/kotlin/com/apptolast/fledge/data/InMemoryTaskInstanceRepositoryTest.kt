@@ -11,6 +11,7 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 
@@ -54,11 +55,89 @@ class InMemoryTaskInstanceRepositoryTest {
         assertEquals(listOf("early", "late", "other-family"), childInstances.map { it.id.value })
     }
 
+    @Test
+    fun `FLE-30 repository submits pending task for review`() = runTest {
+        // Given
+        val submittedAt = Instant.fromEpochSeconds(1_700_300_000)
+        val childId = ChildProfileId("child-1")
+        val repository = InMemoryTaskInstanceRepository(
+            listOf(taskInstance(id = "task-1", childProfileId = childId)),
+        )
+
+        // When
+        val submitted = repository.submitForReview(
+            instanceId = TaskInstanceId("task-1"),
+            childProfileId = childId,
+            photoEvidenceUri = null,
+            submittedAt = submittedAt,
+        )
+
+        // Then
+        assertEquals(TaskInstanceStatus.Submitted, submitted.status)
+        assertEquals(submittedAt, submitted.submittedAt)
+        assertEquals(null, submitted.photoEvidenceUri)
+        assertEquals(50, submitted.rewardCents.value)
+        assertEquals(
+            TaskInstanceStatus.Submitted,
+            repository.instances.value.single { it.id.value == "task-1" }.status,
+        )
+    }
+
+    @Test
+    fun `FLE-30 repository requires photo evidence when configured`() = runTest {
+        // Given
+        val childId = ChildProfileId("child-1")
+        val repository = InMemoryTaskInstanceRepository(
+            listOf(taskInstance(id = "task-1", childProfileId = childId, requiresPhoto = true)),
+        )
+
+        // When / Then
+        assertFailsWith<IllegalArgumentException> {
+            repository.submitForReview(
+                instanceId = TaskInstanceId("task-1"),
+                childProfileId = childId,
+                photoEvidenceUri = null,
+                submittedAt = Instant.fromEpochSeconds(1_700_300_000),
+            )
+        }
+        assertEquals(TaskInstanceStatus.Pending, repository.instances.value.single().status)
+    }
+
+    @Test
+    fun `FLE-30 repository allows resubmitting rejected task`() = runTest {
+        // Given
+        val childId = ChildProfileId("child-1")
+        val repository = InMemoryTaskInstanceRepository(
+            listOf(
+                taskInstance(
+                    id = "task-1",
+                    childProfileId = childId,
+                    requiresPhoto = true,
+                    status = TaskInstanceStatus.Rejected,
+                ),
+            ),
+        )
+
+        // When
+        val submitted = repository.submitForReview(
+            instanceId = TaskInstanceId("task-1"),
+            childProfileId = childId,
+            photoEvidenceUri = "local://retry-photo",
+            submittedAt = Instant.fromEpochSeconds(1_700_300_000),
+        )
+
+        // Then
+        assertEquals(TaskInstanceStatus.Submitted, submitted.status)
+        assertEquals("local://retry-photo", submitted.photoEvidenceUri)
+    }
+
     private fun taskInstance(
         id: String,
-        familyId: FamilyId,
+        familyId: FamilyId = FamilyId("family-1"),
         childProfileId: ChildProfileId,
         dueAt: Instant = Instant.fromEpochSeconds(10),
+        requiresPhoto: Boolean = false,
+        status: TaskInstanceStatus = TaskInstanceStatus.Pending,
     ): TaskInstance = TaskInstance(
         id = TaskInstanceId(id),
         familyId = familyId,
@@ -67,8 +146,8 @@ class InMemoryTaskInstanceRepositoryTest {
         childProfileId = childProfileId,
         title = "Poner la mesa",
         rewardCents = MoneyCents(50),
-        requiresPhoto = false,
-        status = TaskInstanceStatus.Pending,
+        requiresPhoto = requiresPhoto,
+        status = status,
         dueAt = dueAt,
         periodKey = "20260729",
         createdAt = Instant.fromEpochSeconds(1),

@@ -9,9 +9,13 @@ import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementReminder
+import com.apptolast.fledge.domain.model.TaskInstance
+import com.apptolast.fledge.domain.model.TaskInstanceId
+import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SettlementReminderPolicy
 import com.apptolast.fledge.presentation.foundation.FoundationOperationError
@@ -31,16 +35,25 @@ data class ChildHomeUiState(
     val ledgerTransactions: List<LedgerTransaction> = emptyList(),
     val settlements: List<CashOutSettlement> = emptyList(),
     val settlementReminders: List<SettlementReminder> = emptyList(),
+    val taskInstances: List<TaskInstance> = emptyList(),
+    val selectedPhotoEvidenceByTaskId: Map<TaskInstanceId, String> = emptyMap(),
     val currencyCode: String = "EUR",
     val syncNotice: FoundationSyncNotice? = FoundationSyncNotice.Loading,
     val operationError: FoundationOperationError? = null,
+    val taskSubmissionError: ChildTaskSubmissionError? = null,
     val isBusy: Boolean = false,
 )
+
+enum class ChildTaskSubmissionError {
+    MissingPhotoEvidence,
+    SubmitFailed,
+}
 
 class ChildHomeViewModel(
     private val repository: FamilyFoundationRepository,
     private val ledgerRepository: LedgerRepository,
     private val moneyFlowRepository: MoneyFlowRepository,
+    private val taskInstanceRepository: TaskInstanceRepository,
     private val cashOutProcessor: CashOutProcessor,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(ChildHomeUiState())
@@ -52,8 +65,9 @@ class ChildHomeViewModel(
                 repository.syncStatus,
                 ledgerRepository.syncStatus,
                 moneyFlowRepository.syncStatus,
-            ) { foundationStatus, ledgerStatus, moneyStatus ->
-                listOf(foundationStatus, ledgerStatus, moneyStatus)
+                taskInstanceRepository.syncStatus,
+            ) { foundationStatus, ledgerStatus, moneyStatus, taskStatus ->
+                listOf(foundationStatus, ledgerStatus, moneyStatus, taskStatus)
             }.collect { statuses ->
                 mutableUiState.update { state ->
                     state.copy(syncNotice = statuses.toFoundationSyncNotice(state.hasKnownData()))
@@ -75,11 +89,33 @@ class ChildHomeViewModel(
                 refreshMoneyState()
             }
         }
+        viewModelScope.launch {
+            taskInstanceRepository.instances.collect {
+                refreshTaskState()
+            }
+        }
     }
 
     fun load(childProfileId: ChildProfileId) {
         mutableUiState.update { it.copy(childProfileId = childProfileId) }
         refreshMoneyState()
+        refreshTaskState()
+    }
+
+    fun attachPhotoEvidence(instanceId: TaskInstanceId, photoEvidenceUri: String) {
+        val normalized = photoEvidenceUri.trim()
+        mutableUiState.update { state ->
+            val updatedEvidence = if (normalized.isBlank()) {
+                state.selectedPhotoEvidenceByTaskId - instanceId
+            } else {
+                state.selectedPhotoEvidenceByTaskId + (instanceId to normalized)
+            }
+            state.copy(
+                selectedPhotoEvidenceByTaskId = updatedEvidence,
+                taskSubmissionError = null,
+                operationError = null,
+            )
+        }
     }
 
     suspend fun requestProtectedAction(action: FoundationAction): Boolean = runOperation {
@@ -89,6 +125,50 @@ class ChildHomeViewModel(
     suspend fun confirmSettlement(settlementId: SettlementId): Boolean = runOperation {
         cashOutProcessor.confirmByChild(settlementId, Clock.System.now())
         refreshMoneyState()
+    }
+
+    suspend fun submitTask(instanceId: TaskInstanceId): Boolean {
+        val state = mutableUiState.value
+        val childProfileId = state.childProfileId ?: return false
+        val instance = state.taskInstances.firstOrNull { it.id == instanceId } ?: return false
+        val photoEvidenceUri = state.selectedPhotoEvidenceByTaskId[instanceId]
+        if (instance.requiresPhoto && photoEvidenceUri.isNullOrBlank()) {
+            mutableUiState.update {
+                it.copy(
+                    taskSubmissionError = ChildTaskSubmissionError.MissingPhotoEvidence,
+                    operationError = null,
+                )
+            }
+            return false
+        }
+
+        mutableUiState.update {
+            it.copy(isBusy = true, taskSubmissionError = null, operationError = null)
+        }
+        return runCatching {
+            taskInstanceRepository.submitForReview(
+                instanceId = instanceId,
+                childProfileId = childProfileId,
+                photoEvidenceUri = photoEvidenceUri,
+                submittedAt = Clock.System.now(),
+            )
+            refreshTaskState()
+        }.onSuccess {
+            mutableUiState.update {
+                it.copy(
+                    isBusy = false,
+                    taskSubmissionError = null,
+                    selectedPhotoEvidenceByTaskId = it.selectedPhotoEvidenceByTaskId - instanceId,
+                )
+            }
+        }.onFailure {
+            mutableUiState.update {
+                it.copy(
+                    isBusy = false,
+                    taskSubmissionError = ChildTaskSubmissionError.SubmitFailed,
+                )
+            }
+        }.isSuccess
     }
 
     private fun refreshMoneyState() {
@@ -101,6 +181,13 @@ class ChildHomeViewModel(
                 settlements = settlements,
                 settlementReminders = SettlementReminderPolicy.remindersFor(settlements, Clock.System.now()),
             )
+        }
+    }
+
+    private fun refreshTaskState() {
+        val childProfileId = mutableUiState.value.childProfileId ?: return
+        mutableUiState.update {
+            it.copy(taskInstances = taskInstanceRepository.instancesForChild(childProfileId).sortedForChildHome())
         }
     }
 
@@ -120,4 +207,16 @@ class ChildHomeViewModel(
 }
 
 private fun ChildHomeUiState.hasKnownData(): Boolean =
-    balances != null || ledgerTransactions.isNotEmpty() || settlements.isNotEmpty()
+    balances != null || ledgerTransactions.isNotEmpty() || settlements.isNotEmpty() || taskInstances.isNotEmpty()
+
+private fun List<TaskInstance>.sortedForChildHome(): List<TaskInstance> =
+    sortedWith(compareBy<TaskInstance> { it.status.childHomeSortOrder }.thenBy { it.dueAt }.thenBy { it.id.value })
+
+private val TaskInstanceStatus.childHomeSortOrder: Int
+    get() = when (this) {
+        TaskInstanceStatus.Pending -> 0
+        TaskInstanceStatus.Rejected -> 1
+        TaskInstanceStatus.Submitted -> 2
+        TaskInstanceStatus.Approved -> 3
+        TaskInstanceStatus.Expired -> 4
+    }

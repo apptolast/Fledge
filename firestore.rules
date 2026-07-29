@@ -56,6 +56,16 @@ service cloud.firestore {
         && request.resource.data[field].matches(".*\\S.*");
     }
 
+    function optionalNonBlankText(field) {
+      return nullOrAbsent(field) || hasNonBlankText(field);
+    }
+
+    function requestKeepsField(field) {
+      return request.resource.data.keys().hasAny([field])
+        && resource.data.keys().hasAny([field])
+        && request.resource.data[field] == resource.data[field];
+    }
+
     function settlementKeys() {
       return [
         "familyId",
@@ -176,6 +186,59 @@ service cloud.firestore {
         && request.resource.data.settlementTransactionId is string;
     }
 
+    function taskInstanceKeys() {
+      return [
+        "familyId",
+        "taskAssignmentId",
+        "taskTemplateId",
+        "childProfileId",
+        "title",
+        "rewardCents",
+        "requiresPhoto",
+        "status",
+        "dueAt",
+        "periodKey",
+        "createdAt",
+        "updatedAt",
+        "submittedAt",
+        "reviewedAt",
+        "expiredAt",
+        "photoEvidenceUri",
+      ];
+    }
+
+    function taskInstanceSnapshotIsUnchanged() {
+      return requestKeepsField("familyId")
+        && requestKeepsField("taskAssignmentId")
+        && requestKeepsField("taskTemplateId")
+        && requestKeepsField("childProfileId")
+        && requestKeepsField("title")
+        && requestKeepsField("rewardCents")
+        && requestKeepsField("requiresPhoto")
+        && requestKeepsField("dueAt")
+        && requestKeepsField("periodKey")
+        && requestKeepsField("createdAt");
+    }
+
+    function taskInstanceSubmissionActorIsValid(familyId) {
+      return isParent(familyId)
+        || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
+    }
+
+    function taskInstanceSubmissionIsValid(familyId) {
+      return taskInstanceSubmissionActorIsValid(familyId)
+        && request.resource.data.keys().hasOnly(taskInstanceKeys())
+        && resource.data.status in ["Pending", "Rejected"]
+        && request.resource.data.status == "Submitted"
+        && taskInstanceSnapshotIsUnchanged()
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.submittedAt is timestamp
+        && nullOrAbsent("reviewedAt")
+        && nullOrAbsent("expiredAt")
+        && optionalNonBlankText("photoEvidenceUri")
+        && (!resource.data.requiresPhoto || hasNonBlankText("photoEvidenceUri"));
+    }
+
     match /families/{familyId} {
       allow read: if isFamilyMember(familyId);
       allow create: if isParent(familyId) && requestMatchesFamily(familyId);
@@ -217,7 +280,8 @@ service cloud.firestore {
       match /taskInstances/{instanceId} {
         allow read: if isParent(familyId)
           || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
-        allow create, update, delete: if false;
+        allow create, delete: if false;
+        allow update: if taskInstanceSubmissionIsValid(familyId);
       }
 
       match /childProfiles/{childProfileId} {

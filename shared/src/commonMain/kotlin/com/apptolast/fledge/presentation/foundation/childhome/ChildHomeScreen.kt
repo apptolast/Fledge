@@ -1,7 +1,9 @@
 package com.apptolast.fledge.presentation.foundation.childhome
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,7 +11,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -21,7 +25,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.BalanceCents
@@ -39,6 +45,11 @@ import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementReminderAudience
 import com.apptolast.fledge.domain.model.SettlementReminderLevel
 import com.apptolast.fledge.domain.model.SettlementStatus
+import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskInstance
+import com.apptolast.fledge.domain.model.TaskInstanceId
+import com.apptolast.fledge.domain.model.TaskInstanceStatus
+import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
@@ -62,6 +73,22 @@ import fledge.shared.generated.resources.child_home_purchase
 import fledge.shared.generated.resources.child_home_settings
 import fledge.shared.generated.resources.child_home_settlements_empty
 import fledge.shared.generated.resources.child_home_settlements_title
+import fledge.shared.generated.resources.child_home_task_add_photo
+import fledge.shared.generated.resources.child_home_task_due_today
+import fledge.shared.generated.resources.child_home_task_error_missing_photo
+import fledge.shared.generated.resources.child_home_task_error_submit
+import fledge.shared.generated.resources.child_home_task_money_after_approval
+import fledge.shared.generated.resources.child_home_task_photo_ready
+import fledge.shared.generated.resources.child_home_task_reward
+import fledge.shared.generated.resources.child_home_task_status_approved
+import fledge.shared.generated.resources.child_home_task_status_expired
+import fledge.shared.generated.resources.child_home_task_status_pending
+import fledge.shared.generated.resources.child_home_task_status_rejected
+import fledge.shared.generated.resources.child_home_task_status_submitted
+import fledge.shared.generated.resources.child_home_task_submit
+import fledge.shared.generated.resources.child_home_task_waiting
+import fledge.shared.generated.resources.child_home_tasks_empty
+import fledge.shared.generated.resources.child_home_tasks_title
 import fledge.shared.generated.resources.child_home_title
 import fledge.shared.generated.resources.ledger_account_goal
 import fledge.shared.generated.resources.ledger_account_main
@@ -103,6 +130,14 @@ fun ChildHomeScreen(
                 viewModel.confirmSettlement(settlementId)
             }
         },
+        onAttachPhotoEvidence = { instanceId ->
+            viewModel.attachPhotoEvidence(instanceId, "local://task-photo/${instanceId.value}")
+        },
+        onSubmitTask = { instanceId ->
+            scope.launch {
+                viewModel.submitTask(instanceId)
+            }
+        },
         onProtectedAction = { action ->
             scope.launch {
                 if (viewModel.requestProtectedAction(action)) {
@@ -118,6 +153,8 @@ fun ChildHomeContent(
     state: ChildHomeUiState,
     onRequestCashOut: (ChildProfileId) -> Unit,
     onConfirmSettlement: (SettlementId) -> Unit,
+    onAttachPhotoEvidence: (TaskInstanceId) -> Unit,
+    onSubmitTask: (TaskInstanceId) -> Unit,
     onProtectedAction: (FoundationAction) -> Unit,
 ) {
     Surface(
@@ -159,6 +196,44 @@ fun ChildHomeContent(
             }
             item {
                 ChildBalanceCard(state = state)
+            }
+            item {
+                Text(
+                    text = stringResource(Res.string.child_home_tasks_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
+            state.taskSubmissionError?.let { error ->
+                item {
+                    Text(
+                        text = taskSubmissionErrorText(error),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            if (state.taskInstances.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(Res.string.child_home_tasks_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                items(
+                    items = state.taskInstances,
+                    key = { it.id.value },
+                ) { instance ->
+                    ChildTaskInstanceRow(
+                        instance = instance,
+                        currencyCode = state.currencyCode,
+                        selectedPhotoEvidenceUri = state.selectedPhotoEvidenceByTaskId[instance.id],
+                        isBusy = state.isBusy,
+                        onAttachPhotoEvidence = onAttachPhotoEvidence,
+                        onSubmitTask = onSubmitTask,
+                    )
+                }
             }
             item {
                 Button(
@@ -276,6 +351,138 @@ fun ChildHomeContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChildTaskInstanceRow(
+    instance: TaskInstance,
+    currencyCode: String,
+    selectedPhotoEvidenceUri: String?,
+    isBusy: Boolean,
+    onAttachPhotoEvidence: (TaskInstanceId) -> Unit,
+    onSubmitTask: (TaskInstanceId) -> Unit,
+) {
+    val hasPhotoEvidence = !selectedPhotoEvidenceUri.isNullOrBlank() || !instance.photoEvidenceUri.isNullOrBlank()
+    val isActionable = instance.status == TaskInstanceStatus.Pending || instance.status == TaskInstanceStatus.Rejected
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = instance.title,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(
+                            Res.string.child_home_task_reward,
+                            formatCents(instance.rewardCents.value, currencyCode),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TaskStatusPill(instance.status)
+            }
+            Text(
+                text = stringResource(Res.string.child_home_task_due_today),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (instance.requiresPhoto && isActionable) {
+                OutlinedButton(
+                    onClick = { onAttachPhotoEvidence(instance.id) },
+                    enabled = !isBusy,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text(
+                        text = if (hasPhotoEvidence) {
+                            stringResource(Res.string.child_home_task_photo_ready)
+                        } else {
+                            stringResource(Res.string.child_home_task_add_photo)
+                        },
+                    )
+                }
+            }
+            if (isActionable) {
+                Button(
+                    onClick = { onSubmitTask(instance.id) },
+                    enabled = !isBusy,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp),
+                ) {
+                    Text(stringResource(Res.string.child_home_task_submit))
+                }
+            } else if (instance.status == TaskInstanceStatus.Submitted) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.child_home_task_waiting),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            if (instance.status == TaskInstanceStatus.Submitted) {
+                Text(
+                    text = stringResource(Res.string.child_home_task_money_after_approval),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskStatusPill(status: TaskInstanceStatus) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = RoundedCornerShape(18.dp),
+    ) {
+        Text(
+            text = taskStatusLabel(status),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        )
     }
 }
 
@@ -398,6 +605,21 @@ private fun LedgerTransactionRow(transaction: LedgerTransaction, currencyCode: S
 }
 
 @Composable
+private fun taskSubmissionErrorText(error: ChildTaskSubmissionError): String = when (error) {
+    ChildTaskSubmissionError.MissingPhotoEvidence -> stringResource(Res.string.child_home_task_error_missing_photo)
+    ChildTaskSubmissionError.SubmitFailed -> stringResource(Res.string.child_home_task_error_submit)
+}
+
+@Composable
+private fun taskStatusLabel(status: TaskInstanceStatus): String = when (status) {
+    TaskInstanceStatus.Pending -> stringResource(Res.string.child_home_task_status_pending)
+    TaskInstanceStatus.Submitted -> stringResource(Res.string.child_home_task_status_submitted)
+    TaskInstanceStatus.Approved -> stringResource(Res.string.child_home_task_status_approved)
+    TaskInstanceStatus.Rejected -> stringResource(Res.string.child_home_task_status_rejected)
+    TaskInstanceStatus.Expired -> stringResource(Res.string.child_home_task_status_expired)
+}
+
+@Composable
 private fun cashOutStatusLabel(status: SettlementStatus): String = when (status) {
     SettlementStatus.Requested -> stringResource(Res.string.cash_out_status_requested)
     SettlementStatus.PaidByParent -> stringResource(Res.string.cash_out_status_paid_by_parent)
@@ -479,10 +701,45 @@ fun PreviewChildHomeContent() {
                         paidByParentAt = Clock.System.now(),
                     ),
                 ),
+                taskInstances = listOf(
+                    TaskInstance(
+                        id = TaskInstanceId("task-1"),
+                        familyId = FamilyId("family-1"),
+                        taskAssignmentId = TaskAssignmentId("assignment-1"),
+                        taskTemplateId = TaskTemplateId("template-1"),
+                        childProfileId = ChildProfileId("child-1"),
+                        title = "Poner la mesa",
+                        rewardCents = MoneyCents(50),
+                        requiresPhoto = true,
+                        status = TaskInstanceStatus.Pending,
+                        dueAt = Clock.System.now(),
+                        periodKey = "20260729",
+                        createdAt = Clock.System.now(),
+                        updatedAt = Clock.System.now(),
+                    ),
+                    TaskInstance(
+                        id = TaskInstanceId("task-2"),
+                        familyId = FamilyId("family-1"),
+                        taskAssignmentId = TaskAssignmentId("assignment-1"),
+                        taskTemplateId = TaskTemplateId("template-1"),
+                        childProfileId = ChildProfileId("child-1"),
+                        title = "Leer 20 minutos",
+                        rewardCents = MoneyCents(75),
+                        requiresPhoto = false,
+                        status = TaskInstanceStatus.Submitted,
+                        dueAt = Clock.System.now(),
+                        periodKey = "20260729",
+                        createdAt = Clock.System.now(),
+                        updatedAt = Clock.System.now(),
+                        submittedAt = Clock.System.now(),
+                    ),
+                ),
                 syncNotice = null,
             ),
             onRequestCashOut = {},
             onConfirmSettlement = {},
+            onAttachPhotoEvidence = {},
+            onSubmitTask = {},
             onProtectedAction = {},
         )
     }

@@ -173,12 +173,17 @@ data class TaskInstance(
     val submittedAt: Instant? = null,
     val reviewedAt: Instant? = null,
     val expiredAt: Instant? = null,
+    val photoEvidenceUri: String? = null,
 ) {
     init {
         validateTaskInstanceFields(
             title = title,
             rewardCents = rewardCents,
             periodKey = periodKey,
+            requiresPhoto = requiresPhoto,
+            status = status,
+            submittedAt = submittedAt,
+            photoEvidenceUri = photoEvidenceUri,
         )
     }
 }
@@ -202,10 +207,50 @@ private fun validateTaskTemplateFields(
     }
 }
 
-private fun validateTaskInstanceFields(title: String, rewardCents: MoneyCents, periodKey: String) {
+fun TaskInstance.submittedForReview(
+    childProfileId: ChildProfileId,
+    photoEvidenceUri: String?,
+    submittedAt: Instant,
+): TaskInstance {
+    require(this.childProfileId == childProfileId) { "Task instance belongs to a different child." }
+    require(status == TaskInstanceStatus.Pending || status == TaskInstanceStatus.Rejected) {
+        "Only pending or rejected task instances can be submitted."
+    }
+    val normalizedPhotoEvidenceUri = photoEvidenceUri?.trim()?.takeIf { it.isNotBlank() }
+    require(!requiresPhoto || normalizedPhotoEvidenceUri != null) {
+        "Photo evidence is required before submitting this task."
+    }
+    return copy(
+        status = TaskInstanceStatus.Submitted,
+        updatedAt = submittedAt,
+        submittedAt = submittedAt,
+        reviewedAt = null,
+        expiredAt = null,
+        photoEvidenceUri = normalizedPhotoEvidenceUri,
+    )
+}
+
+private fun validateTaskInstanceFields(
+    title: String,
+    rewardCents: MoneyCents,
+    periodKey: String,
+    requiresPhoto: Boolean,
+    status: TaskInstanceStatus,
+    submittedAt: Instant?,
+    photoEvidenceUri: String?,
+) {
     require(title.isNotBlank()) { "Task instance title cannot be blank." }
     require(rewardCents.value > 0) { "Task instance reward must be positive." }
     require(periodKey.isNotBlank()) { "Task instance period key cannot be blank." }
+    require(photoEvidenceUri == null || photoEvidenceUri.isNotBlank()) {
+        "Task instance photo evidence cannot be blank."
+    }
+    if (status == TaskInstanceStatus.Submitted) {
+        require(submittedAt != null) { "Submitted task instance must include submittedAt." }
+        require(!requiresPhoto || photoEvidenceUri != null) {
+            "Photo evidence is required before submitting this task."
+        }
+    }
 }
 
 private fun validateTaskAssignmentFields(
