@@ -112,6 +112,40 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
+    function taskAssignmentWriteIsValid(familyId) {
+      return request.resource.data.keys().hasAll([
+          "familyId",
+          "taskTemplateId",
+          "childProfileIds",
+          "recurrence",
+          "dueAt",
+          "active",
+          "createdAt",
+          "updatedAt",
+        ])
+        && requestMatchesFamily(familyId)
+        && request.resource.data.taskTemplateId is string
+        && request.resource.data.taskTemplateId.size() > 0
+        && request.resource.data.childProfileIds is list
+        && request.resource.data.childProfileIds.size() > 0
+        && request.resource.data.recurrence in ["Once", "Daily", "Weekly", "Custom"]
+        && request.resource.data.dueAt is timestamp
+        && (
+          (
+            request.resource.data.recurrence == "Custom"
+            && request.resource.data.customIntervalDays is int
+            && request.resource.data.customIntervalDays >= 1
+          )
+          || (
+            request.resource.data.recurrence != "Custom"
+            && nullOrAbsent("customIntervalDays")
+          )
+        )
+        && request.resource.data.active is bool
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
     function childSettlementRequestIsValid(familyId) {
       return isChild(familyId)
         && request.resource.data.childProfileId == authChildProfileId()
@@ -161,6 +195,13 @@ service cloud.firestore {
         allow read: if isFamilyMember(familyId);
         allow create: if isParent(familyId) && taskTemplateWriteIsValid(familyId);
         allow update: if isParent(familyId) && requestKeepsFamilyId() && taskTemplateWriteIsValid(familyId);
+        allow delete: if false;
+      }
+
+      match /taskAssignments/{assignmentId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isParent(familyId) && taskAssignmentWriteIsValid(familyId);
+        allow update: if isParent(familyId) && requestKeepsFamilyId() && taskAssignmentWriteIsValid(familyId);
         allow delete: if false;
       }
 

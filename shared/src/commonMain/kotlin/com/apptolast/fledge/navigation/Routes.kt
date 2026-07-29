@@ -24,6 +24,9 @@ data object ChildProfileSetupRoute
 data object ParentHomeRoute
 
 @Serializable
+data object TaskAssignmentRoute
+
+@Serializable
 data class AllowanceRuleRoute(val childProfileId: String)
 
 @Serializable

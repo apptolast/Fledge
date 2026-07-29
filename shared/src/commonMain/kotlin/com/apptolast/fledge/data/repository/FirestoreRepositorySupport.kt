@@ -28,6 +28,9 @@ import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
+import com.apptolast.fledge.domain.model.TaskAssignment
+import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskRecurrence
 import com.apptolast.fledge.domain.model.TaskTemplate
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TaskTemplateSource
@@ -87,6 +90,8 @@ internal fun Iterable<RepositorySyncStatus>.aggregateRepositorySyncStatus(): Rep
 internal fun Throwable.toRepositorySyncError(): RepositorySyncStatus.Error = RepositorySyncStatus.Error(message)
 
 internal fun DocumentSnapshot.requiredString(field: String): String = get(field)
+
+internal fun DocumentSnapshot.requiredStringList(field: String): List<String> = get(field)
 
 internal fun DocumentSnapshot.optionalString(field: String): String? =
     if (contains(field)) get<String?>(field) else null
@@ -286,6 +291,31 @@ internal fun DocumentSnapshot.toTaskTemplate(): TaskTemplate = TaskTemplate(
     sourceChildProfileId = optionalString("sourceChildProfileId")?.let(::ChildProfileId),
     sourceKey = optionalString("sourceKey"),
     archived = optionalBoolean("archived") ?: false,
+    createdAt = requiredTimestamp("createdAt"),
+    updatedAt = requiredTimestamp("updatedAt"),
+)
+
+internal fun TaskAssignment.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "taskTemplateId" to taskTemplateId.value,
+    "childProfileIds" to childProfileIds.map { it.value },
+    "recurrence" to recurrence.name,
+    "dueAt" to dueAt.toFirestoreTimestamp(),
+    "customIntervalDays" to customIntervalDays,
+    "active" to active,
+    "createdAt" to createdAt.toFirestoreTimestamp(),
+    "updatedAt" to updatedAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toTaskAssignment(): TaskAssignment = TaskAssignment(
+    id = TaskAssignmentId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    taskTemplateId = TaskTemplateId(requiredString("taskTemplateId")),
+    childProfileIds = requiredStringList("childProfileIds").map(::ChildProfileId),
+    recurrence = TaskRecurrence.valueOf(requiredString("recurrence")),
+    dueAt = requiredTimestamp("dueAt"),
+    customIntervalDays = optionalInt("customIntervalDays"),
+    active = optionalBoolean("active") ?: true,
     createdAt = requiredTimestamp("createdAt"),
     updatedAt = requiredTimestamp("updatedAt"),
 )

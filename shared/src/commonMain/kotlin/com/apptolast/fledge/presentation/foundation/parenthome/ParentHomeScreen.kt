@@ -1,16 +1,20 @@
 package com.apptolast.fledge.presentation.foundation.parenthome
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -21,7 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.BalanceCents
@@ -51,14 +57,16 @@ import fledge.shared.generated.resources.operation_error_sync
 import fledge.shared.generated.resources.parent_home_add_child
 import fledge.shared.generated.resources.parent_home_adjustment
 import fledge.shared.generated.resources.parent_home_allowance
-import fledge.shared.generated.resources.parent_home_balance
-import fledge.shared.generated.resources.parent_home_balance_zero
 import fledge.shared.generated.resources.parent_home_children
+import fledge.shared.generated.resources.parent_home_create_task
 import fledge.shared.generated.resources.parent_home_gate
 import fledge.shared.generated.resources.parent_home_gate_setup
 import fledge.shared.generated.resources.parent_home_goal_balance
 import fledge.shared.generated.resources.parent_home_main_balance
 import fledge.shared.generated.resources.parent_home_pairing
+import fledge.shared.generated.resources.parent_home_pending_count
+import fledge.shared.generated.resources.parent_home_pending_liquidation
+import fledge.shared.generated.resources.parent_home_pending_total
 import fledge.shared.generated.resources.parent_home_settlements_empty
 import fledge.shared.generated.resources.parent_home_settlements_title
 import fledge.shared.generated.resources.parent_home_setup
@@ -72,6 +80,7 @@ fun ParentHomeScreen(
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
+    onCreateTask: () -> Unit,
     onRequireParentalGate: () -> Unit,
     viewModel: ParentHomeViewModel = koinViewModel(),
 ) {
@@ -83,6 +92,7 @@ fun ParentHomeScreen(
         onPairChild = onPairChild,
         onConfigureAllowance = onConfigureAllowance,
         onAdjustChild = onAdjustChild,
+        onCreateTask = onCreateTask,
         onMarkSettlementPaid = { settlementId ->
             scope.launch {
                 viewModel.markSettlementPaid(settlementId)
@@ -104,6 +114,7 @@ fun ParentHomeContent(
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
+    onCreateTask: () -> Unit,
     onMarkSettlementPaid: (SettlementId) -> Unit,
     onRequireParentalGate: (FoundationAction) -> Unit,
 ) {
@@ -118,9 +129,10 @@ fun ParentHomeContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                Text(
-                    text = stringResource(Res.string.parent_home_title),
-                    style = MaterialTheme.typography.headlineMedium,
+                ParentHomeHeader(
+                    title = state.familyName.ifBlank { stringResource(Res.string.parent_home_title) },
+                    pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
+                    currencyCode = state.currencyCode,
                 )
             }
             state.syncNotice?.let { notice ->
@@ -138,7 +150,23 @@ fun ParentHomeContent(
                 }
             }
             item {
-                SummaryCard()
+                SummaryCard(
+                    pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
+                    pendingCount = state.pendingSettlements.size,
+                    currencyCode = state.currencyCode,
+                )
+            }
+            item {
+                Button(
+                    onClick = onCreateTask,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) {
+                    Text(stringResource(Res.string.parent_home_create_task))
+                }
             }
             item {
                 Text(
@@ -214,20 +242,49 @@ fun ParentHomeContent(
 }
 
 @Composable
-private fun SummaryCard() {
+private fun ParentHomeHeader(title: String, pendingTotal: Long, currencyCode: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Text(
+            text = stringResource(
+                Res.string.parent_home_pending_total,
+                formatCents(pendingTotal, currencyCode),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SummaryCard(pendingTotal: Long, pendingCount: Int, currencyCode: String) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(
-                text = stringResource(Res.string.parent_home_balance),
-                style = MaterialTheme.typography.labelLarge,
+                text = stringResource(Res.string.parent_home_pending_liquidation),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(Res.string.parent_home_balance_zero),
-                style = MaterialTheme.typography.headlineSmall,
+                text = formatCents(pendingTotal, currencyCode),
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(Res.string.parent_home_pending_count, pendingCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -243,33 +300,58 @@ private fun ChildProfileRow(
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column {
-                Text(text = child.displayName, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "${child.avatarKey} - ${child.birthYear}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = child.displayName.firstOrNull()?.uppercaseChar()?.toString().orEmpty(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSecondary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = child.displayName, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(
+                            Res.string.parent_home_goal_balance,
+                            formatCents(goalBalance.value, currencyCode),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Text(
                     text = stringResource(
                         Res.string.parent_home_main_balance,
                         formatCents(mainBalance.value, currencyCode),
                     ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = stringResource(
-                        Res.string.parent_home_goal_balance,
-                        formatCents(goalBalance.value, currencyCode),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
             Row(
@@ -278,20 +360,29 @@ private fun ChildProfileRow(
             ) {
                 OutlinedButton(
                     onClick = { onPairChild(child.id) },
-                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(Res.string.parent_home_pairing))
                 }
                 Button(
                     onClick = { onConfigureAllowance(child.id) },
-                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(Res.string.parent_home_allowance))
                 }
             }
             Button(
                 onClick = { onAdjustChild(child.id) },
-                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
             ) {
                 Text(stringResource(Res.string.parent_home_adjustment))
             }
@@ -308,7 +399,12 @@ private fun ParentSettlementRow(
     onMarkSettlementPaid: (SettlementId) -> Unit,
     isBusy: Boolean,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -375,7 +471,12 @@ private fun formatCents(value: Long, currencyCode: String): String {
 
 @Composable
 private fun SetupActionRow(action: SetupAction, onRequireParentalGate: (FoundationAction) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -403,6 +504,7 @@ fun PreviewParentHomeContent() {
     FledgeTheme {
         ParentHomeContent(
             state = ParentHomeUiState(
+                familyName = "Familia Garcia",
                 children = listOf(
                     ChildProfile(
                         id = ChildProfileId("child-1"),
@@ -427,6 +529,7 @@ fun PreviewParentHomeContent() {
             onPairChild = {},
             onConfigureAllowance = {},
             onAdjustChild = {},
+            onCreateTask = {},
             onMarkSettlementPaid = {},
             onRequireParentalGate = {},
         )

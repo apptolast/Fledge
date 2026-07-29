@@ -13,6 +13,9 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.TaskAssignment
+import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskRecurrence
 import com.apptolast.fledge.domain.model.TaskTemplate
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TaskTemplateSource
@@ -151,6 +154,37 @@ class FirestoreRepositorySupportTest {
         assertEquals("child-1", data["sourceChildProfileId"])
         assertEquals("set-table", data["sourceKey"])
         assertEquals(false, data["archived"])
+        assertIs<Timestamp>(data["createdAt"])
+        assertIs<Timestamp>(data["updatedAt"])
+    }
+
+    @Test
+    fun `AC-05 task assignment document matches assignment schema`() {
+        // Given
+        val assignment = TaskAssignment(
+            id = TaskAssignmentId("assignment-1"),
+            familyId = FamilyId("family-1"),
+            taskTemplateId = TaskTemplateId("template-1"),
+            childProfileIds = listOf(ChildProfileId("child-1"), ChildProfileId("child-2")),
+            recurrence = TaskRecurrence.Custom,
+            dueAt = Instant.fromEpochSeconds(1_700_200_000),
+            customIntervalDays = 3,
+            active = true,
+            createdAt = Instant.fromEpochSeconds(1_700_100_000),
+            updatedAt = Instant.fromEpochSeconds(1_700_100_000),
+        )
+
+        // When
+        val data = assignment.toFirestoreMap()
+
+        // Then
+        assertEquals("family-1", data["familyId"])
+        assertEquals("template-1", data["taskTemplateId"])
+        assertEquals(listOf("child-1", "child-2"), data["childProfileIds"])
+        assertEquals("Custom", data["recurrence"])
+        assertIs<Timestamp>(data["dueAt"])
+        assertEquals(3, data["customIntervalDays"])
+        assertEquals(true, data["active"])
         assertIs<Timestamp>(data["createdAt"])
         assertIs<Timestamp>(data["updatedAt"])
     }
