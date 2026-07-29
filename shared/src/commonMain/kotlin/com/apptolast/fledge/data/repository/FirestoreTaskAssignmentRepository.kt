@@ -7,8 +7,10 @@ import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.TaskAssignment
 import com.apptolast.fledge.domain.model.TaskAssignmentDraft
 import com.apptolast.fledge.domain.model.TaskAssignmentId
+import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.repository.TaskAssignmentRepository
+import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,12 +22,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
 class FirestoreTaskAssignmentRepository(
     private val firestoreProvider: FirestoreProvider,
     private val authProvider: AuthProvider,
+    private val taskTemplateRepository: TaskTemplateRepository,
 ) : TaskAssignmentRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -58,12 +62,23 @@ class FirestoreTaskAssignmentRepository(
                     .catch { error ->
                         mutableSyncStatus.value = error.toRepositorySyncError()
                     }
-                    .collect { snapshot ->
+                    .combine(taskTemplateRepository.templates) { snapshot, templates ->
                         mutableSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
-                        mutableAssignments.value = snapshot.documents
+                        val templatesById = templates
+                            .filter { it.familyId == familyId }
+                            .associateBy { it.id }
+                        snapshot.documents
                             .filter { it.exists }
-                            .mapNotNull { runCatching { it.toTaskAssignment() }.getOrNull() }
+                            .mapNotNull { document ->
+                                runCatching {
+                                    val templateId = TaskTemplateId(document.requiredString("taskTemplateId"))
+                                    document.toTaskAssignment(templateFallback = templatesById[templateId])
+                                }.getOrNull()
+                            }
                             .sortedForAssignments()
+                    }
+                    .collect { assignments ->
+                        mutableAssignments.value = assignments
                     }
             },
         )
@@ -107,6 +122,9 @@ class FirestoreTaskAssignmentRepository(
             id = id,
             familyId = familyId,
             taskTemplateId = taskTemplateId,
+            title = title.trim(),
+            rewardCents = rewardCents,
+            requiresPhoto = requiresPhoto,
             childProfileIds = childProfileIds,
             recurrence = recurrence,
             dueAt = dueAt,

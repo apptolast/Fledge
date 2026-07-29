@@ -94,6 +94,9 @@ data class TaskAssignment(
     val id: TaskAssignmentId,
     val familyId: FamilyId,
     val taskTemplateId: TaskTemplateId,
+    val title: String,
+    val rewardCents: MoneyCents,
+    val requiresPhoto: Boolean,
     val childProfileIds: List<ChildProfileId>,
     val recurrence: TaskRecurrence,
     val dueAt: Instant,
@@ -104,6 +107,8 @@ data class TaskAssignment(
 ) {
     init {
         validateTaskAssignmentFields(
+            title = title,
+            rewardCents = rewardCents,
             childProfileIds = childProfileIds,
             recurrence = recurrence,
             customIntervalDays = customIntervalDays,
@@ -114,6 +119,9 @@ data class TaskAssignment(
 data class TaskAssignmentDraft(
     val familyId: FamilyId,
     val taskTemplateId: TaskTemplateId,
+    val title: String,
+    val rewardCents: MoneyCents,
+    val requiresPhoto: Boolean,
     val childProfileIds: List<ChildProfileId>,
     val recurrence: TaskRecurrence,
     val dueAt: Instant,
@@ -121,6 +129,8 @@ data class TaskAssignmentDraft(
 ) {
     init {
         validateTaskAssignmentFields(
+            title = title,
+            rewardCents = rewardCents,
             childProfileIds = childProfileIds,
             recurrence = recurrence,
             customIntervalDays = customIntervalDays,
@@ -148,10 +158,14 @@ private fun validateTaskTemplateFields(
 }
 
 private fun validateTaskAssignmentFields(
+    title: String,
+    rewardCents: MoneyCents,
     childProfileIds: List<ChildProfileId>,
     recurrence: TaskRecurrence,
     customIntervalDays: Int?,
 ) {
+    require(title.isNotBlank()) { "Task assignment title cannot be blank." }
+    require(rewardCents.value > 0) { "Task assignment reward must be positive." }
     require(childProfileIds.isNotEmpty()) { "Task assignment must target at least one child." }
     require(childProfileIds.distinct().size == childProfileIds.size) {
         "Task assignment cannot repeat the same child."

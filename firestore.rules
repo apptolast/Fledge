@@ -51,6 +51,11 @@ service cloud.firestore {
       return !request.resource.data.keys().hasAny([field]) || request.resource.data[field] == null;
     }
 
+    function hasNonBlankText(field) {
+      return request.resource.data[field] is string
+        && request.resource.data[field].matches(".*\\S.*");
+    }
+
     function settlementKeys() {
       return [
         "familyId",
@@ -98,12 +103,9 @@ service cloud.firestore {
           "updatedAt",
         ])
         && requestMatchesFamily(familyId)
-        && request.resource.data.title is string
-        && request.resource.data.title.size() > 0
-        && request.resource.data.description is string
-        && request.resource.data.description.size() > 0
-        && request.resource.data.iconKey is string
-        && request.resource.data.iconKey.size() > 0
+        && hasNonBlankText("title")
+        && hasNonBlankText("description")
+        && hasNonBlankText("iconKey")
         && request.resource.data.defaultValueCents is int
         && request.resource.data.defaultValueCents > 0
         && request.resource.data.requiresPhoto is bool
@@ -116,6 +118,9 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll([
           "familyId",
           "taskTemplateId",
+          "title",
+          "rewardCents",
+          "requiresPhoto",
           "childProfileIds",
           "recurrence",
           "dueAt",
@@ -126,6 +131,10 @@ service cloud.firestore {
         && requestMatchesFamily(familyId)
         && request.resource.data.taskTemplateId is string
         && request.resource.data.taskTemplateId.size() > 0
+        && hasNonBlankText("title")
+        && request.resource.data.rewardCents is int
+        && request.resource.data.rewardCents > 0
+        && request.resource.data.requiresPhoto is bool
         && request.resource.data.childProfileIds is list
         && request.resource.data.childProfileIds.size() > 0
         && request.resource.data.recurrence in ["Once", "Daily", "Weekly", "Custom"]

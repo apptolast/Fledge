@@ -99,6 +99,8 @@
     <string name="task_assignment_back">Volver</string>
     <string name="task_assignment_error_missing_family">Primero crea una familia.</string>
     <string name="task_assignment_error_missing_template">Elige una tarea sugerida.</string>
+    <string name="task_assignment_error_missing_title">Anade un titulo para la tarea.</string>
+    <string name="task_assignment_error_invalid_reward">Introduce un importe positivo en euros y centimos.</string>
     <string name="task_assignment_error_missing_children">Selecciona al menos un hijo.</string>
     <string name="task_assignment_error_custom_interval">Introduce un intervalo personalizado valido.</string>
     <string name="cash_out_title">Solicitar retirada</string>

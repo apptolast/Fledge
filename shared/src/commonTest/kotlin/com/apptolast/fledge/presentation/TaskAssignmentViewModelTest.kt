@@ -45,6 +45,9 @@ class TaskAssignmentViewModelTest {
         // When
         viewModel.load()
         viewModel.selectTemplate(template.id)
+        viewModel.updateTitle("Poner la mesa grande")
+        viewModel.updateReward("0,75")
+        viewModel.setRequiresPhoto(true)
         viewModel.toggleChild(lucas.id)
         viewModel.toggleChild(mia.id)
         viewModel.selectRecurrence(TaskRecurrence.Daily)
@@ -54,6 +57,9 @@ class TaskAssignmentViewModelTest {
         // Then
         val assignment = checkNotNull(viewModel.uiState.value.savedAssignment)
         assertEquals(template.id, assignment.taskTemplateId)
+        assertEquals("Poner la mesa grande", assignment.title)
+        assertEquals(MoneyCents(75), assignment.rewardCents)
+        assertEquals(true, assignment.requiresPhoto)
         assertEquals(listOf(lucas.id, mia.id), assignment.childProfileIds)
         assertEquals(TaskRecurrence.Daily, assignment.recurrence)
         assertEquals(Instant.fromEpochSeconds(1_700_200_000), assignment.dueAt)

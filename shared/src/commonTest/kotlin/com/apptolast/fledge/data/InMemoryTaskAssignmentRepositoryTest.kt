@@ -3,6 +3,7 @@ package com.apptolast.fledge.data
 import com.apptolast.fledge.data.repository.InMemoryTaskAssignmentRepository
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FamilyId
+import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.TaskAssignmentDraft
 import com.apptolast.fledge.domain.model.TaskRecurrence
 import com.apptolast.fledge.domain.model.TaskTemplateId
@@ -24,6 +25,9 @@ class InMemoryTaskAssignmentRepositoryTest {
             TaskAssignmentDraft(
                 familyId = familyId,
                 taskTemplateId = TaskTemplateId("template-1"),
+                title = "Poner la mesa",
+                rewardCents = MoneyCents(50),
+                requiresPhoto = false,
                 childProfileIds = listOf(ChildProfileId("child-1"), ChildProfileId("child-2")),
                 recurrence = TaskRecurrence.Weekly,
                 dueAt = Instant.fromEpochSeconds(1_700_200_000),
@@ -46,6 +50,9 @@ class InMemoryTaskAssignmentRepositoryTest {
             TaskAssignmentDraft(
                 familyId = familyId,
                 taskTemplateId = TaskTemplateId("template-1"),
+                title = "Poner la mesa",
+                rewardCents = MoneyCents(50),
+                requiresPhoto = false,
                 childProfileIds = listOf(childId),
                 recurrence = TaskRecurrence.Once,
                 dueAt = Instant.fromEpochSeconds(1_700_200_000),
@@ -56,6 +63,9 @@ class InMemoryTaskAssignmentRepositoryTest {
             TaskAssignmentDraft(
                 familyId = familyId,
                 taskTemplateId = TaskTemplateId("template-2"),
+                title = "Hacer la cama",
+                rewardCents = MoneyCents(75),
+                requiresPhoto = true,
                 childProfileIds = listOf(ChildProfileId("child-2")),
                 recurrence = TaskRecurrence.Daily,
                 dueAt = Instant.fromEpochSeconds(1_700_300_000),

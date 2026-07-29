@@ -22,6 +22,7 @@ instancias ejecutables de tarea: eso queda en `FLE-29`.
 
 - Modelo `TaskAssignment` con:
   - `taskTemplateId`
+  - snapshot editable: `title`, `rewardCents` y `requiresPhoto`
   - uno o varios `childProfileIds`
   - `recurrence` con `Once`, `Daily`, `Weekly` y `Custom`
   - `dueAt`
@@ -34,6 +35,8 @@ instancias ejecutables de tarea: eso queda en `FLE-29`.
 - Navegacion desde zona padre hacia crear tarea.
 - Usar una tarea sugerida o existente del catalogo para precargar titulo,
   descripcion, icono, valor y `requiresPhoto`.
+- Permitir editar titulo, importe y requisito de foto antes de guardar la
+  asignacion.
 - Soportar seleccion de uno o varios hijos en el formulario.
 - Tests SDD para dominio, repositorio, mappers, Koin, ViewModel y navegacion.
 
@@ -84,6 +87,7 @@ Given una plantilla y una familia
 When se crea una asignacion con una recurrencia soportada, `dueAt`, hijos y
 `active`
 Then el modelo conserva esos campos
+And conserva titulo, importe y requisito de foto editados desde la plantilla
 And rechaza una lista vacia de hijos
 And rechaza custom sin intervalo valido.
 
@@ -113,7 +117,8 @@ Given una asignacion persistida
 When se serializa a Firestore
 Then vive bajo `families/{familyId}/taskAssignments/{assignmentId}`
 And contiene `familyId`, `taskTemplateId`, `childProfileIds`, `recurrence`,
-`dueAt`, `active`, `createdAt` y `updatedAt`
+`title`, `rewardCents`, `requiresPhoto`, `dueAt`, `active`, `createdAt` y
+`updatedAt`
 And las reglas permiten lectura a miembros de familia y escritura solo al padre.
 
 ### AC-06 - UI Create Task alineada con Pencil
@@ -122,6 +127,7 @@ Given el padre abre el flujo de crear tarea
 When hay plantillas e hijos disponibles
 Then la pantalla muestra titulo, valor, repeticion, asignado a, foto, guardar y
 usar tarea sugerida siguiendo `Screen / Crear tarea`
+And titulo, valor y foto son editables antes de guardar
 And permite seleccionar uno o varios hijos.
 
 ### AC-07 - Koin y navegacion
@@ -139,7 +145,7 @@ Feature: Asignacion de tareas
   Scenario: [AC-01] TaskAssignment conserva los campos requeridos
     Given una familia "family-1" y una plantilla "template-1"
     When se crea una asignacion diaria para "child-1"
-    Then familia, plantilla, hijos, recurrencia, dueAt y active quedan almacenados
+    Then familia, plantilla, titulo, importe, foto, hijos, recurrencia, dueAt y active quedan almacenados
 
   Scenario: [AC-01] TaskAssignment rechaza datos invalidos
     Given una familia "family-1"
@@ -169,7 +175,7 @@ Feature: Asignacion de tareas
   Scenario: [AC-06] El formulario crea asignacion desde una plantilla sugerida
     Given hay una familia con hijos y plantillas sugeridas
     When el padre abre crear tarea y guarda con dos hijos
-    Then se crea una asignacion con los datos precargados de la plantilla
+    Then se crea una asignacion con los datos editados desde la plantilla
 
   Scenario: [AC-07] El grafo Koin resuelve asignaciones
     Given el grafo de produccion con bindings de plataforma fake

@@ -165,6 +165,9 @@ class FirestoreRepositorySupportTest {
             id = TaskAssignmentId("assignment-1"),
             familyId = FamilyId("family-1"),
             taskTemplateId = TaskTemplateId("template-1"),
+            title = "Poner la mesa",
+            rewardCents = MoneyCents(50),
+            requiresPhoto = true,
             childProfileIds = listOf(ChildProfileId("child-1"), ChildProfileId("child-2")),
             recurrence = TaskRecurrence.Custom,
             dueAt = Instant.fromEpochSeconds(1_700_200_000),
@@ -180,6 +183,9 @@ class FirestoreRepositorySupportTest {
         // Then
         assertEquals("family-1", data["familyId"])
         assertEquals("template-1", data["taskTemplateId"])
+        assertEquals("Poner la mesa", data["title"])
+        assertEquals(50L, data["rewardCents"])
+        assertEquals(true, data["requiresPhoto"])
         assertEquals(listOf("child-1", "child-2"), data["childProfileIds"])
         assertEquals("Custom", data["recurrence"])
         assertIs<Timestamp>(data["dueAt"])

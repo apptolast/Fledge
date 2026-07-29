@@ -50,7 +50,7 @@ val dataModule = module {
     single { FirestoreFamilyFoundationRepository(get(), get()) } bind FamilyFoundationRepository::class
     single { FirestoreLedgerRepository(get(), get()) } bind LedgerRepository::class
     single { FirestoreMoneyFlowRepository(get(), get()) } bind MoneyFlowRepository::class
-    single { FirestoreTaskAssignmentRepository(get(), get()) } bind TaskAssignmentRepository::class
+    single { FirestoreTaskAssignmentRepository(get(), get(), get()) } bind TaskAssignmentRepository::class
     single { FirestoreTaskTemplateRepository(get(), get()) } bind TaskTemplateRepository::class
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }

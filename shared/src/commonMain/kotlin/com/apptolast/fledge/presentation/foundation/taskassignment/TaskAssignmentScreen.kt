@@ -55,15 +55,16 @@ import fledge.shared.generated.resources.task_assignment_custom_days
 import fledge.shared.generated.resources.task_assignment_custom_days_label
 import fledge.shared.generated.resources.task_assignment_due_label
 import fledge.shared.generated.resources.task_assignment_error_custom_interval
+import fledge.shared.generated.resources.task_assignment_error_invalid_reward
 import fledge.shared.generated.resources.task_assignment_error_missing_children
 import fledge.shared.generated.resources.task_assignment_error_missing_family
 import fledge.shared.generated.resources.task_assignment_error_missing_template
+import fledge.shared.generated.resources.task_assignment_error_missing_title
 import fledge.shared.generated.resources.task_assignment_field_photo
 import fledge.shared.generated.resources.task_assignment_field_recurrence
 import fledge.shared.generated.resources.task_assignment_field_title
 import fledge.shared.generated.resources.task_assignment_field_value
 import fledge.shared.generated.resources.task_assignment_no_photo
-import fledge.shared.generated.resources.task_assignment_no_templates
 import fledge.shared.generated.resources.task_assignment_photo_required
 import fledge.shared.generated.resources.task_assignment_recurrence_custom
 import fledge.shared.generated.resources.task_assignment_recurrence_daily
@@ -90,6 +91,9 @@ fun TaskAssignmentScreen(
         state = state,
         onBack = onBack,
         onUseSuggestion = viewModel::useNextSuggestedTemplate,
+        onTitleChanged = viewModel::updateTitle,
+        onRewardChanged = viewModel::updateReward,
+        onRequiresPhotoChanged = viewModel::setRequiresPhoto,
         onChildToggled = viewModel::toggleChild,
         onRecurrenceSelected = viewModel::selectRecurrence,
         onCustomIntervalChanged = viewModel::updateCustomIntervalDays,
@@ -106,6 +110,9 @@ fun TaskAssignmentContent(
     state: TaskAssignmentUiState,
     onBack: () -> Unit,
     onUseSuggestion: () -> Unit,
+    onTitleChanged: (String) -> Unit,
+    onRewardChanged: (String) -> Unit,
+    onRequiresPhotoChanged: (Boolean) -> Unit,
     onChildToggled: (ChildProfileId) -> Unit,
     onRecurrenceSelected: (TaskRecurrence) -> Unit,
     onCustomIntervalChanged: (String) -> Unit,
@@ -142,6 +149,9 @@ fun TaskAssignmentContent(
             item {
                 TaskFormCard(
                     state = state,
+                    onTitleChanged = onTitleChanged,
+                    onRewardChanged = onRewardChanged,
+                    onRequiresPhotoChanged = onRequiresPhotoChanged,
                     onChildToggled = onChildToggled,
                     onRecurrenceSelected = onRecurrenceSelected,
                     onCustomIntervalChanged = onCustomIntervalChanged,
@@ -208,6 +218,9 @@ fun TaskAssignmentContent(
 @Composable
 private fun TaskFormCard(
     state: TaskAssignmentUiState,
+    onTitleChanged: (String) -> Unit,
+    onRewardChanged: (String) -> Unit,
+    onRequiresPhotoChanged: (Boolean) -> Unit,
     onChildToggled: (ChildProfileId) -> Unit,
     onRecurrenceSelected: (TaskRecurrence) -> Unit,
     onCustomIntervalChanged: (String) -> Unit,
@@ -224,16 +237,19 @@ private fun TaskFormCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            TaskFieldBlock(
+            EditableTaskField(
                 label = stringResource(Res.string.task_assignment_field_title),
-                value = state.selectedTemplate?.title ?: stringResource(Res.string.task_assignment_no_templates),
+                value = state.titleInput,
+                onValueChange = onTitleChanged,
+                isError = state.error == TaskAssignmentError.MissingTitle,
             )
-            TaskFieldBlock(
+            EditableTaskField(
                 label = stringResource(Res.string.task_assignment_field_value),
-                value = formatTaskCents(
-                    value = state.selectedTemplate?.defaultValueCents?.value ?: 0,
-                    currencyCode = state.family?.currency?.value ?: "EUR",
-                ),
+                value = state.rewardInput,
+                onValueChange = onRewardChanged,
+                isError = state.error == TaskAssignmentError.InvalidReward,
+                suffix = state.family?.currency?.value ?: "EUR",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             )
             TaskFieldBlock(
                 label = stringResource(Res.string.task_assignment_field_recurrence),
@@ -264,16 +280,35 @@ private fun TaskFormCard(
                 selectedChildProfileIds = state.selectedChildProfileIds,
                 onChildToggled = onChildToggled,
             )
-            TaskFieldBlock(
+            PhotoRequirementSelector(
                 label = stringResource(Res.string.task_assignment_field_photo),
-                value = if (state.selectedTemplate?.requiresPhoto == true) {
-                    stringResource(Res.string.task_assignment_photo_required)
-                } else {
-                    stringResource(Res.string.task_assignment_no_photo)
-                },
+                requiresPhoto = state.requiresPhoto,
+                onRequiresPhotoChanged = onRequiresPhotoChanged,
             )
         }
     }
+}
+
+@Composable
+private fun EditableTaskField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isError: Boolean,
+    suffix: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        suffix = suffix?.let { { Text(it) } },
+        isError = isError,
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        keyboardOptions = keyboardOptions,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -305,6 +340,43 @@ private fun TaskFieldBlock(label: String, value: String) {
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PhotoRequirementSelector(
+    label: String,
+    requiresPhoto: Boolean,
+    onRequiresPhotoChanged: (Boolean) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = !requiresPhoto,
+                onClick = { onRequiresPhotoChanged(false) },
+                label = { Text(stringResource(Res.string.task_assignment_no_photo)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+            )
+            FilterChip(
+                selected = requiresPhoto,
+                onClick = { onRequiresPhotoChanged(true) },
+                label = { Text(stringResource(Res.string.task_assignment_photo_required)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+            )
         }
     }
 }
@@ -449,16 +521,10 @@ private fun recurrenceLabel(recurrence: TaskRecurrence): String = when (recurren
 private fun taskAssignmentErrorText(error: TaskAssignmentError): String = when (error) {
     TaskAssignmentError.MissingFamily -> stringResource(Res.string.task_assignment_error_missing_family)
     TaskAssignmentError.MissingTemplate -> stringResource(Res.string.task_assignment_error_missing_template)
+    TaskAssignmentError.MissingTitle -> stringResource(Res.string.task_assignment_error_missing_title)
+    TaskAssignmentError.InvalidReward -> stringResource(Res.string.task_assignment_error_invalid_reward)
     TaskAssignmentError.MissingChildren -> stringResource(Res.string.task_assignment_error_missing_children)
     TaskAssignmentError.InvalidCustomInterval -> stringResource(Res.string.task_assignment_error_custom_interval)
-}
-
-private fun formatTaskCents(value: Long, currencyCode: String): String {
-    val sign = if (value < 0) "-" else ""
-    val absolute = if (value < 0) -value else value
-    val whole = absolute / 100
-    val cents = (absolute % 100).toString().padStart(2, '0')
-    return "$sign$whole,$cents $currencyCode"
 }
 
 @Preview
@@ -501,12 +567,18 @@ fun PreviewTaskAssignmentContent() {
                     ),
                 ),
                 selectedTemplateId = TaskTemplateId("template-1"),
+                titleInput = "Poner la mesa",
+                rewardInput = "0,50",
+                requiresPhoto = false,
                 selectedChildProfileIds = listOf(ChildProfileId("child-1"), ChildProfileId("child-2")),
                 recurrence = TaskRecurrence.Daily,
                 syncNotice = null,
             ),
             onBack = {},
             onUseSuggestion = {},
+            onTitleChanged = {},
+            onRewardChanged = {},
+            onRequiresPhotoChanged = {},
             onChildToggled = {},
             onRecurrenceSelected = {},
             onCustomIntervalChanged = {},

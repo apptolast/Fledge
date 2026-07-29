@@ -64,6 +64,9 @@ La nueva pantalla Compose debe:
   - `id`
   - `familyId`
   - `taskTemplateId`
+  - `title`
+  - `rewardCents`
+  - `requiresPhoto`
   - `childProfileIds: List<ChildProfileId>`
   - `recurrence`
   - `dueAt: Instant`
@@ -76,6 +79,8 @@ La nueva pantalla Compose debe:
 Validaciones:
 
 - Al menos un hijo.
+- Titulo no vacio.
+- Importe positivo.
 - Custom exige `customIntervalDays >= 1`.
 - No custom no permite intervalo custom.
 
@@ -107,6 +112,7 @@ Estado:
 
 - familia, hijos, plantillas.
 - plantilla seleccionada.
+- titulo, importe y foto editables precargados desde plantilla.
 - hijos seleccionados.
 - recurrencia seleccionada.
 - dueAt textual controlado por opciones simples.
@@ -117,6 +123,8 @@ Primera version UI:
 
 - Si hay plantillas, seleccionar la primera sugerida/activa.
 - Boton `Usar tarea sugerida` rota o selecciona plantillas disponibles.
+- Titulo, importe y requisito de foto se editan y persisten como snapshot de
+  asignacion.
 - Chips de hijos para multi-seleccion.
 - Opciones `Una vez`, `Diaria`, `Semanal`, `Personalizada`.
 - Guardar crea `TaskAssignment`.

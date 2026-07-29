@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.TaskAssignment
 import com.apptolast.fledge.domain.model.TaskAssignmentDraft
 import com.apptolast.fledge.domain.model.TaskRecurrence
@@ -15,6 +16,7 @@ import com.apptolast.fledge.domain.repository.TaskAssignmentRepository
 import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import com.apptolast.fledge.presentation.foundation.FoundationOperationError
 import com.apptolast.fledge.presentation.foundation.FoundationSyncNotice
+import com.apptolast.fledge.presentation.foundation.manualadjustment.parseAmountCents
 import com.apptolast.fledge.presentation.foundation.toFoundationOperationError
 import com.apptolast.fledge.presentation.foundation.toFoundationSyncNotice
 import kotlin.time.Clock
@@ -31,6 +33,9 @@ data class TaskAssignmentUiState(
     val templates: List<TaskTemplate> = emptyList(),
     val children: List<ChildProfile> = emptyList(),
     val selectedTemplateId: TaskTemplateId? = null,
+    val titleInput: String = "",
+    val rewardInput: String = "",
+    val requiresPhoto: Boolean = false,
     val selectedChildProfileIds: List<ChildProfileId> = emptyList(),
     val recurrence: TaskRecurrence = TaskRecurrence.Daily,
     val dueAt: Instant = defaultTaskAssignmentDueAt(),
@@ -45,12 +50,19 @@ data class TaskAssignmentUiState(
         get() = templates.firstOrNull { it.id == selectedTemplateId }
 
     val canSubmit: Boolean
-        get() = !isSaving && family != null && selectedTemplate != null && selectedChildProfileIds.isNotEmpty()
+        get() = !isSaving &&
+            family != null &&
+            selectedTemplate != null &&
+            titleInput.isNotBlank() &&
+            rewardInput.isNotBlank() &&
+            selectedChildProfileIds.isNotEmpty()
 }
 
 enum class TaskAssignmentError {
     MissingFamily,
     MissingTemplate,
+    MissingTitle,
+    InvalidReward,
     MissingChildren,
     InvalidCustomInterval,
 }
@@ -95,8 +107,15 @@ class TaskAssignmentViewModel(
 
     fun selectTemplate(templateId: TaskTemplateId) {
         mutableUiState.update { state ->
-            val knownTemplateId = templateId.takeIf { id -> state.templates.any { it.id == id } }
-            state.copy(selectedTemplateId = knownTemplateId, error = null, operationError = null)
+            val template = state.templates.firstOrNull { it.id == templateId }
+            state.copy(
+                selectedTemplateId = template?.id,
+                titleInput = template?.title.orEmpty(),
+                rewardInput = template?.defaultValueCents?.value?.let(::formatInputCents).orEmpty(),
+                requiresPhoto = template?.requiresPhoto ?: false,
+                error = null,
+                operationError = null,
+            )
         }
     }
 
@@ -105,8 +124,28 @@ class TaskAssignmentViewModel(
             if (state.templates.isEmpty()) return@update state
             val currentIndex = state.templates.indexOfFirst { it.id == state.selectedTemplateId }
             val nextIndex = if (currentIndex == -1 || currentIndex == state.templates.lastIndex) 0 else currentIndex + 1
-            state.copy(selectedTemplateId = state.templates[nextIndex].id, error = null, operationError = null)
+            val template = state.templates[nextIndex]
+            state.copy(
+                selectedTemplateId = template.id,
+                titleInput = template.title,
+                rewardInput = formatInputCents(template.defaultValueCents.value),
+                requiresPhoto = template.requiresPhoto,
+                error = null,
+                operationError = null,
+            )
         }
+    }
+
+    fun updateTitle(input: String) {
+        mutableUiState.update { it.copy(titleInput = input, error = null, operationError = null) }
+    }
+
+    fun updateReward(input: String) {
+        mutableUiState.update { it.copy(rewardInput = input, error = null, operationError = null) }
+    }
+
+    fun setRequiresPhoto(requiresPhoto: Boolean) {
+        mutableUiState.update { it.copy(requiresPhoto = requiresPhoto, error = null, operationError = null) }
     }
 
     fun toggleChild(childProfileId: ChildProfileId) {
@@ -148,6 +187,8 @@ class TaskAssignmentViewModel(
         val state = mutableUiState.value
         val family = familyRepository.activeFamily.value
         val template = state.selectedTemplate
+        val title = state.titleInput.trim()
+        val rewardCents = parseAmountCents(state.rewardInput)
         val customIntervalDays = if (state.recurrence == TaskRecurrence.Custom) {
             state.customIntervalDaysInput.toIntOrNull()
         } else {
@@ -161,6 +202,14 @@ class TaskAssignmentViewModel(
             }
             template == null -> {
                 mutableUiState.update { it.copy(error = TaskAssignmentError.MissingTemplate, operationError = null) }
+                return false
+            }
+            title.isBlank() -> {
+                mutableUiState.update { it.copy(error = TaskAssignmentError.MissingTitle, operationError = null) }
+                return false
+            }
+            rewardCents == null || rewardCents <= 0L -> {
+                mutableUiState.update { it.copy(error = TaskAssignmentError.InvalidReward, operationError = null) }
                 return false
             }
             state.selectedChildProfileIds.isEmpty() -> {
@@ -181,6 +230,9 @@ class TaskAssignmentViewModel(
                 draft = TaskAssignmentDraft(
                     familyId = family.id,
                     taskTemplateId = template.id,
+                    title = title,
+                    rewardCents = MoneyCents(rewardCents),
+                    requiresPhoto = state.requiresPhoto,
                     childProfileIds = state.selectedChildProfileIds,
                     recurrence = state.recurrence,
                     dueAt = state.dueAt,
@@ -216,15 +268,32 @@ class TaskAssignmentViewModel(
         val children = familyRepository.children.value
 
         mutableUiState.update { state ->
-            val selectedTemplateId = state.selectedTemplateId
+            val previousTemplateId = state.selectedTemplateId
+            val selectedTemplateId = previousTemplateId
                 ?.takeIf { selected -> templates.any { it.id == selected } }
                 ?: templates.firstOrNull()?.id
+            val selectedTemplate = templates.firstOrNull { it.id == selectedTemplateId }
             val knownChildIds = children.map { it.id }.toSet()
+            val shouldSeedTemplateFields = previousTemplateId != selectedTemplateId ||
+                state.titleInput.isBlank() ||
+                state.rewardInput.isBlank()
+            val requiresPhoto = if (shouldSeedTemplateFields) {
+                selectedTemplate?.requiresPhoto ?: false
+            } else {
+                state.requiresPhoto
+            }
             state.copy(
                 family = family,
                 templates = templates,
                 children = children,
                 selectedTemplateId = selectedTemplateId,
+                titleInput = if (shouldSeedTemplateFields) selectedTemplate?.title.orEmpty() else state.titleInput,
+                rewardInput = if (shouldSeedTemplateFields) {
+                    selectedTemplate?.defaultValueCents?.value?.let(::formatInputCents).orEmpty()
+                } else {
+                    state.rewardInput
+                },
+                requiresPhoto = requiresPhoto,
                 selectedChildProfileIds = state.selectedChildProfileIds.filter { it in knownChildIds },
             )
         }
@@ -235,3 +304,9 @@ class TaskAssignmentViewModel(
 }
 
 private fun defaultTaskAssignmentDueAt(): Instant = Clock.System.now() + 1.days
+
+private fun formatInputCents(value: Long): String {
+    val whole = value / 100
+    val cents = (value % 100).toString().padStart(2, '0')
+    return "$whole,$cents"
+}
