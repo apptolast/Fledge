@@ -20,6 +20,8 @@ import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
+import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotifier
 import com.apptolast.fledge.domain.service.SavingsGoalProjection
 import com.apptolast.fledge.domain.service.SavingsGoalProjectionCalculator
 import com.apptolast.fledge.domain.service.SettlementReminderPolicy
@@ -43,6 +45,7 @@ data class ChildHomeUiState(
     val taskInstances: List<TaskInstance> = emptyList(),
     val activeSavingsGoal: SavingsGoal? = null,
     val activeSavingsGoalProjection: SavingsGoalProjection? = null,
+    val activeSavingsGoalCompletionNotice: SavingsGoalCompletionNotice? = null,
     val selectedPhotoEvidenceByTaskId: Map<TaskInstanceId, String> = emptyMap(),
     val currencyCode: String = "EUR",
     val syncNotice: FoundationSyncNotice? = FoundationSyncNotice.Loading,
@@ -65,6 +68,7 @@ class ChildHomeViewModel(
     private val cashOutProcessor: CashOutProcessor,
 ) : ViewModel() {
     private val savingsGoalProjectionCalculator = SavingsGoalProjectionCalculator()
+    private val savingsGoalCompletionNotifier = SavingsGoalCompletionNotifier()
     private val mutableUiState = MutableStateFlow(ChildHomeUiState())
     val uiState: StateFlow<ChildHomeUiState> = mutableUiState
 
@@ -87,6 +91,11 @@ class ChildHomeViewModel(
         viewModelScope.launch {
             repository.activeFamily.collect { family ->
                 mutableUiState.update { it.copy(currencyCode = family?.currency?.value ?: "EUR") }
+            }
+        }
+        viewModelScope.launch {
+            repository.children.collect {
+                refreshSavingsGoalDerivedState()
             }
         }
         viewModelScope.launch {
@@ -198,7 +207,7 @@ class ChildHomeViewModel(
                 settlementReminders = SettlementReminderPolicy.remindersFor(settlements, Clock.System.now()),
             )
         }
-        refreshSavingsGoalProjection()
+        refreshSavingsGoalDerivedState()
     }
 
     private fun refreshTaskState() {
@@ -213,23 +222,42 @@ class ChildHomeViewModel(
         mutableUiState.update {
             it.copy(activeSavingsGoal = savingsGoalRepository.activeGoalForChild(childProfileId))
         }
-        refreshSavingsGoalProjection()
+        refreshSavingsGoalDerivedState()
     }
 
-    private fun refreshSavingsGoalProjection() {
+    private fun refreshSavingsGoalDerivedState() {
         val state = mutableUiState.value
         val goal = state.activeSavingsGoal
+        val now = Clock.System.now()
         val projection = if (goal != null) {
             savingsGoalProjectionCalculator.project(
                 goal = goal,
                 currentGoalBalance = state.balances?.goal ?: BalanceCents(0),
                 transactions = state.ledgerTransactions,
-                now = Clock.System.now(),
+                now = now,
             )
         } else {
             null
         }
-        mutableUiState.update { it.copy(activeSavingsGoalProjection = projection) }
+        val child = state.childProfileId?.let { childProfileId ->
+            repository.children.value.firstOrNull { it.id == childProfileId }
+        }
+        val completionNotice = if (child != null) {
+            savingsGoalCompletionNotifier.noticeForChild(
+                child = child,
+                goal = goal,
+                goalBalance = state.balances?.goal ?: BalanceCents(0),
+                now = now,
+            )
+        } else {
+            null
+        }
+        mutableUiState.update {
+            it.copy(
+                activeSavingsGoalProjection = projection,
+                activeSavingsGoalCompletionNotice = completionNotice,
+            )
+        }
     }
 
     private suspend fun runOperation(block: suspend () -> Unit): Boolean {

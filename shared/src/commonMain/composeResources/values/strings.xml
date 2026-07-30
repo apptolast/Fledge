@@ -236,6 +236,8 @@
     <string name="child_home_active_goal_completed_body">Ya tienes suficiente en GOAL para esta meta.</string>
     <string name="child_home_active_goal_deposit">Meter dinero</string>
     <string name="child_home_active_goal_withdraw">Sacar dinero</string>
+    <string name="child_home_goal_completion_title">Muy buen ahorro</string>
+    <string name="child_home_goal_completion_body">%1$s: llevas %2$s de %3$s. Puedes ensenarselo a tu familia.</string>
     <string name="child_home_tasks_title">Tus tareas de hoy</string>
     <string name="child_home_tasks_empty">No tienes tareas pendientes ahora.</string>
     <string name="child_home_task_reward">Ganas %1$s</string>
@@ -286,4 +288,6 @@
     <string name="ledger_type_reversal">Correccion</string>
     <string name="ledger_reversal_of">Corrige el movimiento %1$s</string>
     <string name="empty_children">Aun no hay perfiles infantiles.</string>
+    <string name="parent_home_goal_completion_title">%1$s ha completado su objetivo</string>
+    <string name="parent_home_goal_completion_body">%1$s: %2$s de %3$s. Buen momento para reconocer el esfuerzo.</string>
 </resources>

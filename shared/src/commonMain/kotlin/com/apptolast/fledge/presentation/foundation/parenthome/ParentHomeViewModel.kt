@@ -18,8 +18,11 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
+import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotifier
 import com.apptolast.fledge.domain.service.SettlementReminderPolicy
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
 import com.apptolast.fledge.presentation.foundation.FoundationOperationError
@@ -39,6 +42,7 @@ data class ParentHomeUiState(
     val children: List<ChildProfile> = emptyList(),
     val mainBalances: Map<ChildProfileId, BalanceCents> = emptyMap(),
     val goalBalances: Map<ChildProfileId, BalanceCents> = emptyMap(),
+    val goalCompletionNotices: List<SavingsGoalCompletionNotice> = emptyList(),
     val pendingSettlements: List<CashOutSettlement> = emptyList(),
     val settlementReminders: List<SettlementReminder> = emptyList(),
     val pendingTaskApprovals: List<TaskInstance> = emptyList(),
@@ -61,16 +65,18 @@ class ParentHomeViewModel(
     private val repository: FamilyFoundationRepository,
     private val ledgerRepository: LedgerRepository,
     private val moneyFlowRepository: MoneyFlowRepository,
+    private val savingsGoalRepository: SavingsGoalRepository,
     private val taskInstanceRepository: TaskInstanceRepository,
     private val cashOutProcessor: CashOutProcessor,
     private val taskApprovalProcessor: TaskApprovalProcessor,
 ) : ViewModel() {
+    private val savingsGoalCompletionNotifier = SavingsGoalCompletionNotifier()
     private val mutableUiState = MutableStateFlow(
         ParentHomeUiState(
             familyName = repository.activeFamily.value?.name.orEmpty(),
             children = repository.children.value,
             currencyCode = repository.activeFamily.value?.currency?.value ?: "EUR",
-        ).withBalances().withTaskApprovals(),
+        ).withBalances().withGoalCompletionNotices().withTaskApprovals(),
     )
     val uiState: StateFlow<ParentHomeUiState> = mutableUiState
 
@@ -80,9 +86,10 @@ class ParentHomeViewModel(
                 repository.syncStatus,
                 ledgerRepository.syncStatus,
                 moneyFlowRepository.syncStatus,
+                savingsGoalRepository.syncStatus,
                 taskInstanceRepository.syncStatus,
-            ) { foundationStatus, ledgerStatus, moneyStatus, taskStatus ->
-                listOf(foundationStatus, ledgerStatus, moneyStatus, taskStatus)
+            ) { foundationStatus, ledgerStatus, moneyStatus, savingsGoalStatus, taskStatus ->
+                listOf(foundationStatus, ledgerStatus, moneyStatus, savingsGoalStatus, taskStatus)
             }.collect { statuses ->
                 mutableUiState.update { state ->
                     state.copy(syncNotice = statuses.toFoundationSyncNotice(state.hasKnownData()))
@@ -92,7 +99,7 @@ class ParentHomeViewModel(
         viewModelScope.launch {
             repository.children.collect { children ->
                 mutableUiState.update {
-                    it.copy(children = children).withBalances()
+                    it.copy(children = children).withBalances().withGoalCompletionNotices()
                 }
             }
         }
@@ -102,13 +109,18 @@ class ParentHomeViewModel(
                     it.copy(
                         familyName = family?.name.orEmpty(),
                         currencyCode = family?.currency?.value ?: "EUR",
-                    ).withTaskApprovals()
+                    ).withGoalCompletionNotices().withTaskApprovals()
                 }
             }
         }
         viewModelScope.launch {
             ledgerRepository.transactions.collect {
-                mutableUiState.update { it.withBalances() }
+                mutableUiState.update { it.withBalances().withGoalCompletionNotices() }
+            }
+        }
+        viewModelScope.launch {
+            savingsGoalRepository.goals.collect {
+                mutableUiState.update { it.withGoalCompletionNotices() }
             }
         }
         viewModelScope.launch {
@@ -173,7 +185,7 @@ class ParentHomeViewModel(
                 approvedRewardCents = MoneyCents(amountCents),
                 reviewedAt = Clock.System.now(),
             )
-            mutableUiState.update { it.withBalances().withTaskApprovals() }
+            mutableUiState.update { it.withBalances().withGoalCompletionNotices().withTaskApprovals() }
         }
     }
 
@@ -203,6 +215,15 @@ class ParentHomeViewModel(
         goalBalances = children.associate { child ->
             child.id to ledgerRepository.balancesFor(child.id).goal
         },
+    )
+
+    private fun ParentHomeUiState.withGoalCompletionNotices(): ParentHomeUiState = copy(
+        goalCompletionNotices = savingsGoalCompletionNotifier.noticesForParent(
+            children = children,
+            goals = savingsGoalRepository.goals.value,
+            goalBalances = goalBalances,
+            now = Clock.System.now(),
+        ),
     )
 
     private fun ParentHomeUiState.withSettlements(settlements: List<CashOutSettlement>): ParentHomeUiState {
@@ -247,6 +268,7 @@ class ParentHomeViewModel(
 }
 
 private fun ParentHomeUiState.hasKnownData(): Boolean = children.isNotEmpty() ||
+    goalCompletionNotices.isNotEmpty() ||
     pendingSettlements.isNotEmpty() ||
     pendingTaskApprovals.isNotEmpty() ||
     mainBalances.isNotEmpty()
