@@ -20,6 +20,13 @@ enum class SavingsGoalStatus {
 }
 
 @Serializable
+enum class MoneyPotType {
+    Spend,
+    Save,
+    Give,
+}
+
+@Serializable
 data class SavingsGoal(
     val id: SavingsGoalId,
     val familyId: FamilyId,
@@ -27,6 +34,7 @@ data class SavingsGoal(
     val title: String,
     val targetCents: MoneyCents,
     val accountType: VirtualAccountType = VirtualAccountType.Goal,
+    val potType: MoneyPotType = MoneyPotType.Save,
     val iconKey: String? = null,
     val imageUri: String? = null,
     val status: SavingsGoalStatus = SavingsGoalStatus.Active,
@@ -38,6 +46,7 @@ data class SavingsGoal(
             title = title,
             targetCents = targetCents,
             accountType = accountType,
+            potType = potType,
             iconKey = iconKey,
             imageUri = imageUri,
         )
@@ -49,6 +58,7 @@ data class SavingsGoalDraft(
     val childProfileId: ChildProfileId,
     val title: String,
     val targetCents: MoneyCents,
+    val potType: MoneyPotType = MoneyPotType.Save,
     val iconKey: String? = null,
     val imageUri: String? = null,
 ) {
@@ -56,7 +66,8 @@ data class SavingsGoalDraft(
         validateSavingsGoalFields(
             title = title,
             targetCents = targetCents,
-            accountType = VirtualAccountType.Goal,
+            accountType = potType.goalAccountType(),
+            potType = potType,
             iconKey = iconKey,
             imageUri = imageUri,
         )
@@ -69,7 +80,8 @@ fun SavingsGoalDraft.toSavingsGoal(id: SavingsGoalId, createdAt: Instant): Savin
     childProfileId = childProfileId,
     title = title.trim(),
     targetCents = targetCents,
-    accountType = VirtualAccountType.Goal,
+    accountType = potType.goalAccountType(),
+    potType = potType,
     iconKey = iconKey?.trim()?.takeIf { it.isNotBlank() },
     imageUri = imageUri?.trim()?.takeIf { it.isNotBlank() },
     status = SavingsGoalStatus.Active,
@@ -81,6 +93,7 @@ private fun validateSavingsGoalFields(
     title: String,
     targetCents: MoneyCents,
     accountType: VirtualAccountType,
+    potType: MoneyPotType,
     iconKey: String?,
     imageUri: String?,
 ) {
@@ -89,10 +102,23 @@ private fun validateSavingsGoalFields(
         "Savings goal title cannot exceed $MAX_SAVINGS_GOAL_TITLE_LENGTH characters."
     }
     require(targetCents.value > 0) { "Savings goal target must be positive." }
-    require(accountType == VirtualAccountType.Goal) { "Savings goals must use the Goal account." }
+    require(potType != MoneyPotType.Spend) { "Savings goals cannot use the Spend pot." }
+    require(accountType == potType.goalAccountType()) { "Savings goal account must match its pot type." }
     require(!iconKey.isNullOrBlank() || !imageUri.isNullOrBlank()) {
         "Savings goal requires an icon or image."
     }
+}
+
+fun MoneyPotType.goalAccountType(): VirtualAccountType = when (this) {
+    MoneyPotType.Spend -> VirtualAccountType.Main
+    MoneyPotType.Save -> VirtualAccountType.Goal
+    MoneyPotType.Give -> VirtualAccountType.Give
+}
+
+fun VirtualAccountType.toMoneyPotType(): MoneyPotType = when (this) {
+    VirtualAccountType.Main -> MoneyPotType.Spend
+    VirtualAccountType.Goal -> MoneyPotType.Save
+    VirtualAccountType.Give -> MoneyPotType.Give
 }
 
 private const val MAX_SAVINGS_GOAL_TITLE_LENGTH = 80

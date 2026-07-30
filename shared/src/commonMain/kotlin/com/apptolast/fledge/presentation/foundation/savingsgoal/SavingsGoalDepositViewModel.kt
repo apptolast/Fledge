@@ -8,6 +8,7 @@ import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalId
+import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.LedgerTransferPair
@@ -201,6 +202,12 @@ class SavingsGoalDepositViewModel(
         }
     }
 }
+
+internal fun ChildLedgerBalances?.balanceFor(accountType: VirtualAccountType): Long = when (accountType) {
+    VirtualAccountType.Main -> this?.main
+    VirtualAccountType.Goal -> this?.goal
+    VirtualAccountType.Give -> this?.give
+}?.value ?: 0L
 
 const val DEFAULT_GOAL_DEPOSIT_AMOUNT = "5,00"
 

@@ -36,10 +36,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
 import fledge.shared.generated.resources.operation_error_sync
+import fledge.shared.generated.resources.savings_goal_setup_account_give
 import fledge.shared.generated.resources.savings_goal_setup_account_goal
 import fledge.shared.generated.resources.savings_goal_setup_account_label
 import fledge.shared.generated.resources.savings_goal_setup_add_image_later
@@ -55,6 +57,9 @@ import fledge.shared.generated.resources.savings_goal_setup_icon_book
 import fledge.shared.generated.resources.savings_goal_setup_icon_game
 import fledge.shared.generated.resources.savings_goal_setup_icon_label
 import fledge.shared.generated.resources.savings_goal_setup_icon_target
+import fledge.shared.generated.resources.savings_goal_setup_pot_give
+import fledge.shared.generated.resources.savings_goal_setup_pot_label
+import fledge.shared.generated.resources.savings_goal_setup_pot_save
 import fledge.shared.generated.resources.savings_goal_setup_save
 import fledge.shared.generated.resources.savings_goal_setup_subtitle
 import fledge.shared.generated.resources.savings_goal_setup_target_label
@@ -82,6 +87,7 @@ fun SavingsGoalSetupScreen(
         state = state,
         onTitleChanged = viewModel::updateTitle,
         onTargetAmountChanged = viewModel::updateTargetAmount,
+        onPotTypeSelected = viewModel::selectPotType,
         onIconSelected = viewModel::selectIcon,
         onImageSelected = {
             viewModel.selectImage("local://savings-goal/${childProfileId.value}")
@@ -100,6 +106,7 @@ fun SavingsGoalSetupContent(
     state: SavingsGoalSetupUiState,
     onTitleChanged: (String) -> Unit,
     onTargetAmountChanged: (String) -> Unit,
+    onPotTypeSelected: (MoneyPotType) -> Unit,
     onIconSelected: (String) -> Unit,
     onImageSelected: () -> Unit,
     onBack: () -> Unit,
@@ -138,6 +145,7 @@ fun SavingsGoalSetupContent(
                     state = state,
                     onTitleChanged = onTitleChanged,
                     onTargetAmountChanged = onTargetAmountChanged,
+                    onPotTypeSelected = onPotTypeSelected,
                     onIconSelected = onIconSelected,
                     onImageSelected = onImageSelected,
                 )
@@ -195,6 +203,7 @@ private fun SavingsGoalFormCard(
     state: SavingsGoalSetupUiState,
     onTitleChanged: (String) -> Unit,
     onTargetAmountChanged: (String) -> Unit,
+    onPotTypeSelected: (MoneyPotType) -> Unit,
     onIconSelected: (String) -> Unit,
     onImageSelected: () -> Unit,
 ) {
@@ -234,9 +243,13 @@ private fun SavingsGoalFormCard(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
+            PotSelector(
+                selectedPotType = state.selectedPotType,
+                onPotTypeSelected = onPotTypeSelected,
+            )
             ReadOnlyBlock(
                 label = stringResource(Res.string.savings_goal_setup_account_label),
-                value = stringResource(Res.string.savings_goal_setup_account_goal),
+                value = savingsGoalPotAccountLabel(state.selectedPotType),
             )
             IconSelector(
                 selectedIconKey = state.selectedIconKey,
@@ -255,6 +268,52 @@ private fun SavingsGoalFormCard(
             }
         }
     }
+}
+
+@Composable
+private fun PotSelector(selectedPotType: MoneyPotType, onPotTypeSelected: (MoneyPotType) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(Res.string.savings_goal_setup_pot_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SavingsGoalPotOption(
+                potType = MoneyPotType.Save,
+                label = Res.string.savings_goal_setup_pot_save,
+                selectedPotType = selectedPotType,
+                onPotTypeSelected = onPotTypeSelected,
+            )
+            SavingsGoalPotOption(
+                potType = MoneyPotType.Give,
+                label = Res.string.savings_goal_setup_pot_give,
+                selectedPotType = selectedPotType,
+                onPotTypeSelected = onPotTypeSelected,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.SavingsGoalPotOption(
+    potType: MoneyPotType,
+    label: StringResource,
+    selectedPotType: MoneyPotType,
+    onPotTypeSelected: (MoneyPotType) -> Unit,
+) {
+    FilterChip(
+        selected = selectedPotType == potType,
+        onClick = { onPotTypeSelected(potType) },
+        label = { Text(stringResource(label)) },
+        modifier = Modifier
+            .weight(1f)
+            .heightIn(min = 48.dp),
+    )
 }
 
 @Composable
@@ -335,6 +394,13 @@ private fun ReadOnlyBlock(label: String, value: String) {
 }
 
 @Composable
+private fun savingsGoalPotAccountLabel(potType: MoneyPotType): String = when (potType) {
+    MoneyPotType.Spend -> stringResource(Res.string.savings_goal_setup_account_goal)
+    MoneyPotType.Save -> stringResource(Res.string.savings_goal_setup_account_goal)
+    MoneyPotType.Give -> stringResource(Res.string.savings_goal_setup_account_give)
+}
+
+@Composable
 private fun savingsGoalSetupErrorText(error: SavingsGoalSetupError): String = when (error) {
     SavingsGoalSetupError.MissingFamily -> stringResource(Res.string.savings_goal_setup_error_missing_family)
     SavingsGoalSetupError.MissingChild -> stringResource(Res.string.savings_goal_setup_error_missing_child)
@@ -362,6 +428,7 @@ fun PreviewSavingsGoalSetupContent() {
             ),
             onTitleChanged = {},
             onTargetAmountChanged = {},
+            onPotTypeSelected = {},
             onIconSelected = {},
             onImageSelected = {},
             onBack = {},

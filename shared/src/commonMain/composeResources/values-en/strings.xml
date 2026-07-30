@@ -140,6 +140,10 @@
     <string name="savings_goal_setup_target_label">Target</string>
     <string name="savings_goal_setup_account_label">Linked account</string>
     <string name="savings_goal_setup_account_goal">GOAL</string>
+    <string name="savings_goal_setup_account_give">GIVE</string>
+    <string name="savings_goal_setup_pot_label">Pot</string>
+    <string name="savings_goal_setup_pot_save">Save</string>
+    <string name="savings_goal_setup_pot_give">Give</string>
     <string name="savings_goal_setup_icon_label">Icon or image</string>
     <string name="savings_goal_setup_icon_target">Target</string>
     <string name="savings_goal_setup_icon_bike">Bike</string>
@@ -163,8 +167,10 @@
     <string name="savings_goal_deposit_summary_title">Summary</string>
     <string name="savings_goal_deposit_main_debit">MAIN -%1$s</string>
     <string name="savings_goal_deposit_goal_credit">GOAL +%1$s</string>
+    <string name="savings_goal_deposit_pot_credit">%1$s +%2$s</string>
     <string name="savings_goal_deposit_main_after">MAIN after: %1$s</string>
     <string name="savings_goal_deposit_goal_after">GOAL after: %1$s</string>
+    <string name="savings_goal_deposit_pot_after">%1$s after: %2$s</string>
     <string name="savings_goal_deposit_confirm">Confirm deposit</string>
     <string name="savings_goal_deposit_back">Back</string>
     <string name="savings_goal_deposit_error_missing_goal">The active goal was not found.</string>
@@ -179,8 +185,10 @@
     <string name="savings_goal_withdrawal_quick_five">5 EUR</string>
     <string name="savings_goal_withdrawal_summary_title">Summary</string>
     <string name="savings_goal_withdrawal_goal_debit">GOAL -%1$s</string>
+    <string name="savings_goal_withdrawal_pot_debit">%1$s -%2$s</string>
     <string name="savings_goal_withdrawal_main_credit">MAIN +%1$s</string>
     <string name="savings_goal_withdrawal_goal_after">GOAL after: %1$s</string>
+    <string name="savings_goal_withdrawal_pot_after">%1$s after: %2$s</string>
     <string name="savings_goal_withdrawal_main_after">MAIN after: %1$s</string>
     <string name="savings_goal_withdrawal_opportunity_title">Before taking it out</string>
     <string name="savings_goal_withdrawal_opportunity_body">If you take out %1$s, your goal stays at %2$s.</string>
@@ -242,6 +250,11 @@
     <string name="child_home_body">Here you can see your virtual money balances and movements.</string>
     <string name="child_home_main_balance">Main balance: %1$s</string>
     <string name="child_home_goal_balance">Goal: %1$s</string>
+    <string name="child_home_pots_title">My pots</string>
+    <string name="child_home_pots_body">Choose what goes to spending, saving and giving.</string>
+    <string name="child_home_pot_spend">Spend</string>
+    <string name="child_home_pot_save">Save</string>
+    <string name="child_home_pot_give">Give</string>
     <string name="child_home_active_goal_title">Active goal</string>
     <string name="child_home_active_goal_amount">%1$s of %2$s</string>
     <string name="child_home_active_goal_progress">%1$d%% saved</string>
@@ -326,6 +339,7 @@
     <string name="post_login_loading">Loading your family...</string>
     <string name="ledger_account_main">Main</string>
     <string name="ledger_account_goal">Goal</string>
+    <string name="ledger_account_give">Give</string>
     <string name="ledger_actor_parent">Adult</string>
     <string name="ledger_actor_child">Child</string>
     <string name="ledger_actor_system">System</string>

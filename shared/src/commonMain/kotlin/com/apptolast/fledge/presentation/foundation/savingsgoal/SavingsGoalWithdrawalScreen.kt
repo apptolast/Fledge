@@ -47,6 +47,8 @@ import com.apptolast.fledge.presentation.foundation.manualadjustment.parseAmount
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
 import fledge.shared.generated.resources.operation_error_sync
+import fledge.shared.generated.resources.savings_goal_setup_account_give
+import fledge.shared.generated.resources.savings_goal_setup_account_goal
 import fledge.shared.generated.resources.savings_goal_withdrawal_amount_label
 import fledge.shared.generated.resources.savings_goal_withdrawal_back
 import fledge.shared.generated.resources.savings_goal_withdrawal_confirm
@@ -55,12 +57,12 @@ import fledge.shared.generated.resources.savings_goal_withdrawal_error_insuffici
 import fledge.shared.generated.resources.savings_goal_withdrawal_error_invalid_amount
 import fledge.shared.generated.resources.savings_goal_withdrawal_error_missing_confirmation
 import fledge.shared.generated.resources.savings_goal_withdrawal_error_missing_goal
-import fledge.shared.generated.resources.savings_goal_withdrawal_goal_after
-import fledge.shared.generated.resources.savings_goal_withdrawal_goal_debit
 import fledge.shared.generated.resources.savings_goal_withdrawal_main_after
 import fledge.shared.generated.resources.savings_goal_withdrawal_main_credit
 import fledge.shared.generated.resources.savings_goal_withdrawal_opportunity_body
 import fledge.shared.generated.resources.savings_goal_withdrawal_opportunity_title
+import fledge.shared.generated.resources.savings_goal_withdrawal_pot_after
+import fledge.shared.generated.resources.savings_goal_withdrawal_pot_debit
 import fledge.shared.generated.resources.savings_goal_withdrawal_quick_five
 import fledge.shared.generated.resources.savings_goal_withdrawal_quick_label
 import fledge.shared.generated.resources.savings_goal_withdrawal_quick_one
@@ -130,7 +132,10 @@ fun SavingsGoalWithdrawalContent(
                         text = stringResource(
                             Res.string.savings_goal_withdrawal_subtitle,
                             state.goal?.title.orEmpty(),
-                            formatCents(state.balances?.goal?.value ?: 0L, state.currencyCode),
+                            formatCents(
+                                state.balances.balanceFor(state.goal?.accountType ?: VirtualAccountType.Goal),
+                                state.currencyCode,
+                            ),
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -207,7 +212,8 @@ private fun SavingsGoalWithdrawalForm(
 ) {
     val requestedAmount = parseAmountCents(state.amountInput)?.takeIf { it > 0L } ?: 0L
     val mainBalance = state.balances?.main?.value ?: 0L
-    val goalBalance = state.balances?.goal?.value ?: 0L
+    val goalAccountType = state.goal?.accountType ?: VirtualAccountType.Goal
+    val goalBalance = state.balances.balanceFor(goalAccountType)
     Card(
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -278,6 +284,7 @@ private fun SavingsGoalWithdrawalForm(
                 requestedAmount = requestedAmount,
                 goalAfter = goalBalance - requestedAmount,
                 mainAfter = mainBalance + requestedAmount,
+                goalAccountLabel = savingsGoalAccountLabel(goalAccountType),
                 currencyCode = state.currencyCode,
             )
         }
@@ -360,7 +367,13 @@ private fun WithdrawalOpportunityCost(
 }
 
 @Composable
-private fun WithdrawalSummary(requestedAmount: Long, goalAfter: Long, mainAfter: Long, currencyCode: String) {
+private fun WithdrawalSummary(
+    requestedAmount: Long,
+    goalAfter: Long,
+    mainAfter: Long,
+    goalAccountLabel: String,
+    currencyCode: String,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(14.dp),
@@ -378,11 +391,13 @@ private fun WithdrawalSummary(requestedAmount: Long, goalAfter: Long, mainAfter:
             )
             WithdrawalSummaryRow(
                 label = stringResource(
-                    Res.string.savings_goal_withdrawal_goal_debit,
+                    Res.string.savings_goal_withdrawal_pot_debit,
+                    goalAccountLabel,
                     formatCents(requestedAmount, currencyCode),
                 ),
                 value = stringResource(
-                    Res.string.savings_goal_withdrawal_goal_after,
+                    Res.string.savings_goal_withdrawal_pot_after,
+                    goalAccountLabel,
                     formatCents(goalAfter, currencyCode),
                 ),
             )
@@ -418,6 +433,13 @@ private fun WithdrawalSummaryRow(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun savingsGoalAccountLabel(accountType: VirtualAccountType): String = when (accountType) {
+    VirtualAccountType.Main -> stringResource(Res.string.savings_goal_setup_account_goal)
+    VirtualAccountType.Goal -> stringResource(Res.string.savings_goal_setup_account_goal)
+    VirtualAccountType.Give -> stringResource(Res.string.savings_goal_setup_account_give)
 }
 
 @Composable

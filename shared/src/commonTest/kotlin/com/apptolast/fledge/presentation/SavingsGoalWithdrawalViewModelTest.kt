@@ -12,6 +12,7 @@ import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.LedgerTransferGroupId
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualAccountType
@@ -52,6 +53,36 @@ class SavingsGoalWithdrawalViewModelTest {
     }
 
     @Test
+    fun `FLE-50 child can withdraw Give goal balance back to main`() = runTest {
+        // Given
+        val fixture = withdrawalFixture(
+            goalBalance = MoneyCents(1_230),
+            potType = MoneyPotType.Give,
+            accountType = VirtualAccountType.Give,
+        )
+        val viewModel = SavingsGoalWithdrawalViewModel(
+            familyRepository = fixture.foundationRepository,
+            savingsGoalRepository = fixture.savingsGoalRepository,
+            ledgerRepository = fixture.ledgerRepository,
+            processor = SavingsGoalWithdrawalProcessor(fixture.savingsGoalRepository, fixture.ledgerRepository),
+        )
+
+        // When
+        viewModel.load(fixture.childId, fixture.goalId)
+        viewModel.updateAmount("5,00")
+        viewModel.confirmOpportunityCost(true)
+        val saved = viewModel.submit()
+
+        // Then
+        assertEquals(true, saved)
+        assertEquals(BalanceCents(500), viewModel.uiState.value.balances?.main)
+        assertEquals(BalanceCents(0), viewModel.uiState.value.balances?.goal)
+        assertEquals(BalanceCents(730), viewModel.uiState.value.balances?.give)
+        assertEquals(VirtualAccountType.Give, viewModel.uiState.value.savedTransfer?.debit?.accountType)
+        assertEquals(null, viewModel.uiState.value.error)
+    }
+
+    @Test
     fun `AC-03 child sees validation when withdrawal amount is invalid or too high`() = runTest {
         // Given
         val fixture = withdrawalFixture(goalBalance = MoneyCents(300))
@@ -84,7 +115,11 @@ private data class WithdrawalFixture(
     val goalId: com.apptolast.fledge.domain.model.SavingsGoalId,
 )
 
-private suspend fun withdrawalFixture(goalBalance: MoneyCents): WithdrawalFixture {
+private suspend fun withdrawalFixture(
+    goalBalance: MoneyCents,
+    potType: MoneyPotType = MoneyPotType.Save,
+    accountType: VirtualAccountType = VirtualAccountType.Goal,
+): WithdrawalFixture {
     val foundationRepository = InMemoryFamilyFoundationRepository()
     val savingsGoalRepository = InMemorySavingsGoalRepository()
     val ledgerRepository = InMemoryLedgerRepository()
@@ -107,6 +142,7 @@ private suspend fun withdrawalFixture(goalBalance: MoneyCents): WithdrawalFixtur
             childProfileId = child.id,
             title = "Bici nueva",
             targetCents = MoneyCents(4_000),
+            potType = potType,
             iconKey = "bike",
         ),
     )
@@ -114,7 +150,7 @@ private suspend fun withdrawalFixture(goalBalance: MoneyCents): WithdrawalFixtur
         LedgerTransactionDraft(
             familyId = family.id,
             childProfileId = child.id,
-            accountType = VirtualAccountType.Goal,
+            accountType = accountType,
             type = LedgerTransactionType.GoalTransfer,
             amountCents = goalBalance,
             concept = LedgerConcept("Ahorro bici"),

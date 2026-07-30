@@ -55,7 +55,7 @@ class SavingsGoalDepositProcessor(
             creditDraft = LedgerTransactionDraft(
                 familyId = goal.familyId,
                 childProfileId = childProfileId,
-                accountType = VirtualAccountType.Goal,
+                accountType = goal.accountType,
                 type = LedgerTransactionType.GoalTransfer,
                 amountCents = amountCents,
                 concept = concept,

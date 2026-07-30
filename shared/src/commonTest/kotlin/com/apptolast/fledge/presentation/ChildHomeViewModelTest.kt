@@ -17,6 +17,7 @@ import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.LedgerTransferGroupId
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.TaskAssignmentId
 import com.apptolast.fledge.domain.model.TaskInstance
@@ -377,6 +378,70 @@ class ChildHomeViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(goal, state.activeSavingsGoal)
         assertEquals(BalanceCents(1_230), state.balances?.goal)
+    }
+
+    @Test
+    fun `FLE-50 child home exposes Give goal and Give pot balance`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                accountType = VirtualAccountType.Give,
+                type = LedgerTransactionType.GoalTransfer,
+                amountCents = MoneyCents(1_230),
+                concept = LedgerConcept("Donar al refugio"),
+                createdBy = LedgerActor.Child,
+                transferGroupId = LedgerTransferGroupId("transfer-1"),
+            ),
+        )
+        val goal = savingsGoalRepository.saveGoal(
+            SavingsGoalDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                title = "Donar al refugio",
+                targetCents = MoneyCents(2_000),
+                potType = MoneyPotType.Give,
+                iconKey = "heart",
+            ),
+            createdAt = Instant.fromEpochSeconds(1_700_100_000),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        val state = viewModel.uiState.value
+        assertEquals(goal, state.activeSavingsGoal)
+        assertEquals(BalanceCents(0), state.balances?.goal)
+        assertEquals(BalanceCents(1_230), state.balances?.give)
+        assertEquals(BalanceCents(770), state.activeSavingsGoalProjection?.remainingCents)
     }
 
     @Test

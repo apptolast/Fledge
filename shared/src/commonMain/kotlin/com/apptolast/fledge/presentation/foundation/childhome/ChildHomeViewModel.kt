@@ -14,6 +14,7 @@ import com.apptolast.fledge.domain.model.SettlementReminder
 import com.apptolast.fledge.domain.model.TaskInstance
 import com.apptolast.fledge.domain.model.TaskInstanceId
 import com.apptolast.fledge.domain.model.TaskInstanceStatus
+import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
@@ -242,7 +243,7 @@ class ChildHomeViewModel(
         val projection = if (goal != null) {
             savingsGoalProjectionCalculator.project(
                 goal = goal,
-                currentGoalBalance = state.balances?.goal ?: BalanceCents(0),
+                currentGoalBalance = state.balances.balanceFor(goal.accountType),
                 transactions = state.ledgerTransactions,
                 now = now,
             )
@@ -256,7 +257,7 @@ class ChildHomeViewModel(
             savingsGoalCompletionNotifier.noticeForChild(
                 child = child,
                 goal = goal,
-                goalBalance = state.balances?.goal ?: BalanceCents(0),
+                goalBalance = goal?.let { state.balances.balanceFor(it.accountType) } ?: BalanceCents(0),
                 now = now,
             )
         } else {
@@ -309,6 +310,12 @@ private fun ChildHomeUiState.hasKnownData(): Boolean = balances != null ||
     settlements.isNotEmpty() ||
     taskInstances.isNotEmpty() ||
     activeSavingsGoal != null
+
+private fun ChildLedgerBalances?.balanceFor(accountType: VirtualAccountType): BalanceCents = when (accountType) {
+    VirtualAccountType.Main -> this?.main
+    VirtualAccountType.Goal -> this?.goal
+    VirtualAccountType.Give -> this?.give
+} ?: BalanceCents(0)
 
 private fun List<TaskInstance>.sortedForChildHome(): List<TaskInstance> =
     sortedWith(compareBy<TaskInstance> { it.status.childHomeSortOrder }.thenBy { it.dueAt }.thenBy { it.id.value })

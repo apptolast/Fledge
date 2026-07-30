@@ -3,7 +3,6 @@ package com.apptolast.fledge.domain.service
 import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.SavingsGoal
-import com.apptolast.fledge.domain.model.VirtualAccountType
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
@@ -37,7 +36,7 @@ class SavingsGoalProjectionCalculator {
             .asSequence()
             .filter { it.familyId == goal.familyId }
             .filter { it.childProfileId == goal.childProfileId }
-            .filter { it.accountType == VirtualAccountType.Goal }
+            .filter { it.accountType == goal.accountType }
             .filter { it.createdAt >= goal.createdAt && it.createdAt <= now }
             .toList()
         val netMovementCents = goalMovements.sumOf { it.amountCents.value }

@@ -34,7 +34,7 @@ class SavingsGoalWithdrawalProcessor(
         require(goal.childProfileId == childProfileId) { "Savings goal belongs to another child." }
         require(goal.status == SavingsGoalStatus.Active) { "Savings goal is not active." }
 
-        val goalBalance = ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Goal)
+        val goalBalance = ledgerRepository.balanceFor(childProfileId, goal.accountType)
         require(goalBalance.value >= amountCents.value) { "Goal balance is insufficient." }
 
         val transferGroupId = LedgerTransferGroupId(
@@ -45,7 +45,7 @@ class SavingsGoalWithdrawalProcessor(
             debitDraft = LedgerTransactionDraft(
                 familyId = goal.familyId,
                 childProfileId = childProfileId,
-                accountType = VirtualAccountType.Goal,
+                accountType = goal.accountType,
                 type = LedgerTransactionType.GoalTransfer,
                 amountCents = MoneyCents(-amountCents.value),
                 concept = concept,

@@ -9,6 +9,7 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.SavingsGoalId
@@ -77,6 +78,57 @@ class SavingsGoalDepositProcessorTest {
         assertEquals("Ahorro: Bici nueva", transfer.debit.concept.value)
         assertEquals(730, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Main).value)
         assertEquals(500, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Goal).value)
+    }
+
+    @Test
+    fun `FLE-50 child deposits main balance into a Give goal`() = runTest {
+        // Given
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val familyId = FamilyId("family-1")
+        val childProfileId = ChildProfileId("child-1")
+        val createdAt = Instant.fromEpochSeconds(1_700_000_000)
+        val goal = savingsGoalRepository.saveGoal(
+            SavingsGoalDraft(
+                familyId = familyId,
+                childProfileId = childProfileId,
+                title = "Donar al refugio",
+                targetCents = MoneyCents(2_000),
+                potType = MoneyPotType.Give,
+                iconKey = "heart",
+            ),
+            createdAt = createdAt,
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = familyId,
+                childProfileId = childProfileId,
+                accountType = VirtualAccountType.Main,
+                type = LedgerTransactionType.Bonus,
+                amountCents = MoneyCents(1_230),
+                concept = LedgerConcept("Paga inicial"),
+                createdBy = LedgerActor.Parent,
+            ),
+            createdAt = createdAt,
+        )
+        val processor = SavingsGoalDepositProcessor(savingsGoalRepository, ledgerRepository)
+
+        // When
+        val transfer = processor.depositToGoal(
+            goalId = goal.id,
+            childProfileId = childProfileId,
+            amountCents = MoneyCents(500),
+            createdBy = LedgerActor.Child,
+            createdAt = Instant.fromEpochSeconds(1_700_000_600),
+        )
+
+        // Then
+        assertEquals(VirtualAccountType.Main, transfer.debit.accountType)
+        assertEquals(VirtualAccountType.Give, transfer.credit.accountType)
+        assertEquals(MoneyCents(500), transfer.credit.amountCents)
+        assertEquals(730, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Main).value)
+        assertEquals(0, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Goal).value)
+        assertEquals(500, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Give).value)
     }
 
     @Test

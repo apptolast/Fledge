@@ -3,6 +3,7 @@ package com.apptolast.fledge.domain
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.domain.model.SavingsGoalStatus
@@ -35,11 +36,51 @@ class SavingsGoalModelTest {
 
         // Then
         assertEquals(SavingsGoalStatus.Active, goal.status)
+        assertEquals(MoneyPotType.Save, goal.potType)
         assertEquals(VirtualAccountType.Goal, goal.accountType)
         assertEquals("Bici nueva", goal.title)
         assertEquals(MoneyCents(4_000), goal.targetCents)
         assertEquals(createdAt, goal.createdAt)
         assertEquals(createdAt, goal.updatedAt)
+    }
+
+    @Test
+    fun `FLE-50 Give goal uses GIVE account`() {
+        // Given
+        val createdAt = Instant.fromEpochSeconds(1_700_100_000)
+        val draft = SavingsGoalDraft(
+            familyId = FamilyId("family-1"),
+            childProfileId = ChildProfileId("child-1"),
+            title = "Donar juguetes",
+            targetCents = MoneyCents(2_000),
+            potType = MoneyPotType.Give,
+            iconKey = "target",
+        )
+
+        // When
+        val goal = draft.toSavingsGoal(
+            id = SavingsGoalId("goal-1"),
+            createdAt = createdAt,
+        )
+
+        // Then
+        assertEquals(MoneyPotType.Give, goal.potType)
+        assertEquals(VirtualAccountType.Give, goal.accountType)
+    }
+
+    @Test
+    fun `FLE-50 SavingsGoal rejects Spend pot`() {
+        // When / Then
+        assertFailsWith<IllegalArgumentException> {
+            SavingsGoalDraft(
+                familyId = FamilyId("family-1"),
+                childProfileId = ChildProfileId("child-1"),
+                title = "Gastar",
+                targetCents = MoneyCents(1_000),
+                potType = MoneyPotType.Spend,
+                iconKey = "target",
+            )
+        }
     }
 
     @Test

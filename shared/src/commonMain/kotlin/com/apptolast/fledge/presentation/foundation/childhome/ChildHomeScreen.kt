@@ -120,15 +120,18 @@ import fledge.shared.generated.resources.child_home_empty_tasks_action
 import fledge.shared.generated.resources.child_home_empty_tasks_body
 import fledge.shared.generated.resources.child_home_empty_tasks_title
 import fledge.shared.generated.resources.child_home_external_link
-import fledge.shared.generated.resources.child_home_goal_balance
 import fledge.shared.generated.resources.child_home_goal_completion_body
 import fledge.shared.generated.resources.child_home_goal_completion_title
 import fledge.shared.generated.resources.child_home_goal_status_completed
 import fledge.shared.generated.resources.child_home_goal_status_needs_contribution
 import fledge.shared.generated.resources.child_home_goal_status_on_track
 import fledge.shared.generated.resources.child_home_ledger_title
-import fledge.shared.generated.resources.child_home_main_balance
 import fledge.shared.generated.resources.child_home_parent_zone
+import fledge.shared.generated.resources.child_home_pot_give
+import fledge.shared.generated.resources.child_home_pot_save
+import fledge.shared.generated.resources.child_home_pot_spend
+import fledge.shared.generated.resources.child_home_pots_body
+import fledge.shared.generated.resources.child_home_pots_title
 import fledge.shared.generated.resources.child_home_purchase
 import fledge.shared.generated.resources.child_home_settings
 import fledge.shared.generated.resources.child_home_settlements_title
@@ -148,6 +151,7 @@ import fledge.shared.generated.resources.child_home_task_submit
 import fledge.shared.generated.resources.child_home_task_waiting
 import fledge.shared.generated.resources.child_home_tasks_title
 import fledge.shared.generated.resources.child_home_title
+import fledge.shared.generated.resources.ledger_account_give
 import fledge.shared.generated.resources.ledger_account_goal
 import fledge.shared.generated.resources.ledger_account_main
 import fledge.shared.generated.resources.ledger_actor_child
@@ -264,13 +268,13 @@ fun ChildHomeContent(
                 )
             }
             item {
-                ChildBalanceCard(state = state)
+                ChildMoneyPotsCard(state = state)
             }
             state.activeSavingsGoal?.let { goal ->
                 item {
                     ActiveSavingsGoalCard(
                         goal = goal,
-                        currentCents = state.balances?.goal?.value ?: 0L,
+                        currentCents = state.balances.balanceFor(goal.accountType),
                         projection = state.activeSavingsGoalProjection,
                         currencyCode = state.currencyCode,
                         onDeposit = {
@@ -1173,29 +1177,78 @@ private fun TaskStatusPill(status: TaskInstanceStatus) {
 }
 
 @Composable
-private fun ChildBalanceCard(state: ChildHomeUiState) {
+private fun ChildMoneyPotsCard(state: ChildHomeUiState) {
     val balances = state.balances
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = stringResource(
-                    Res.string.child_home_main_balance,
-                    formatCents(balances?.main?.value ?: 0L, state.currencyCode),
-                ),
+                text = stringResource(Res.string.child_home_pots_title),
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
             )
             Text(
-                text = stringResource(
-                    Res.string.child_home_goal_balance,
-                    formatCents(balances?.goal?.value ?: 0L, state.currencyCode),
-                ),
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(Res.string.child_home_pots_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ChildMoneyPot(
+                    label = stringResource(Res.string.child_home_pot_spend),
+                    amount = balances?.main?.value ?: 0L,
+                    currencyCode = state.currencyCode,
+                    modifier = Modifier.weight(1f),
+                )
+                ChildMoneyPot(
+                    label = stringResource(Res.string.child_home_pot_save),
+                    amount = balances?.goal?.value ?: 0L,
+                    currencyCode = state.currencyCode,
+                    modifier = Modifier.weight(1f),
+                )
+                ChildMoneyPot(
+                    label = stringResource(Res.string.child_home_pot_give),
+                    amount = balances?.give?.value ?: 0L,
+                    currencyCode = state.currencyCode,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChildMoneyPot(label: String, amount: Long, currencyCode: String, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier.heightIn(min = 84.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = formatCents(amount, currencyCode),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -1428,7 +1481,14 @@ private fun ledgerActorLabel(actor: LedgerActor): String = when (actor) {
 private fun ledgerAccountLabel(accountType: VirtualAccountType): String = when (accountType) {
     VirtualAccountType.Main -> stringResource(Res.string.ledger_account_main)
     VirtualAccountType.Goal -> stringResource(Res.string.ledger_account_goal)
+    VirtualAccountType.Give -> stringResource(Res.string.ledger_account_give)
 }
+
+private fun ChildLedgerBalances?.balanceFor(accountType: VirtualAccountType): Long = when (accountType) {
+    VirtualAccountType.Main -> this?.main
+    VirtualAccountType.Goal -> this?.goal
+    VirtualAccountType.Give -> this?.give
+}?.value ?: 0L
 
 private fun formatCents(value: Long, currencyCode: String): String {
     val sign = if (value < 0) "-" else ""
@@ -1457,6 +1517,7 @@ fun PreviewChildHomeContent() {
                     childProfileId = ChildProfileId("child-1"),
                     main = BalanceCents(550),
                     goal = BalanceCents(1_230),
+                    give = BalanceCents(320),
                 ),
                 activeSavingsGoal = SavingsGoal(
                     id = SavingsGoalId("goal-1"),
@@ -1577,6 +1638,7 @@ fun PreviewChildHomeEmptyContent() {
                     childProfileId = ChildProfileId("child-1"),
                     main = BalanceCents(0),
                     goal = BalanceCents(0),
+                    give = BalanceCents(0),
                 ),
                 activeSavingsGoal = null,
                 taskInstances = emptyList(),
