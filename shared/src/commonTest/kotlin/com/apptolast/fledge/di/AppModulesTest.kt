@@ -40,6 +40,7 @@ import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
+import com.apptolast.fledge.domain.service.WeeklyParentDigestCalculator
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionViewModel
 import com.apptolast.fledge.presentation.foundation.admin.SecondaryAdminViewModel
@@ -51,6 +52,7 @@ import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalWithdrawalViewModel
+import com.apptolast.fledge.presentation.foundation.weeklydigest.ParentWeeklyDigestViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -86,11 +88,13 @@ class AppModulesTest {
         assertNotNull(application.koin.get<CashOutProcessor>())
         assertNotNull(application.koin.get<SavingsGoalDepositProcessor>())
         assertNotNull(application.koin.get<SavingsGoalWithdrawalProcessor>())
+        assertNotNull(application.koin.get<WeeklyParentDigestCalculator>())
         assertNotNull(application.koin.get<ParentInterestViewModel>())
         assertNotNull(application.koin.get<ParentMatchViewModel>())
         assertNotNull(application.koin.get<SecondaryAdminViewModel>())
         assertNotNull(application.koin.get<GuestSponsorInviteViewModel>())
         assertNotNull(application.koin.get<GuestHomeViewModel>())
+        assertNotNull(application.koin.get<ParentWeeklyDigestViewModel>())
         assertNotNull(application.koin.get<SavingsGoalSetupViewModel>())
         assertNotNull(application.koin.get<SavingsGoalDepositViewModel>())
         assertNotNull(application.koin.get<SavingsGoalWithdrawalViewModel>())
