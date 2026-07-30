@@ -38,6 +38,7 @@ import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.FamilyStatementExportBuilder
 import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.domain.service.WeeklyParentDigestCalculator
@@ -52,6 +53,7 @@ import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalWithdrawalViewModel
+import com.apptolast.fledge.presentation.foundation.statementexport.ParentStatementExportViewModel
 import com.apptolast.fledge.presentation.foundation.weeklydigest.ParentWeeklyDigestViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -88,12 +90,14 @@ class AppModulesTest {
         assertNotNull(application.koin.get<CashOutProcessor>())
         assertNotNull(application.koin.get<SavingsGoalDepositProcessor>())
         assertNotNull(application.koin.get<SavingsGoalWithdrawalProcessor>())
+        assertNotNull(application.koin.get<FamilyStatementExportBuilder>())
         assertNotNull(application.koin.get<WeeklyParentDigestCalculator>())
         assertNotNull(application.koin.get<ParentInterestViewModel>())
         assertNotNull(application.koin.get<ParentMatchViewModel>())
         assertNotNull(application.koin.get<SecondaryAdminViewModel>())
         assertNotNull(application.koin.get<GuestSponsorInviteViewModel>())
         assertNotNull(application.koin.get<GuestHomeViewModel>())
+        assertNotNull(application.koin.get<ParentStatementExportViewModel>())
         assertNotNull(application.koin.get<ParentWeeklyDigestViewModel>())
         assertNotNull(application.koin.get<SavingsGoalSetupViewModel>())
         assertNotNull(application.koin.get<SavingsGoalDepositViewModel>())
