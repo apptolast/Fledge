@@ -59,6 +59,7 @@ import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
 import com.apptolast.fledge.domain.service.SavingsGoalProjection
 import com.apptolast.fledge.domain.service.SavingsGoalProjectionStatus
+import com.apptolast.fledge.presentation.foundation.components.ActionableEmptyStateCard
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -83,17 +84,23 @@ import fledge.shared.generated.resources.child_home_active_goal_title
 import fledge.shared.generated.resources.child_home_active_goal_withdraw
 import fledge.shared.generated.resources.child_home_body
 import fledge.shared.generated.resources.child_home_cash_out
+import fledge.shared.generated.resources.child_home_empty_goal_action
+import fledge.shared.generated.resources.child_home_empty_goal_body
+import fledge.shared.generated.resources.child_home_empty_goal_title
+import fledge.shared.generated.resources.child_home_empty_ledger_body
+import fledge.shared.generated.resources.child_home_empty_settlements_body
+import fledge.shared.generated.resources.child_home_empty_tasks_action
+import fledge.shared.generated.resources.child_home_empty_tasks_body
+import fledge.shared.generated.resources.child_home_empty_tasks_title
 import fledge.shared.generated.resources.child_home_external_link
 import fledge.shared.generated.resources.child_home_goal_balance
 import fledge.shared.generated.resources.child_home_goal_completion_body
 import fledge.shared.generated.resources.child_home_goal_completion_title
-import fledge.shared.generated.resources.child_home_ledger_empty
 import fledge.shared.generated.resources.child_home_ledger_title
 import fledge.shared.generated.resources.child_home_main_balance
 import fledge.shared.generated.resources.child_home_parent_zone
 import fledge.shared.generated.resources.child_home_purchase
 import fledge.shared.generated.resources.child_home_settings
-import fledge.shared.generated.resources.child_home_settlements_empty
 import fledge.shared.generated.resources.child_home_settlements_title
 import fledge.shared.generated.resources.child_home_task_add_photo
 import fledge.shared.generated.resources.child_home_task_due_today
@@ -109,7 +116,6 @@ import fledge.shared.generated.resources.child_home_task_status_rejected
 import fledge.shared.generated.resources.child_home_task_status_submitted
 import fledge.shared.generated.resources.child_home_task_submit
 import fledge.shared.generated.resources.child_home_task_waiting
-import fledge.shared.generated.resources.child_home_tasks_empty
 import fledge.shared.generated.resources.child_home_tasks_title
 import fledge.shared.generated.resources.child_home_title
 import fledge.shared.generated.resources.ledger_account_goal
@@ -248,6 +254,15 @@ fun ChildHomeContent(
                     )
                 }
             }
+            if (state.activeSavingsGoal == null) {
+                item {
+                    ChildHomeEmptyStateCard(
+                        emptyState = state.emptyState(ChildHomeEmptyStateKind.SavingsGoal)
+                            ?: ChildHomeEmptyState(kind = ChildHomeEmptyStateKind.SavingsGoal),
+                        onProtectedAction = onProtectedAction,
+                    )
+                }
+            }
             state.activeSavingsGoalCompletionNotice?.let { notice ->
                 item {
                     ChildGoalCompletionNoticeCard(
@@ -273,10 +288,10 @@ fun ChildHomeContent(
             }
             if (state.taskInstances.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(Res.string.child_home_tasks_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ChildHomeEmptyStateCard(
+                        emptyState = state.emptyState(ChildHomeEmptyStateKind.Tasks)
+                            ?: ChildHomeEmptyState(kind = ChildHomeEmptyStateKind.Tasks),
+                        onProtectedAction = onProtectedAction,
                     )
                 }
             } else {
@@ -314,10 +329,10 @@ fun ChildHomeContent(
             val pendingSettlements = state.settlements.filter { it.status != SettlementStatus.ConfirmedByChild }
             if (pendingSettlements.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(Res.string.child_home_settlements_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ChildHomeEmptyStateCard(
+                        emptyState = state.emptyState(ChildHomeEmptyStateKind.Settlements)
+                            ?: ChildHomeEmptyState(kind = ChildHomeEmptyStateKind.Settlements),
+                        onProtectedAction = onProtectedAction,
                     )
                 }
             } else {
@@ -349,10 +364,10 @@ fun ChildHomeContent(
             }
             if (state.ledgerTransactions.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(Res.string.child_home_ledger_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ChildHomeEmptyStateCard(
+                        emptyState = state.emptyState(ChildHomeEmptyStateKind.Ledger)
+                            ?: ChildHomeEmptyState(kind = ChildHomeEmptyStateKind.Ledger),
+                        onProtectedAction = onProtectedAction,
                     )
                 }
             } else {
@@ -898,6 +913,51 @@ private fun LedgerTransactionRow(transaction: LedgerTransaction, currencyCode: S
     }
 }
 
+private fun ChildHomeUiState.emptyState(kind: ChildHomeEmptyStateKind): ChildHomeEmptyState? =
+    actionableEmptyStates.firstOrNull { it.kind == kind }
+
+@Composable
+private fun ChildHomeEmptyStateCard(emptyState: ChildHomeEmptyState, onProtectedAction: (FoundationAction) -> Unit) {
+    val action = when (emptyState.action) {
+        ChildHomeEmptyStateAction.OpenParentZone -> ChildEmptyStateActionUi(
+            label = childHomeEmptyStateActionLabel(emptyState.kind),
+            onClick = { onProtectedAction(FoundationAction.OpenParentZone) },
+        )
+
+        null -> null
+    }
+    ActionableEmptyStateCard(
+        title = childHomeEmptyStateTitle(emptyState.kind),
+        body = childHomeEmptyStateBody(emptyState.kind),
+        actionLabel = action?.label,
+        onAction = action?.onClick,
+    )
+}
+
+private data class ChildEmptyStateActionUi(val label: String, val onClick: () -> Unit)
+
+@Composable
+private fun childHomeEmptyStateTitle(kind: ChildHomeEmptyStateKind): String = when (kind) {
+    ChildHomeEmptyStateKind.Tasks -> stringResource(Res.string.child_home_empty_tasks_title)
+    ChildHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.child_home_empty_goal_title)
+    ChildHomeEmptyStateKind.Settlements -> stringResource(Res.string.child_home_settlements_title)
+    ChildHomeEmptyStateKind.Ledger -> stringResource(Res.string.child_home_ledger_title)
+}
+
+@Composable
+private fun childHomeEmptyStateBody(kind: ChildHomeEmptyStateKind): String = when (kind) {
+    ChildHomeEmptyStateKind.Tasks -> stringResource(Res.string.child_home_empty_tasks_body)
+    ChildHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.child_home_empty_goal_body)
+    ChildHomeEmptyStateKind.Settlements -> stringResource(Res.string.child_home_empty_settlements_body)
+    ChildHomeEmptyStateKind.Ledger -> stringResource(Res.string.child_home_empty_ledger_body)
+}
+
+@Composable
+private fun childHomeEmptyStateActionLabel(kind: ChildHomeEmptyStateKind): String = when (kind) {
+    ChildHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.child_home_empty_goal_action)
+    else -> stringResource(Res.string.child_home_empty_tasks_action)
+}
+
 @Composable
 private fun taskSubmissionErrorText(error: ChildTaskSubmissionError): String = when (error) {
     ChildTaskSubmissionError.MissingPhotoEvidence -> stringResource(Res.string.child_home_task_error_missing_photo)
@@ -1059,6 +1119,35 @@ fun PreviewChildHomeContent() {
                         submittedAt = Clock.System.now(),
                     ),
                 ),
+                syncNotice = null,
+            ),
+            onRequestCashOut = {},
+            onOpenSavingsGoal = { _, _ -> },
+            onWithdrawSavingsGoal = { _, _ -> },
+            onConfirmSettlement = {},
+            onAttachPhotoEvidence = {},
+            onSubmitTask = {},
+            onProtectedAction = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+fun PreviewChildHomeEmptyContent() {
+    FledgeTheme {
+        ChildHomeContent(
+            state = ChildHomeUiState(
+                childProfileId = ChildProfileId("child-1"),
+                balances = ChildLedgerBalances(
+                    childProfileId = ChildProfileId("child-1"),
+                    main = BalanceCents(0),
+                    goal = BalanceCents(0),
+                ),
+                activeSavingsGoal = null,
+                taskInstances = emptyList(),
+                settlements = emptyList(),
+                ledgerTransactions = emptyList(),
                 syncNotice = null,
             ),
             onRequestCashOut = {},

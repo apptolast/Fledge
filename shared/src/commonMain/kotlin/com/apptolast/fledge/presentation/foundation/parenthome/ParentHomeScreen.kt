@@ -52,6 +52,7 @@ import com.apptolast.fledge.domain.model.TaskInstanceId
 import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
+import com.apptolast.fledge.presentation.foundation.components.ActionableEmptyStateCard
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -61,14 +62,17 @@ import fledge.shared.generated.resources.cash_out_parent_reminder_seven_days
 import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
-import fledge.shared.generated.resources.empty_children
 import fledge.shared.generated.resources.operation_error_sync
 import fledge.shared.generated.resources.parent_home_add_child
 import fledge.shared.generated.resources.parent_home_adjustment
 import fledge.shared.generated.resources.parent_home_allowance
 import fledge.shared.generated.resources.parent_home_children
+import fledge.shared.generated.resources.parent_home_children_empty_body
+import fledge.shared.generated.resources.parent_home_children_empty_title
 import fledge.shared.generated.resources.parent_home_create_goal
 import fledge.shared.generated.resources.parent_home_create_task
+import fledge.shared.generated.resources.parent_home_first_run_empty_body
+import fledge.shared.generated.resources.parent_home_first_run_empty_title
 import fledge.shared.generated.resources.parent_home_gate
 import fledge.shared.generated.resources.parent_home_gate_setup
 import fledge.shared.generated.resources.parent_home_goal_balance
@@ -79,12 +83,14 @@ import fledge.shared.generated.resources.parent_home_pairing
 import fledge.shared.generated.resources.parent_home_pending_count
 import fledge.shared.generated.resources.parent_home_pending_liquidation
 import fledge.shared.generated.resources.parent_home_pending_total
-import fledge.shared.generated.resources.parent_home_settlements_empty
+import fledge.shared.generated.resources.parent_home_savings_goal_empty_body
+import fledge.shared.generated.resources.parent_home_savings_goal_empty_title
+import fledge.shared.generated.resources.parent_home_savings_goals_title
+import fledge.shared.generated.resources.parent_home_settlements_empty_body
 import fledge.shared.generated.resources.parent_home_settlements_title
 import fledge.shared.generated.resources.parent_home_setup
 import fledge.shared.generated.resources.parent_home_task_approval_amount
 import fledge.shared.generated.resources.parent_home_task_approval_approve
-import fledge.shared.generated.resources.parent_home_task_approval_empty
 import fledge.shared.generated.resources.parent_home_task_approval_error_amount
 import fledge.shared.generated.resources.parent_home_task_approval_error_reason
 import fledge.shared.generated.resources.parent_home_task_approval_original
@@ -92,6 +98,8 @@ import fledge.shared.generated.resources.parent_home_task_approval_photo
 import fledge.shared.generated.resources.parent_home_task_approval_reason
 import fledge.shared.generated.resources.parent_home_task_approval_reject
 import fledge.shared.generated.resources.parent_home_task_approvals_title
+import fledge.shared.generated.resources.parent_home_task_empty_action_body
+import fledge.shared.generated.resources.parent_home_task_empty_first_run_body
 import fledge.shared.generated.resources.parent_home_title
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -99,6 +107,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun ParentHomeScreen(
+    onAddChild: () -> Unit,
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
@@ -112,6 +121,7 @@ fun ParentHomeScreen(
 
     ParentHomeContent(
         state = state,
+        onAddChild = onAddChild,
         onPairChild = onPairChild,
         onConfigureAllowance = onConfigureAllowance,
         onAdjustChild = onAdjustChild,
@@ -147,6 +157,7 @@ fun ParentHomeScreen(
 @Composable
 fun ParentHomeContent(
     state: ParentHomeUiState,
+    onAddChild: () -> Unit,
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
@@ -190,12 +201,24 @@ fun ParentHomeContent(
                     )
                 }
             }
-            item {
-                SummaryCard(
-                    pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
-                    pendingCount = state.pendingSettlements.size,
-                    currencyCode = state.currencyCode,
-                )
+            if (state.children.isEmpty()) {
+                item {
+                    ParentHomeEmptyStateCard(
+                        emptyState = state.emptyState(ParentHomeEmptyStateKind.FirstRun)
+                            ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.FirstRun),
+                        onAddChild = onAddChild,
+                        onCreateTask = onCreateTask,
+                        onCreateSavingsGoal = onCreateSavingsGoal,
+                    )
+                }
+            } else {
+                item {
+                    SummaryCard(
+                        pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
+                        pendingCount = state.pendingSettlements.size,
+                        currencyCode = state.currencyCode,
+                    )
+                }
             }
             if (state.goalCompletionNotices.isNotEmpty()) {
                 items(
@@ -209,15 +232,32 @@ fun ParentHomeContent(
                 }
             }
             item {
-                Button(
-                    onClick = onCreateTask,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                ) {
-                    Text(stringResource(Res.string.parent_home_create_task))
+                when (state.primaryAction) {
+                    ParentHomePrimaryAction.AddChild -> {
+                        Button(
+                            onClick = onAddChild,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                        ) {
+                            Text(stringResource(Res.string.parent_home_add_child))
+                        }
+                    }
+
+                    ParentHomePrimaryAction.CreateTask -> {
+                        Button(
+                            onClick = onCreateTask,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                        ) {
+                            Text(stringResource(Res.string.parent_home_create_task))
+                        }
+                    }
                 }
             }
             item {
@@ -237,10 +277,12 @@ fun ParentHomeContent(
             }
             if (state.pendingTaskApprovals.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(Res.string.parent_home_task_approval_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ParentHomeEmptyStateCard(
+                        emptyState = state.emptyState(ParentHomeEmptyStateKind.TaskApprovals)
+                            ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.TaskApprovals),
+                        onAddChild = onAddChild,
+                        onCreateTask = onCreateTask,
+                        onCreateSavingsGoal = onCreateSavingsGoal,
                     )
                 }
             } else {
@@ -268,10 +310,11 @@ fun ParentHomeContent(
             }
             if (state.children.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(Res.string.empty_children),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ActionableEmptyStateCard(
+                        title = stringResource(Res.string.parent_home_children_empty_title),
+                        body = stringResource(Res.string.parent_home_children_empty_body),
+                        actionLabel = stringResource(Res.string.parent_home_add_child),
+                        onAction = onAddChild,
                     )
                 }
             } else {
@@ -288,6 +331,22 @@ fun ParentHomeContent(
                     )
                 }
             }
+            state.emptyState(ParentHomeEmptyStateKind.SavingsGoal)?.let { emptyState ->
+                item {
+                    Text(
+                        text = stringResource(Res.string.parent_home_savings_goals_title),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                }
+                item {
+                    ParentHomeEmptyStateCard(
+                        emptyState = emptyState,
+                        onAddChild = onAddChild,
+                        onCreateTask = onCreateTask,
+                        onCreateSavingsGoal = onCreateSavingsGoal,
+                    )
+                }
+            }
             item {
                 Text(
                     text = stringResource(Res.string.parent_home_settlements_title),
@@ -296,10 +355,12 @@ fun ParentHomeContent(
             }
             if (state.pendingSettlements.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(Res.string.parent_home_settlements_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ParentHomeEmptyStateCard(
+                        emptyState = state.emptyState(ParentHomeEmptyStateKind.Settlements)
+                            ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.Settlements),
+                        onAddChild = onAddChild,
+                        onCreateTask = onCreateTask,
+                        onCreateSavingsGoal = onCreateSavingsGoal,
                     )
                 }
             } else {
@@ -328,7 +389,13 @@ fun ParentHomeContent(
                 )
             }
             items(state.setupActions, key = { it.id }) { action ->
-                SetupActionRow(action = action, onRequireParentalGate = onRequireParentalGate)
+                SetupActionRow(
+                    action = action,
+                    firstChildId = state.children.firstOrNull()?.id,
+                    onAddChild = onAddChild,
+                    onPairChild = onPairChild,
+                    onRequireParentalGate = onRequireParentalGate,
+                )
             }
         }
     }
@@ -699,6 +766,66 @@ private fun parentReminderText(level: SettlementReminderLevel): String = when (l
     SettlementReminderLevel.FourteenDays -> stringResource(Res.string.cash_out_parent_reminder_fourteen_days)
 }
 
+private fun ParentHomeUiState.emptyState(kind: ParentHomeEmptyStateKind): ParentHomeEmptyState? =
+    actionableEmptyStates.firstOrNull { it.kind == kind }
+
+@Composable
+private fun ParentHomeEmptyStateCard(
+    emptyState: ParentHomeEmptyState,
+    onAddChild: () -> Unit,
+    onCreateTask: () -> Unit,
+    onCreateSavingsGoal: (ChildProfileId) -> Unit,
+) {
+    val action = when (emptyState.action) {
+        ParentHomeEmptyStateAction.AddChild -> EmptyStateActionUi(
+            label = stringResource(Res.string.parent_home_add_child),
+            onClick = onAddChild,
+        )
+
+        ParentHomeEmptyStateAction.CreateTask -> EmptyStateActionUi(
+            label = stringResource(Res.string.parent_home_create_task),
+            onClick = onCreateTask,
+        )
+
+        ParentHomeEmptyStateAction.CreateSavingsGoal -> emptyState.childProfileId?.let { childId ->
+            EmptyStateActionUi(
+                label = stringResource(Res.string.parent_home_create_goal),
+                onClick = { onCreateSavingsGoal(childId) },
+            )
+        }
+
+        null -> null
+    }
+    ActionableEmptyStateCard(
+        title = parentHomeEmptyStateTitle(emptyState.kind),
+        body = parentHomeEmptyStateBody(emptyState),
+        actionLabel = action?.label,
+        onAction = action?.onClick,
+    )
+}
+
+private data class EmptyStateActionUi(val label: String, val onClick: () -> Unit)
+
+@Composable
+private fun parentHomeEmptyStateTitle(kind: ParentHomeEmptyStateKind): String = when (kind) {
+    ParentHomeEmptyStateKind.FirstRun -> stringResource(Res.string.parent_home_first_run_empty_title)
+    ParentHomeEmptyStateKind.TaskApprovals -> stringResource(Res.string.parent_home_task_approvals_title)
+    ParentHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.parent_home_savings_goal_empty_title)
+    ParentHomeEmptyStateKind.Settlements -> stringResource(Res.string.parent_home_settlements_title)
+}
+
+@Composable
+private fun parentHomeEmptyStateBody(emptyState: ParentHomeEmptyState): String = when (emptyState.kind) {
+    ParentHomeEmptyStateKind.FirstRun -> stringResource(Res.string.parent_home_first_run_empty_body)
+    ParentHomeEmptyStateKind.TaskApprovals -> if (emptyState.action == ParentHomeEmptyStateAction.CreateTask) {
+        stringResource(Res.string.parent_home_task_empty_action_body)
+    } else {
+        stringResource(Res.string.parent_home_task_empty_first_run_body)
+    }
+    ParentHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.parent_home_savings_goal_empty_body)
+    ParentHomeEmptyStateKind.Settlements -> stringResource(Res.string.parent_home_settlements_empty_body)
+}
+
 private fun formatCents(value: Long, currencyCode: String): String {
     val sign = if (value < 0) "-" else ""
     val absolute = if (value < 0) -value else value
@@ -714,7 +841,13 @@ private fun taskApprovalErrorText(error: ParentTaskApprovalError): String = when
 }
 
 @Composable
-private fun SetupActionRow(action: SetupAction, onRequireParentalGate: (FoundationAction) -> Unit) {
+private fun SetupActionRow(
+    action: SetupAction,
+    firstChildId: ChildProfileId?,
+    onAddChild: () -> Unit,
+    onPairChild: (ChildProfileId) -> Unit,
+    onRequireParentalGate: (FoundationAction) -> Unit,
+) {
     Card(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -728,8 +861,17 @@ private fun SetupActionRow(action: SetupAction, onRequireParentalGate: (Foundati
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(text = setupActionLabel(action), style = MaterialTheme.typography.bodyLarge)
-            Button(onClick = { onRequireParentalGate(FoundationAction.ManageSettings) }) {
-                Text(stringResource(Res.string.parent_home_gate))
+            Button(
+                onClick = {
+                    when (action.id) {
+                        "add-child" -> onAddChild()
+                        "pair-device" -> firstChildId?.let(onPairChild)
+                        else -> onRequireParentalGate(FoundationAction.ManageSettings)
+                    }
+                },
+                enabled = action.id != "pair-device" || firstChildId != null,
+            ) {
+                Text(setupActionButtonLabel(action))
             }
         }
     }
@@ -740,6 +882,13 @@ private fun setupActionLabel(action: SetupAction): String = when (action.id) {
     "add-child" -> stringResource(Res.string.parent_home_add_child)
     "pair-device" -> stringResource(Res.string.parent_home_pairing)
     else -> stringResource(Res.string.parent_home_gate_setup)
+}
+
+@Composable
+private fun setupActionButtonLabel(action: SetupAction): String = when (action.id) {
+    "add-child" -> stringResource(Res.string.parent_home_add_child)
+    "pair-device" -> stringResource(Res.string.parent_home_pairing)
+    else -> stringResource(Res.string.parent_home_gate)
 }
 
 @Preview
@@ -802,6 +951,72 @@ fun PreviewParentHomeContent() {
                 rejectionReasonInputs = mapOf(TaskInstanceId("task-1") to "Falta recoger los vasos."),
                 syncNotice = null,
             ),
+            onAddChild = {},
+            onPairChild = {},
+            onConfigureAllowance = {},
+            onAdjustChild = {},
+            onCreateSavingsGoal = {},
+            onCreateTask = {},
+            onMarkSettlementPaid = {},
+            onUpdateApprovalAmount = { _, _ -> },
+            onUpdateRejectionReason = { _, _ -> },
+            onApproveTask = {},
+            onRejectTask = {},
+            onRequireParentalGate = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+fun PreviewParentHomeFirstRunEmptyContent() {
+    FledgeTheme {
+        ParentHomeContent(
+            state = ParentHomeUiState(
+                familyName = "Familia Garcia",
+                children = emptyList(),
+                syncNotice = null,
+            ),
+            onAddChild = {},
+            onPairChild = {},
+            onConfigureAllowance = {},
+            onAdjustChild = {},
+            onCreateSavingsGoal = {},
+            onCreateTask = {},
+            onMarkSettlementPaid = {},
+            onUpdateApprovalAmount = { _, _ -> },
+            onUpdateRejectionReason = { _, _ -> },
+            onApproveTask = {},
+            onRejectTask = {},
+            onRequireParentalGate = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+fun PreviewParentHomeEmptyActivityContent() {
+    val childId = ChildProfileId("child-1")
+    FledgeTheme {
+        ParentHomeContent(
+            state = ParentHomeUiState(
+                familyName = "Familia Garcia",
+                children = listOf(
+                    ChildProfile(
+                        id = childId,
+                        displayName = "Lucia",
+                        birthYear = 2018,
+                        avatarKey = "star",
+                    ),
+                ),
+                mainBalances = mapOf(childId to BalanceCents(0)),
+                goalBalances = mapOf(childId to BalanceCents(0)),
+                activeSavingsGoalChildIds = emptySet(),
+                pendingSettlements = emptyList(),
+                pendingTaskApprovals = emptyList(),
+                syncNotice = null,
+            ),
+            onAddChild = {},
             onPairChild = {},
             onConfigureAllowance = {},
             onAdjustChild = {},
