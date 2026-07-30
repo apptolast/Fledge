@@ -14,6 +14,8 @@ import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettings
 import com.apptolast.fledge.domain.model.InterestSettingsDraft
+import com.apptolast.fledge.domain.model.MatchSettings
+import com.apptolast.fledge.domain.model.MatchSettingsDraft
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
@@ -118,6 +120,17 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
             lastPostedPeriodKey = family.interestSettings.lastPostedPeriodKey,
         )
         mutableActiveFamily.value = family.copy(interestSettings = settings)
+        return settings
+    }
+
+    override suspend fun updateMatchSettings(draft: MatchSettingsDraft): MatchSettings {
+        val family = requireNotNull(mutableActiveFamily.value) { "Family does not exist." }
+        val settings = MatchSettings(
+            enabled = draft.enabled,
+            matchBasisPoints = draft.matchBasisPoints,
+            maxMatchCents = draft.maxMatchCents,
+        )
+        mutableActiveFamily.value = family.copy(matchSettings = settings)
         return settings
     }
 

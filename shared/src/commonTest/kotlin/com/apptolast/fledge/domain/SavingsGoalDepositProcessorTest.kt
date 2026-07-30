@@ -1,21 +1,27 @@
 package com.apptolast.fledge.domain
 
+import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.InMemoryLedgerRepository
 import com.apptolast.fledge.data.repository.InMemorySavingsGoalRepository
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
+import com.apptolast.fledge.domain.model.MatchSettings
+import com.apptolast.fledge.domain.model.MatchSettingsDraft
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.domain.model.SavingsGoalStatus
+import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
+import com.apptolast.fledge.domain.service.calculateParentalMatchCents
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -129,6 +135,144 @@ class SavingsGoalDepositProcessorTest {
         assertEquals(730, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Main).value)
         assertEquals(0, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Goal).value)
         assertEquals(500, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Give).value)
+    }
+
+    @Test
+    fun `FLE-51 child deposit creates capped parental match transaction`() = runTest {
+        // Given
+        val familyRepository = InMemoryFamilyFoundationRepository()
+        val family = familyRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        familyRepository.updateMatchSettings(
+            MatchSettingsDraft(
+                enabled = true,
+                matchBasisPoints = 10_000,
+                maxMatchCents = 300,
+            ),
+        )
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val childProfileId = ChildProfileId("child-1")
+        val createdAt = Instant.fromEpochSeconds(1_700_000_000)
+        val goal = savingsGoalRepository.saveGoal(
+            SavingsGoalDraft(
+                familyId = family.id,
+                childProfileId = childProfileId,
+                title = "Bici nueva",
+                targetCents = MoneyCents(4_000),
+                iconKey = "bike",
+            ),
+            createdAt = createdAt,
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = family.id,
+                childProfileId = childProfileId,
+                accountType = VirtualAccountType.Main,
+                type = LedgerTransactionType.Bonus,
+                amountCents = MoneyCents(1_230),
+                concept = LedgerConcept("Paga inicial"),
+                createdBy = LedgerActor.Parent,
+            ),
+            createdAt = createdAt,
+        )
+        val processor = SavingsGoalDepositProcessor(savingsGoalRepository, ledgerRepository, familyRepository)
+
+        // When
+        processor.depositToGoal(
+            goalId = goal.id,
+            childProfileId = childProfileId,
+            amountCents = MoneyCents(500),
+            createdBy = LedgerActor.Child,
+            createdAt = Instant.fromEpochSeconds(1_700_000_600),
+        )
+
+        // Then
+        val match = ledgerRepository.transactions.value.single { it.type == LedgerTransactionType.Match }
+        assertEquals(VirtualAccountType.Goal, match.accountType)
+        assertEquals(MoneyCents(300), match.amountCents)
+        assertEquals(LedgerActor.System, match.createdBy)
+        assertEquals("Match parental: Bici nueva", match.concept.value)
+        assertEquals(730, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Main).value)
+        assertEquals(800, ledgerRepository.balanceFor(childProfileId, VirtualAccountType.Goal).value)
+    }
+
+    @Test
+    fun `FLE-51 disabled parental match does not create an extra transaction`() = runTest {
+        // Given
+        val familyRepository = InMemoryFamilyFoundationRepository()
+        val family = familyRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val childProfileId = ChildProfileId("child-1")
+        val goal = savingsGoalRepository.saveGoal(
+            SavingsGoalDraft(
+                familyId = family.id,
+                childProfileId = childProfileId,
+                title = "Bici nueva",
+                targetCents = MoneyCents(4_000),
+                iconKey = "bike",
+            ),
+            createdAt = Instant.fromEpochSeconds(1_700_000_000),
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = family.id,
+                childProfileId = childProfileId,
+                accountType = VirtualAccountType.Main,
+                type = LedgerTransactionType.Bonus,
+                amountCents = MoneyCents(1_230),
+                concept = LedgerConcept("Paga inicial"),
+                createdBy = LedgerActor.Parent,
+            ),
+        )
+        val processor = SavingsGoalDepositProcessor(savingsGoalRepository, ledgerRepository, familyRepository)
+
+        // When
+        processor.depositToGoal(
+            goalId = goal.id,
+            childProfileId = childProfileId,
+            amountCents = MoneyCents(500),
+            createdBy = LedgerActor.Child,
+        )
+
+        // Then
+        assertEquals(false, ledgerRepository.transactions.value.any { it.type == LedgerTransactionType.Match })
+        assertEquals(3, ledgerRepository.transactions.value.size)
+    }
+
+    @Test
+    fun `FLE-51 parental match calculator floors cents and applies cap`() {
+        // Given / When / Then
+        assertEquals(
+            MoneyCents(250),
+            calculateParentalMatchCents(
+                contributionCents = MoneyCents(500),
+                settings = MatchSettings(
+                    enabled = true,
+                    matchBasisPoints = 5_000,
+                    maxMatchCents = 500,
+                ),
+            ),
+        )
+        assertEquals(
+            MoneyCents(300),
+            calculateParentalMatchCents(
+                contributionCents = MoneyCents(500),
+                settings = MatchSettings(
+                    enabled = true,
+                    matchBasisPoints = 10_000,
+                    maxMatchCents = 300,
+                ),
+            ),
+        )
     }
 
     @Test

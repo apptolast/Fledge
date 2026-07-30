@@ -16,6 +16,7 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.LedgerTransferGroupId
+import com.apptolast.fledge.domain.model.MatchSettings
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoal
@@ -66,6 +67,30 @@ class FirestoreRepositorySupportTest {
         assertEquals(250, data["interestAnnualRateBasisPoints"])
         assertEquals(5, data["interestPostingDayOfMonth"])
         assertEquals("202607", data["interestLastPostedPeriodKey"])
+    }
+
+    @Test
+    fun `FLE-51 family document stores parent match settings`() {
+        // Given
+        val family = Family(
+            id = FamilyId("family-1"),
+            name = "Familia Garcia",
+            currency = CurrencyCode("EUR"),
+            timeZone = TimeZoneId("Europe/Madrid"),
+            matchSettings = MatchSettings(
+                enabled = true,
+                matchBasisPoints = 10_000,
+                maxMatchCents = 500,
+            ),
+        )
+
+        // When
+        val data = family.toFirestoreMap()
+
+        // Then
+        assertEquals(true, data["matchEnabled"])
+        assertEquals(10_000, data["matchBasisPoints"])
+        assertEquals(500L, data["matchMaxCents"])
     }
 
     @Test
