@@ -25,16 +25,67 @@ import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeEmptyStateAction
+import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeEmptyStateKind
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildTaskSubmissionError
+import com.apptolast.fledge.presentation.foundation.childhome.actionableEmptyStates
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 
 class ChildHomeViewModelTest {
+
+    @Test
+    fun `FLE-43 AC-04 AC-05 child empty home asks for adult help and explains ledger`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucia",
+            birthYear = 2018,
+            avatarKey = "star",
+            pin = ChildPin("1234"),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+        val state = viewModel.uiState.value
+        val emptyStatesByKind = state.actionableEmptyStates.associateBy { it.kind }
+
+        // Then
+        assertEquals(BalanceCents(0), state.balances?.main)
+        assertEquals(ChildHomeEmptyStateAction.OpenParentZone, emptyStatesByKind[ChildHomeEmptyStateKind.Tasks]?.action)
+        assertEquals(
+            ChildHomeEmptyStateAction.OpenParentZone,
+            emptyStatesByKind[ChildHomeEmptyStateKind.SavingsGoal]?.action,
+        )
+        assertTrue(ChildHomeEmptyStateKind.Ledger in emptyStatesByKind)
+        assertEquals(null, emptyStatesByKind[ChildHomeEmptyStateKind.Ledger]?.action)
+        assertEquals(emptyList(), state.ledgerTransactions)
+    }
 
     @Test
     fun `FLE-21 child ledger shows original and reversal entries`() = runTest {

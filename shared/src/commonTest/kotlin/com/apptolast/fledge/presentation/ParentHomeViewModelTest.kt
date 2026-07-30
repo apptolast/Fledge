@@ -27,7 +27,12 @@ import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
+import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeEmptyStateAction
+import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeEmptyStateKind
+import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomePrimaryAction
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewModel
+import com.apptolast.fledge.presentation.foundation.parenthome.actionableEmptyStates
+import com.apptolast.fledge.presentation.foundation.parenthome.primaryAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -35,6 +40,83 @@ import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 
 class ParentHomeViewModelTest {
+
+    @Test
+    fun `FLE-43 AC-01 parent first run prioritizes adding the first child`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
+        val viewModel = ParentHomeViewModel(
+            repository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+            TaskApprovalProcessor(taskInstanceRepository, ledgerRepository),
+        )
+
+        // When
+        val state = viewModel.uiState.value
+        val emptyStates = state.actionableEmptyStates
+
+        // Then
+        assertEquals(ParentHomePrimaryAction.AddChild, state.primaryAction)
+        assertEquals(emptyList(), state.children)
+        assertEquals(ParentHomeEmptyStateKind.FirstRun, emptyStates.first().kind)
+        assertEquals(ParentHomeEmptyStateAction.AddChild, emptyStates.first().action)
+        assertTrue(emptyStates.none { it.action == ParentHomeEmptyStateAction.CreateTask })
+    }
+
+    @Test
+    fun `FLE-43 AC-02 AC-03 parent with child gets task and goal next actions when activity is empty`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = repository.createFamily("Familia Garcia", CurrencyCode("EUR"), TimeZoneId("Europe/Madrid"))
+        repository.recordVirtualMoneyConsent()
+        val child = repository.addChildProfile(
+            family.id,
+            "Lucia",
+            birthYear = 2018,
+            avatarKey = "star",
+            pin = ChildPin("1234"),
+        )
+        val viewModel = ParentHomeViewModel(
+            repository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+            TaskApprovalProcessor(taskInstanceRepository, ledgerRepository),
+        )
+
+        // When
+        val state = viewModel.uiState.value
+        val emptyStatesByKind = state.actionableEmptyStates.associateBy { it.kind }
+
+        // Then
+        assertEquals(ParentHomePrimaryAction.CreateTask, state.primaryAction)
+        assertEquals(
+            ParentHomeEmptyStateAction.CreateTask,
+            emptyStatesByKind[ParentHomeEmptyStateKind.TaskApprovals]?.action,
+        )
+        assertEquals(
+            ParentHomeEmptyStateAction.CreateSavingsGoal,
+            emptyStatesByKind[ParentHomeEmptyStateKind.SavingsGoal]?.action,
+        )
+        assertEquals(child.id, emptyStatesByKind[ParentHomeEmptyStateKind.SavingsGoal]?.childProfileId)
+        assertEquals(null, emptyStatesByKind[ParentHomeEmptyStateKind.Settlements]?.action)
+    }
 
     @Test
     fun `AC-10 parent home exposes stable lists with unique ids`() = runTest {

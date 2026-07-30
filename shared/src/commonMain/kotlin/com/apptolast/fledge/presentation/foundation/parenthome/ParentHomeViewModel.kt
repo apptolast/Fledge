@@ -8,6 +8,7 @@ import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.SavingsGoalStatus
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementReminder
 import com.apptolast.fledge.domain.model.SettlementStatus
@@ -42,6 +43,7 @@ data class ParentHomeUiState(
     val children: List<ChildProfile> = emptyList(),
     val mainBalances: Map<ChildProfileId, BalanceCents> = emptyMap(),
     val goalBalances: Map<ChildProfileId, BalanceCents> = emptyMap(),
+    val activeSavingsGoalChildIds: Set<ChildProfileId> = emptySet(),
     val goalCompletionNotices: List<SavingsGoalCompletionNotice> = emptyList(),
     val pendingSettlements: List<CashOutSettlement> = emptyList(),
     val settlementReminders: List<SettlementReminder> = emptyList(),
@@ -217,14 +219,21 @@ class ParentHomeViewModel(
         },
     )
 
-    private fun ParentHomeUiState.withGoalCompletionNotices(): ParentHomeUiState = copy(
-        goalCompletionNotices = savingsGoalCompletionNotifier.noticesForParent(
-            children = children,
-            goals = savingsGoalRepository.goals.value,
-            goalBalances = goalBalances,
-            now = Clock.System.now(),
-        ),
-    )
+    private fun ParentHomeUiState.withGoalCompletionNotices(): ParentHomeUiState {
+        val goals = savingsGoalRepository.goals.value
+        return copy(
+            activeSavingsGoalChildIds = goals
+                .filter { it.status == SavingsGoalStatus.Active }
+                .map { it.childProfileId }
+                .toSet(),
+            goalCompletionNotices = savingsGoalCompletionNotifier.noticesForParent(
+                children = children,
+                goals = goals,
+                goalBalances = goalBalances,
+                now = Clock.System.now(),
+            ),
+        )
+    }
 
     private fun ParentHomeUiState.withSettlements(settlements: List<CashOutSettlement>): ParentHomeUiState {
         val pending = settlements.filter { it.status != SettlementStatus.ConfirmedByChild }
