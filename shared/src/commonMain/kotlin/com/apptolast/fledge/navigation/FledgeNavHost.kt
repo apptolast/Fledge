@@ -31,6 +31,7 @@ import com.apptolast.fledge.presentation.foundation.postlogin.PostLoginScreen
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositScreen
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupScreen
+import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalWithdrawalScreen
 import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentScreen
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentScreen
 
@@ -135,6 +136,15 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onSaved = { navController.popBackStack() },
             )
         }
+        composable<SavingsGoalWithdrawalRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<SavingsGoalWithdrawalRoute>()
+            SavingsGoalWithdrawalScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                goalId = SavingsGoalId(route.goalId),
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+            )
+        }
         composable<AllowanceRuleRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<AllowanceRuleRoute>()
             AllowanceRuleScreen(
@@ -208,6 +218,9 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onRequestCashOut = { childId -> navController.navigate(CashOutRequestRoute(childId.value)) },
                 onOpenSavingsGoal = { childId, goalId ->
                     navController.navigate(SavingsGoalDepositRoute(childId.value, goalId.value))
+                },
+                onWithdrawSavingsGoal = { childId, goalId ->
+                    navController.navigate(SavingsGoalWithdrawalRoute(childId.value, goalId.value))
                 },
                 onParentalGateRequired = { navController.navigate(ParentalGateRoute) },
             )

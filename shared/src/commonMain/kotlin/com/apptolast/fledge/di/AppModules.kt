@@ -24,6 +24,7 @@ import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
+import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleViewModel
@@ -41,6 +42,7 @@ import com.apptolast.fledge.presentation.foundation.postlogin.PostLoginViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupViewModel
+import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalWithdrawalViewModel
 import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentViewModel
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
@@ -65,6 +67,7 @@ val dataModule = module {
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }
     single { SavingsGoalDepositProcessor(get(), get()) }
+    single { SavingsGoalWithdrawalProcessor(get(), get()) }
     single { TaskApprovalProcessor(get(), get()) }
     // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
     // platformModule, so tests can substitute them without overriding the production graph.
@@ -103,6 +106,7 @@ val presentationModule = module {
     viewModelOf(::TaskAssignmentViewModel)
     viewModelOf(::SavingsGoalSetupViewModel)
     viewModelOf(::SavingsGoalDepositViewModel)
+    viewModelOf(::SavingsGoalWithdrawalViewModel)
 }
 
 expect val platformModule: Module
