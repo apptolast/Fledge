@@ -2,6 +2,7 @@ package com.apptolast.fledge.data.repository
 
 import com.apptolast.customlogin.domain.AuthProvider
 import com.apptolast.customlogin.domain.model.AuthState
+import com.apptolast.customlogin.domain.model.UserSession
 import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
 import com.apptolast.fledge.data.remote.firebase.GitLiveFirestoreProvider
 import com.apptolast.fledge.domain.model.AllowanceDay
@@ -16,6 +17,9 @@ import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.DeviceId
 import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.FamilyAdminInvite
+import com.apptolast.fledge.domain.model.FamilyAdminInviteStatus
+import com.apptolast.fledge.domain.model.FamilyAdminRole
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettings
@@ -55,6 +59,7 @@ import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
+import com.apptolast.fledge.domain.model.normalizeFamilyAdminEmail
 import com.apptolast.fledge.domain.model.toMoneyPotType
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import dev.gitlive.firebase.firestore.DocumentSnapshot
@@ -66,8 +71,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 
 internal const val FAMILIES_COLLECTION = "families"
+internal const val FAMILY_ADMIN_INVITES_COLLECTION = "familyAdminInvites"
 
 internal fun FirestoreProvider.firestoreOrThrow(): FirebaseFirestore {
     check(isAvailable) { "Firebase is not configured; Firestore persistence is unavailable." }
@@ -76,16 +83,64 @@ internal fun FirestoreProvider.firestoreOrThrow(): FirebaseFirestore {
     return gitLiveProvider.firestore()
 }
 
-internal suspend fun AuthProvider.currentFamilyId(): FamilyId {
+internal data class AuthenticatedFamilyAccess(val familyId: FamilyId, val role: FamilyAdminRole)
+
+internal suspend fun AuthProvider.currentOwnerFamilyId(): FamilyId {
     val session = getCurrentSession()
     checkNotNull(session) { "A signed-in parent is required before using Firestore persistence." }
     return FamilyId(session.userId)
 }
 
-internal fun AuthProvider.authenticatedFamilyIds(): Flow<FamilyId?> = observeAuthState()
-    .map { state -> (state as? AuthState.Authenticated)?.session?.userId?.let(::FamilyId) }
+internal suspend fun AuthProvider.currentFamilyAccess(firestoreProvider: FirestoreProvider): AuthenticatedFamilyAccess {
+    val session = getCurrentSession()
+    checkNotNull(session) { "A signed-in parent is required before using Firestore persistence." }
+    return firestoreProvider.resolveFamilyAccess(session)
+}
+
+internal suspend fun AuthProvider.currentFamilyId(firestoreProvider: FirestoreProvider): FamilyId =
+    currentFamilyAccess(firestoreProvider).familyId
+
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+internal fun AuthProvider.authenticatedFamilyAccesses(
+    firestoreProvider: FirestoreProvider,
+): Flow<AuthenticatedFamilyAccess?> = observeAuthState()
+    .mapLatest { state ->
+        (state as? AuthState.Authenticated)?.session?.let { session ->
+            firestoreProvider.resolveFamilyAccess(session)
+        }
+    }
     .distinctUntilChanged()
     .catch { emit(null) }
+
+internal fun AuthProvider.authenticatedFamilyIds(firestoreProvider: FirestoreProvider): Flow<FamilyId?> =
+    authenticatedFamilyAccesses(firestoreProvider)
+        .map { access -> access?.familyId }
+        .distinctUntilChanged()
+
+private suspend fun FirestoreProvider.resolveFamilyAccess(session: UserSession): AuthenticatedFamilyAccess {
+    val firestore = firestoreOrThrow()
+    val ownerFamilyId = FamilyId(session.userId)
+    val ownerFamily = firestore.collection(FAMILIES_COLLECTION).document(ownerFamilyId.value).get()
+    if (ownerFamily.exists) {
+        return AuthenticatedFamilyAccess(ownerFamilyId, FamilyAdminRole.Owner)
+    }
+
+    val normalizedEmail = session.email?.let { runCatching { normalizeFamilyAdminEmail(it) }.getOrNull() }
+    val invite = normalizedEmail?.let { email ->
+        runCatching {
+            firestore.collection(FAMILY_ADMIN_INVITES_COLLECTION)
+                .document(email)
+                .get()
+                .takeIf { it.exists }
+                ?.toFamilyAdminInvite()
+        }.getOrNull()
+    }
+    if (invite?.status == FamilyAdminInviteStatus.Active) {
+        return AuthenticatedFamilyAccess(invite.familyId, FamilyAdminRole.Admin)
+    }
+
+    return AuthenticatedFamilyAccess(ownerFamilyId, FamilyAdminRole.Owner)
+}
 
 internal fun Instant.toFirestoreTimestamp(): Timestamp = Timestamp(epochSeconds, nanosecondsOfSecond)
 
@@ -114,6 +169,9 @@ internal fun DocumentSnapshot.requiredStringList(field: String): List<String> = 
 internal fun DocumentSnapshot.optionalString(field: String): String? =
     if (contains(field)) get<String?>(field) else null
 
+internal fun DocumentSnapshot.optionalStringList(field: String): List<String> =
+    if (contains(field)) get<List<String>?>(field).orEmpty() else emptyList()
+
 internal fun DocumentSnapshot.requiredLong(field: String): Long = get(field)
 
 internal fun DocumentSnapshot.optionalLong(field: String): Long? = if (contains(field)) get<Long?>(field) else null
@@ -137,6 +195,8 @@ internal fun Family.toFirestoreMap(): Map<String, Any?> = mapOf(
     "name" to name,
     "currency" to currency.value,
     "timeZone" to timeZone.value,
+    "ownerUid" to ownerUid,
+    "adminEmails" to adminEmails,
     "moneySettingsLocked" to moneySettingsLocked,
     "interestEnabled" to interestSettings.enabled,
     "interestAnnualRateBasisPoints" to interestSettings.annualRateBasisPoints,
@@ -152,9 +212,31 @@ internal fun DocumentSnapshot.toFamily(): Family = Family(
     name = requiredString("name"),
     currency = CurrencyCode(requiredString("currency")),
     timeZone = TimeZoneId(requiredString("timeZone")),
+    ownerUid = optionalString("ownerUid") ?: id,
+    adminEmails = optionalStringList("adminEmails").map(::normalizeFamilyAdminEmail).distinct().sorted(),
     moneySettingsLocked = optionalBoolean("moneySettingsLocked") ?: true,
     interestSettings = toInterestSettings(),
     matchSettings = toMatchSettings(),
+)
+
+internal fun FamilyAdminInvite.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "email" to email,
+    "role" to role.name,
+    "status" to status.name,
+    "invitedAt" to invitedAt?.toFirestoreTimestamp(),
+    "invitedByUid" to invitedByUid,
+    "revokedAt" to revokedAt?.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toFamilyAdminInvite(): FamilyAdminInvite = FamilyAdminInvite(
+    familyId = FamilyId(requiredString("familyId")),
+    email = normalizeFamilyAdminEmail(requiredString("email")),
+    role = FamilyAdminRole.valueOf(optionalString("role") ?: FamilyAdminRole.Admin.name),
+    status = FamilyAdminInviteStatus.valueOf(optionalString("status") ?: FamilyAdminInviteStatus.Active.name),
+    invitedAt = optionalTimestamp("invitedAt"),
+    invitedByUid = optionalString("invitedByUid"),
+    revokedAt = optionalTimestamp("revokedAt"),
 )
 
 internal fun InterestSettings.toFirestorePatch(): Map<String, Any?> = mapOf(

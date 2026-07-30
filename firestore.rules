@@ -6,8 +6,31 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isParent(familyId) {
+    function hasAuthEmail() {
+      return signedIn() && request.auth.token.keys().hasAny(["email"]);
+    }
+
+    function familyDocumentExists(familyId) {
+      return exists(/databases/$(database)/documents/families/$(familyId));
+    }
+
+    function familyDocument(familyId) {
+      return get(/databases/$(database)/documents/families/$(familyId)).data;
+    }
+
+    function isOwner(familyId) {
       return signedIn() && request.auth.uid == familyId;
+    }
+
+    function isAdmin(familyId) {
+      return hasAuthEmail()
+        && familyDocumentExists(familyId)
+        && familyDocument(familyId).keys().hasAny(["adminEmails"])
+        && request.auth.token.email in familyDocument(familyId).adminEmails;
+    }
+
+    function isParent(familyId) {
+      return isOwner(familyId) || isAdmin(familyId);
     }
 
     function isChild(familyId) {
@@ -64,6 +87,33 @@ service cloud.firestore {
       return request.resource.data.keys().hasAny([field])
         && resource.data.keys().hasAny([field])
         && request.resource.data[field] == resource.data[field];
+    }
+
+    function adminInviteWriteIsValid(inviteEmail) {
+      return request.resource.data.keys().hasOnly([
+          "familyId",
+          "email",
+          "role",
+          "status",
+          "invitedAt",
+          "invitedByUid",
+          "revokedAt",
+          "updatedAt",
+        ])
+        && request.resource.data.keys().hasAll([
+          "familyId",
+          "email",
+          "role",
+          "status",
+          "updatedAt",
+        ])
+        && request.resource.data.email == inviteEmail
+        && request.resource.data.role == "Admin"
+        && request.resource.data.status in ["Active", "Revoked"]
+        && request.resource.data.updatedAt is timestamp
+        && optionalNonBlankText("invitedByUid")
+        && (nullOrAbsent("invitedAt") || request.resource.data.invitedAt is timestamp)
+        && (nullOrAbsent("revokedAt") || request.resource.data.revokedAt is timestamp);
     }
 
     function requestKeepsNullableField(field) {
@@ -383,10 +433,19 @@ service cloud.firestore {
         );
     }
 
+    match /familyAdminInvites/{inviteEmail} {
+      allow read: if hasAuthEmail() && request.auth.token.email == inviteEmail;
+      allow read: if resource.data.keys().hasAny(["familyId"]) && isOwner(resource.data.familyId);
+      allow create, update: if adminInviteWriteIsValid(inviteEmail)
+        && isOwner(request.resource.data.familyId)
+        && request.resource.data.invitedByUid == request.auth.uid;
+      allow delete: if false;
+    }
+
     match /families/{familyId} {
       allow read: if isFamilyMember(familyId);
-      allow create: if isParent(familyId) && requestMatchesFamily(familyId);
-      allow update: if isParent(familyId) && requestKeepsFamilyId();
+      allow create: if isOwner(familyId) && requestMatchesFamily(familyId);
+      allow update: if isOwner(familyId) && requestKeepsFamilyId();
       allow delete: if false;
 
       match /allowanceRules/{ruleId} {

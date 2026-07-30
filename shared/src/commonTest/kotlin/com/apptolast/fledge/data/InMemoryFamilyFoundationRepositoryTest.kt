@@ -5,6 +5,8 @@ import com.apptolast.fledge.data.repository.InMemoryFamilyFoundationRepository
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.CurrencyCode
+import com.apptolast.fledge.domain.model.FamilyAdminInviteDraft
+import com.apptolast.fledge.domain.model.FamilyAdminInviteStatus
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettingsDraft
 import com.apptolast.fledge.domain.model.MatchSettingsDraft
@@ -122,6 +124,28 @@ class InMemoryFamilyFoundationRepositoryTest {
         assertEquals(family.currency, repository.activeFamily.value?.currency)
         assertEquals(family.timeZone, repository.activeFamily.value?.timeZone)
         assertTrue(repository.activeFamily.value?.moneySettingsLocked == true)
+    }
+
+    @Test
+    fun `FLE-52 owner invites and revokes a secondary admin`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        repository.createFamily(
+            name = "Familia Garcia",
+            currency = CurrencyCode("EUR"),
+            timeZone = TimeZoneId("Europe/Madrid"),
+        )
+
+        // When
+        val invite = repository.inviteAdmin(FamilyAdminInviteDraft(" Cristina@Example.com "))
+        val revoked = repository.revokeAdminInvite("cristina@example.com")
+
+        // Then
+        assertEquals("cristina@example.com", invite.email)
+        assertEquals(FamilyAdminInviteStatus.Active, invite.status)
+        assertEquals("cristina@example.com", revoked?.email)
+        assertEquals(FamilyAdminInviteStatus.Revoked, revoked?.status)
+        assertEquals(emptyList(), repository.activeFamily.value?.adminEmails)
     }
 
     @Test

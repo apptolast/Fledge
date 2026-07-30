@@ -294,5 +294,6 @@ private val defaultSetupActions = listOf(
     SetupAction(id = "parental-gate", label = "Configurar parental gate"),
     SetupAction(id = "parent-interest", label = "Interes parental"),
     SetupAction(id = "parent-match", label = "Match parental"),
+    SetupAction(id = "secondary-admin", label = "Co-padre"),
     SetupAction(id = "account-deletion", label = "Cuenta y datos"),
 )

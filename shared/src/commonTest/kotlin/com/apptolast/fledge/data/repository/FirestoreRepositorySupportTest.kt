@@ -9,6 +9,9 @@ import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.FamilyAdminInvite
+import com.apptolast.fledge.domain.model.FamilyAdminInviteStatus
+import com.apptolast.fledge.domain.model.FamilyAdminRole
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.InterestSettings
 import com.apptolast.fledge.domain.model.LedgerActor
@@ -91,6 +94,50 @@ class FirestoreRepositorySupportTest {
         assertEquals(true, data["matchEnabled"])
         assertEquals(10_000, data["matchBasisPoints"])
         assertEquals(500L, data["matchMaxCents"])
+    }
+
+    @Test
+    fun `FLE-52 family document stores owner and secondary admins`() {
+        // Given
+        val family = Family(
+            id = FamilyId("owner-1"),
+            name = "Familia Garcia",
+            currency = CurrencyCode("EUR"),
+            timeZone = TimeZoneId("Europe/Madrid"),
+            ownerUid = "owner-1",
+            adminEmails = listOf("cristina@example.com"),
+        )
+
+        // When
+        val data = family.toFirestoreMap()
+
+        // Then
+        assertEquals("owner-1", data["ownerUid"])
+        assertEquals(listOf("cristina@example.com"), data["adminEmails"])
+    }
+
+    @Test
+    fun `FLE-52 admin invite document stores active access fields`() {
+        // Given
+        val invite = FamilyAdminInvite(
+            familyId = FamilyId("owner-1"),
+            email = "cristina@example.com",
+            role = FamilyAdminRole.Admin,
+            status = FamilyAdminInviteStatus.Active,
+            invitedAt = Instant.fromEpochSeconds(1_700_000_000),
+            invitedByUid = "owner-1",
+        )
+
+        // When
+        val data = invite.toFirestoreMap()
+
+        // Then
+        assertEquals("owner-1", data["familyId"])
+        assertEquals("cristina@example.com", data["email"])
+        assertEquals("Admin", data["role"])
+        assertEquals("Active", data["status"])
+        assertEquals("owner-1", data["invitedByUid"])
+        assertIs<Timestamp>(data["invitedAt"])
     }
 
     @Test

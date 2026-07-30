@@ -40,7 +40,7 @@ class FirestorePushRegistrationRepository(
 
     init {
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableRegistrations.value = emptyList()
@@ -73,7 +73,7 @@ class FirestorePushRegistrationRepository(
     }
 
     override suspend fun upsertRegistration(draft: PushRegistrationDraft, updatedAt: Instant): PushRegistration {
-        require(authProvider.currentFamilyId() == draft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == draft.familyId) {
             "A signed-in parent can only register push tokens for the active family."
         }
         val id = draft.stableRegistrationId()
@@ -88,7 +88,7 @@ class FirestorePushRegistrationRepository(
         registrationId: PushRegistrationId,
         updatedAt: Instant,
     ): PushRegistration? {
-        require(authProvider.currentFamilyId() == familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == familyId) {
             "A signed-in parent can only deactivate push tokens for the active family."
         }
         val ref = pushRegistrationCollection(familyId).document(registrationId.value)

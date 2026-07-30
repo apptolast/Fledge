@@ -63,10 +63,50 @@ data class Family(
     val name: String,
     val currency: CurrencyCode,
     val timeZone: TimeZoneId,
+    val ownerUid: String = id.value,
+    val adminEmails: List<String> = emptyList(),
     val moneySettingsLocked: Boolean = true,
     val interestSettings: InterestSettings = InterestSettings(),
     val matchSettings: MatchSettings = MatchSettings(),
 )
+
+@Serializable
+enum class FamilyAdminRole {
+    Owner,
+    Admin,
+}
+
+@Serializable
+enum class FamilyAdminInviteStatus {
+    Active,
+    Revoked,
+}
+
+@Serializable
+data class FamilyAdminInvite(
+    val familyId: FamilyId,
+    val email: String,
+    val role: FamilyAdminRole = FamilyAdminRole.Admin,
+    val status: FamilyAdminInviteStatus = FamilyAdminInviteStatus.Active,
+    val invitedAt: Instant? = null,
+    val invitedByUid: String? = null,
+    val revokedAt: Instant? = null,
+)
+
+@Serializable
+data class FamilyAdminInviteDraft(val email: String) {
+    init {
+        normalizeFamilyAdminEmail(email)
+    }
+}
+
+fun normalizeFamilyAdminEmail(email: String): String {
+    val normalized = email.trim().lowercase()
+    require(normalized.matches(Regex("^[^@\\s/]+@[^@\\s/]+\\.[^@\\s/]+$"))) {
+        "Admin email must be a valid email address."
+    }
+    return normalized
+}
 
 @Serializable
 data class InterestSettings(

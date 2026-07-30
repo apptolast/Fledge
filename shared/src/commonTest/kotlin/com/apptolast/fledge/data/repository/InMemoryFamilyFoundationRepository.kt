@@ -10,6 +10,10 @@ import com.apptolast.fledge.domain.model.ChildSession
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.DeviceId
 import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.FamilyAdminInvite
+import com.apptolast.fledge.domain.model.FamilyAdminInviteDraft
+import com.apptolast.fledge.domain.model.FamilyAdminInviteStatus
+import com.apptolast.fledge.domain.model.FamilyAdminRole
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettings
@@ -21,6 +25,7 @@ import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
+import com.apptolast.fledge.domain.model.normalizeFamilyAdminEmail
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.security.Sha256
@@ -36,6 +41,8 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
     private var deviceCounter = 1
 
     private val mutableActiveFamily = MutableStateFlow<Family?>(null)
+    private val mutableActiveAdminRole = MutableStateFlow<FamilyAdminRole?>(FamilyAdminRole.Owner)
+    private val mutableAdminInvites = MutableStateFlow<List<FamilyAdminInvite>>(emptyList())
     private val mutableChildren = MutableStateFlow<List<ChildProfile>>(emptyList())
     private val mutableChildDevices = MutableStateFlow<List<ChildDevice>>(emptyList())
     private val mutableChildPinPolicy = MutableStateFlow(ChildPinPolicy())
@@ -46,6 +53,8 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
 
     override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val activeFamily: StateFlow<Family?> = mutableActiveFamily
+    override val activeAdminRole: StateFlow<FamilyAdminRole?> = mutableActiveAdminRole
+    override val adminInvites: StateFlow<List<FamilyAdminInvite>> = mutableAdminInvites
     override val children: StateFlow<List<ChildProfile>> = mutableChildren
     override val childDevices: StateFlow<List<ChildDevice>> = mutableChildDevices
     override val childPinPolicy: StateFlow<ChildPinPolicy> = mutableChildPinPolicy
@@ -63,7 +72,49 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
             timeZone = timeZone,
         )
         mutableActiveFamily.value = family
+        mutableActiveAdminRole.value = FamilyAdminRole.Owner
         return family
+    }
+
+    override suspend fun inviteAdmin(draft: FamilyAdminInviteDraft): FamilyAdminInvite {
+        require(mutableActiveAdminRole.value == FamilyAdminRole.Owner) {
+            "Only the family owner can manage admins."
+        }
+        val family = requireNotNull(mutableActiveFamily.value) { "Family does not exist." }
+        val email = normalizeFamilyAdminEmail(draft.email)
+        val invite = FamilyAdminInvite(
+            familyId = family.id,
+            email = email,
+            role = FamilyAdminRole.Admin,
+            status = FamilyAdminInviteStatus.Active,
+            invitedAt = Clock.System.now(),
+            invitedByUid = family.ownerUid,
+        )
+        val updatedFamily = family.copy(
+            adminEmails = (family.adminEmails + email).map(::normalizeFamilyAdminEmail).distinct().sorted(),
+        )
+        mutableActiveFamily.value = updatedFamily
+        mutableAdminInvites.value = updatedFamily.adminEmails.map { activeAdminInvite(updatedFamily.id, it) }
+        return invite
+    }
+
+    override suspend fun revokeAdminInvite(email: String): FamilyAdminInvite? {
+        require(mutableActiveAdminRole.value == FamilyAdminRole.Owner) {
+            "Only the family owner can manage admins."
+        }
+        val family = requireNotNull(mutableActiveFamily.value) { "Family does not exist." }
+        val normalizedEmail = normalizeFamilyAdminEmail(email)
+        if (normalizedEmail !in family.adminEmails) return null
+        val updatedFamily = family.copy(adminEmails = family.adminEmails.filterNot { it == normalizedEmail })
+        mutableActiveFamily.value = updatedFamily
+        mutableAdminInvites.value = updatedFamily.adminEmails.map { activeAdminInvite(updatedFamily.id, it) }
+        return FamilyAdminInvite(
+            familyId = family.id,
+            email = normalizedEmail,
+            role = FamilyAdminRole.Admin,
+            status = FamilyAdminInviteStatus.Revoked,
+            revokedAt = Clock.System.now(),
+        )
     }
 
     override suspend fun addChildProfile(
@@ -202,6 +253,13 @@ class InMemoryFamilyFoundationRepository : FamilyFoundationRepository {
 
     private fun ChildPin.hashFor(salt: String): ChildPinHash =
         ChildPinHash(Sha256.hashHex("fledge-child-pin:$salt:$value"))
+
+    private fun activeAdminInvite(familyId: FamilyId, email: String): FamilyAdminInvite = FamilyAdminInvite(
+        familyId = familyId,
+        email = email,
+        role = FamilyAdminRole.Admin,
+        status = FamilyAdminInviteStatus.Active,
+    )
 
     private companion object {
         const val VIRTUAL_MONEY_DISCLOSURE_VERSION = "virtual-money-v1"

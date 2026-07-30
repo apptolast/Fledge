@@ -36,7 +36,7 @@ class FirestoreAccountDeletionRepository(
 
     init {
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableDeletionState.value = AccountDeletionState()
@@ -50,7 +50,7 @@ class FirestoreAccountDeletionRepository(
     }
 
     override suspend fun requestAccountDeletion(requestedAt: Instant): AccountDeletionRequest {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val request = AccountDeletionRequest(familyId = familyId, requestedAt = requestedAt)
         familyDoc(familyId).set(
             mapOf(

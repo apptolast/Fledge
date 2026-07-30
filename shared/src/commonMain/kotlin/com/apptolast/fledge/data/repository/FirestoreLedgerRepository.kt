@@ -49,7 +49,7 @@ class FirestoreLedgerRepository(
 
     init {
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableTransactions.value = emptyList()
@@ -84,7 +84,7 @@ class FirestoreLedgerRepository(
     }
 
     override suspend fun appendTransaction(draft: LedgerTransactionDraft, createdAt: Instant): LedgerTransaction {
-        require(authProvider.currentFamilyId() == draft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == draft.familyId) {
             "A signed-in parent can only append transactions to the active family."
         }
         val ref = ledgerCollection(draft.familyId).document
@@ -102,7 +102,7 @@ class FirestoreLedgerRepository(
         creditDraft: LedgerTransactionDraft,
         createdAt: Instant,
     ): LedgerTransferPair {
-        require(authProvider.currentFamilyId() == debitDraft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == debitDraft.familyId) {
             "A signed-in parent can only append transactions to the active family."
         }
         requireValidTransferDraftPair(debitDraft, creditDraft)
@@ -131,7 +131,7 @@ class FirestoreLedgerRepository(
         concept: LedgerConcept,
         createdBy: LedgerActor,
     ): LedgerTransaction {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val remoteTransactions = if (transactions.value.isEmpty()) {
             ledgerCollection(familyId).get().documents
                 .filter { it.exists }

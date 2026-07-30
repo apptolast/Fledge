@@ -165,6 +165,7 @@ class ParentHomeViewModelTest {
             assertEquals(state.setupActions.size, state.setupActions.map { it.id }.toSet().size)
             assertTrue(state.setupActions.any { it.id == "parent-interest" })
             assertTrue(state.setupActions.any { it.id == "parent-match" })
+            assertTrue(state.setupActions.any { it.id == "secondary-admin" })
             assertTrue(state.setupActions.any { it.id == "account-deletion" })
             cancelAndIgnoreRemainingEvents()
         }

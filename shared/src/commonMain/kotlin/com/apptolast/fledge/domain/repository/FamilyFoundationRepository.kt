@@ -9,6 +9,9 @@ import com.apptolast.fledge.domain.model.ChildSession
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.DeviceId
 import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.FamilyAdminInvite
+import com.apptolast.fledge.domain.model.FamilyAdminInviteDraft
+import com.apptolast.fledge.domain.model.FamilyAdminRole
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettings
@@ -25,6 +28,8 @@ import kotlinx.coroutines.flow.StateFlow
 interface FamilyFoundationRepository {
     val syncStatus: StateFlow<RepositorySyncStatus>
     val activeFamily: StateFlow<Family?>
+    val activeAdminRole: StateFlow<FamilyAdminRole?>
+    val adminInvites: StateFlow<List<FamilyAdminInvite>>
     val children: StateFlow<List<ChildProfile>>
     val childDevices: StateFlow<List<ChildDevice>>
     val childPinPolicy: StateFlow<ChildPinPolicy>
@@ -32,6 +37,10 @@ interface FamilyFoundationRepository {
     val parentalGateRequest: StateFlow<ParentalGateRequest?>
 
     suspend fun createFamily(name: String, currency: CurrencyCode, timeZone: TimeZoneId): Family
+
+    suspend fun inviteAdmin(draft: FamilyAdminInviteDraft): FamilyAdminInvite
+
+    suspend fun revokeAdminInvite(email: String): FamilyAdminInvite?
 
     suspend fun addChildProfile(
         familyId: FamilyId,
