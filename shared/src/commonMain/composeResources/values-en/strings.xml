@@ -9,7 +9,7 @@
     <string name="role_child_demo">Enter as Lucas</string>
     <string name="role_child_profiles">Child profiles</string>
     <string name="role_no_children">There are no child profiles on this shared device yet.</string>
-    <string name="role_child_card_subtitle">Born in %d</string>
+    <string name="role_child_card_subtitle">Born in %1$d</string>
     <string name="family_setup_title">Set up your family</string>
     <string name="family_name_label">Family name</string>
     <string name="currency_label">Currency</string>
@@ -37,7 +37,7 @@
     <string name="parent_home_goal_balance">Goal: %1$s</string>
     <string name="parent_home_pending_total">Pending cash-out total: %1$s</string>
     <string name="parent_home_pending_liquidation">You owe your children</string>
-    <string name="parent_home_pending_count">%d pending cash-outs</string>
+    <string name="parent_home_pending_count">%1$d pending cash-outs</string>
     <string name="parent_home_create_task">New task</string>
     <string name="parent_home_task_approvals_title">Tasks to approve</string>
     <string name="parent_home_task_approval_empty">No tasks are waiting for approval.</string>
@@ -177,7 +177,7 @@
     <string name="cash_out_child_reminder_fourteen_days">You can confirm the cash-out when you have received it.</string>
     <string name="child_pin_title">Child PIN</string>
     <string name="child_pin_body">Enter the 4-digit PIN to open child mode.</string>
-    <string name="child_pin_timeout">The child session expires after %d minutes.</string>
+    <string name="child_pin_timeout">The child session expires after %1$d minutes.</string>
     <string name="child_pin_placeholder">PIN</string>
     <string name="child_pin_unlock">Enter</string>
     <string name="child_pin_reset">Reset PIN</string>
@@ -207,7 +207,7 @@
     <string name="child_home_goal_balance">Goal: %1$s</string>
     <string name="child_home_active_goal_title">Active goal</string>
     <string name="child_home_active_goal_amount">%1$s of %2$s</string>
-    <string name="child_home_active_goal_progress">%d%% saved</string>
+    <string name="child_home_active_goal_progress">%1$d%% saved</string>
     <string name="child_home_active_goal_remaining">%1$s to go</string>
     <string name="child_home_active_goal_pace">Pace %1$s/day</string>
     <string name="child_home_active_goal_projection_title">You arrive on %1$s</string>

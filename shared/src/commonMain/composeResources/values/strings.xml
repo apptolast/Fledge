@@ -10,7 +10,7 @@
     <string name="role_child_demo">Entrar como Lucas</string>
     <string name="role_child_profiles">Perfiles infantiles</string>
     <string name="role_no_children">Todavia no hay perfiles infantiles en este dispositivo compartido.</string>
-    <string name="role_child_card_subtitle">Nacido en %d</string>
+    <string name="role_child_card_subtitle">Nacido en %1$d</string>
     <string name="family_setup_title">Configura tu familia</string>
     <string name="family_name_label">Nombre de la familia</string>
     <string name="currency_label">Divisa</string>
@@ -38,7 +38,7 @@
     <string name="parent_home_goal_balance">Objetivo: %1$s</string>
     <string name="parent_home_pending_total">Total pendiente de liquidar: %1$s</string>
     <string name="parent_home_pending_liquidation">Debes a tus hijos</string>
-    <string name="parent_home_pending_count">%d retiradas pendientes</string>
+    <string name="parent_home_pending_count">%1$d retiradas pendientes</string>
     <string name="parent_home_task_approvals_title">Tareas por aprobar</string>
     <string name="parent_home_task_approval_empty">No hay tareas esperando aprobacion.</string>
     <string name="parent_home_first_run_empty_title">Arranca el bucle familiar</string>
@@ -205,7 +205,7 @@
     <string name="cash_out_child_reminder_fourteen_days">Puedes confirmar la retirada cuando la hayas recibido.</string>
     <string name="child_pin_title">PIN infantil</string>
     <string name="child_pin_body">Introduce el PIN de 4 digitos para abrir el modo hijo.</string>
-    <string name="child_pin_timeout">La sesion infantil caduca tras %d minutos.</string>
+    <string name="child_pin_timeout">La sesion infantil caduca tras %1$d minutos.</string>
     <string name="child_pin_placeholder">PIN</string>
     <string name="child_pin_unlock">Entrar</string>
     <string name="child_pin_reset">Restablecer PIN</string>
@@ -235,7 +235,7 @@
     <string name="child_home_goal_balance">Objetivo: %1$s</string>
     <string name="child_home_active_goal_title">Objetivo activo</string>
     <string name="child_home_active_goal_amount">%1$s de %2$s</string>
-    <string name="child_home_active_goal_progress">%d%% conseguido</string>
+    <string name="child_home_active_goal_progress">%1$d%% conseguido</string>
     <string name="child_home_active_goal_remaining">Te faltan %1$s</string>
     <string name="child_home_active_goal_pace">Ritmo %1$s/dia</string>
     <string name="child_home_active_goal_projection_title">Llegas el %1$s</string>
