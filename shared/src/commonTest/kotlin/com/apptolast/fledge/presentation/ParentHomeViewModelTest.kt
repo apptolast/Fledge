@@ -163,6 +163,7 @@ class ParentHomeViewModelTest {
             assertEquals(BalanceCents(500), state.mainBalances[child.id])
             assertTrue(state.setupActions.isNotEmpty())
             assertEquals(state.setupActions.size, state.setupActions.map { it.id }.toSet().size)
+            assertTrue(state.setupActions.any { it.id == "parent-interest" })
             assertTrue(state.setupActions.any { it.id == "account-deletion" })
             cancelAndIgnoreRemainingEvents()
         }

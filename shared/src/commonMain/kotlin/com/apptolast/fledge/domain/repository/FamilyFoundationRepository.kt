@@ -11,6 +11,8 @@ import com.apptolast.fledge.domain.model.DeviceId
 import com.apptolast.fledge.domain.model.Family
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.domain.model.InterestSettings
+import com.apptolast.fledge.domain.model.InterestSettingsDraft
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
@@ -42,6 +44,8 @@ interface FamilyFoundationRepository {
     suspend fun validateChildPin(childProfileId: ChildProfileId, pin: ChildPin): ChildSession?
 
     suspend fun setChildPinTimeout(timeoutMinutes: Int): ChildPinPolicy
+
+    suspend fun updateInterestSettings(draft: InterestSettingsDraft): InterestSettings
 
     suspend fun startPairing(childProfileId: ChildProfileId): PairingSession
 

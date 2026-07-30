@@ -7,7 +7,10 @@ import com.apptolast.fledge.domain.model.AllowanceRuleId
 import com.apptolast.fledge.domain.model.ChildPinHash
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
+import com.apptolast.fledge.domain.model.CurrencyCode
+import com.apptolast.fledge.domain.model.Family
 import com.apptolast.fledge.domain.model.FamilyId
+import com.apptolast.fledge.domain.model.InterestSettings
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
@@ -37,6 +40,32 @@ import kotlin.test.assertIs
 import kotlin.time.Instant
 
 class FirestoreRepositorySupportTest {
+
+    @Test
+    fun `FLE-48 family document stores parent interest settings for scheduler`() {
+        // Given
+        val family = Family(
+            id = FamilyId("family-1"),
+            name = "Familia Garcia",
+            currency = CurrencyCode("EUR"),
+            timeZone = TimeZoneId("Europe/Madrid"),
+            interestSettings = InterestSettings(
+                enabled = true,
+                annualRateBasisPoints = 250,
+                postingDayOfMonth = 5,
+                lastPostedPeriodKey = "202607",
+            ),
+        )
+
+        // When
+        val data = family.toFirestoreMap()
+
+        // Then
+        assertEquals(true, data["interestEnabled"])
+        assertEquals(250, data["interestAnnualRateBasisPoints"])
+        assertEquals(5, data["interestPostingDayOfMonth"])
+        assertEquals("202607", data["interestLastPostedPeriodKey"])
+    }
 
     @Test
     fun `FLE-80 child profile document stores family scoped fields`() {

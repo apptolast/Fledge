@@ -148,6 +148,7 @@ import fledge.shared.generated.resources.ledger_type_allowance
 import fledge.shared.generated.resources.ledger_type_bonus
 import fledge.shared.generated.resources.ledger_type_gift
 import fledge.shared.generated.resources.ledger_type_goal_transfer
+import fledge.shared.generated.resources.ledger_type_interest
 import fledge.shared.generated.resources.ledger_type_penalty
 import fledge.shared.generated.resources.ledger_type_reversal
 import fledge.shared.generated.resources.ledger_type_settlement
@@ -1267,6 +1268,7 @@ private fun ledgerTransactionTypeLabel(type: LedgerTransactionType): String = wh
     LedgerTransactionType.Gift -> stringResource(Res.string.ledger_type_gift)
     LedgerTransactionType.GoalTransfer -> stringResource(Res.string.ledger_type_goal_transfer)
     LedgerTransactionType.Settlement -> stringResource(Res.string.ledger_type_settlement)
+    LedgerTransactionType.Interest -> stringResource(Res.string.ledger_type_interest)
     LedgerTransactionType.Reversal -> stringResource(Res.string.ledger_type_reversal)
 }
 

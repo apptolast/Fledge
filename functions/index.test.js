@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { Timestamp } from "firebase-admin/firestore";
 import {
+  buildInterestLedgerDocuments,
   buildTaskInstanceDocuments,
+  calculateMonthlyInterestCents,
+  createInterestTransactionId,
+  mainBalancesByChild,
   createTaskInstanceId,
   nextTaskDueDateAfter,
   processAccountDeletionRequest,
+  processDueInterestAccruals,
   processDueTaskAssignments,
   taskPeriodKey,
 } from "./index.js";
@@ -122,6 +127,95 @@ describe("FLE-29 task instance scheduler", () => {
   });
 });
 
+describe("FLE-48 parent interest accruals", () => {
+  test("builds deterministic interest ledger documents for positive main balances", () => {
+    const docs = buildInterestLedgerDocuments({
+      familyId: "family-1",
+      childProfileIds: ["child-1", "child-2"],
+      balancesByChild: new Map([
+        ["child-1", 10_000],
+        ["child-2", 50],
+      ]),
+      annualRateBasisPoints: 1_200,
+      periodKey: "202607",
+      postedAt: new Date("2026-07-01T00:00:00.000Z"),
+    });
+
+    assert.equal(calculateMonthlyInterestCents(10_000, 1_200), 100);
+    assert.deepEqual(docs.map((doc) => doc.id), ["interest_child-1_202607"]);
+    assert.equal(docs[0].data.type, "Interest");
+    assert.equal(docs[0].data.accountType, "Main");
+    assert.equal(docs[0].data.createdBy, "System");
+    assert.equal(docs[0].data.source.periodKey, "202607");
+  });
+
+  test("posts due monthly interest once per child and period", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": familyData({
+        interestEnabled: true,
+        interestAnnualRateBasisPoints: 1_200,
+        interestPostingDayOfMonth: 1,
+      }),
+      "families/family-1/childProfiles/child-1": childProfileData("child-1"),
+      "families/family-1/childProfiles/child-2": childProfileData("child-2"),
+      "families/family-1/ledgerTransactions/seed-1": ledgerData({
+        childProfileId: "child-1",
+        amountCents: 10_000,
+      }),
+      "families/family-1/ledgerTransactions/seed-goal": ledgerData({
+        childProfileId: "child-1",
+        accountType: "Goal",
+        amountCents: 20_000,
+      }),
+      "families/family-1/ledgerTransactions/seed-2": ledgerData({
+        childProfileId: "child-2",
+        amountCents: 50,
+      }),
+    });
+    const now = new Date("2026-07-01T08:00:00.000Z");
+
+    const posted = await processDueInterestAccruals(database, now);
+    const postedAgain = await processDueInterestAccruals(database, now);
+
+    const interestId = createInterestTransactionId("child-1", "202607");
+    assert.equal(posted, 1);
+    assert.equal(postedAgain, 0);
+    assert.equal(database.docs.get(`families/family-1/ledgerTransactions/${interestId}`).amountCents, 100);
+    assert.equal(database.docs.get(`families/family-1/ledgerTransactions/${interestId}`).type, "Interest");
+    assert.equal(database.docs.get("families/family-1").interestLastPostedPeriodKey, "202607");
+  });
+
+  test("skips families that are not due in their local month", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": familyData({
+        interestEnabled: true,
+        interestAnnualRateBasisPoints: 1_200,
+        interestPostingDayOfMonth: 5,
+      }),
+      "families/family-1/childProfiles/child-1": childProfileData("child-1"),
+      "families/family-1/ledgerTransactions/seed-1": ledgerData({
+        childProfileId: "child-1",
+        amountCents: 10_000,
+      }),
+    });
+
+    const posted = await processDueInterestAccruals(database, new Date("2026-07-01T08:00:00.000Z"));
+
+    assert.equal(posted, 0);
+    assert.equal(database.docs.has("families/family-1/ledgerTransactions/interest_child-1_202607"), false);
+  });
+
+  test("main balance calculation includes reversals and ignores goal account entries", () => {
+    const balances = mainBalancesByChild([
+      ledgerData({ childProfileId: "child-1", amountCents: 1_000 }),
+      ledgerData({ childProfileId: "child-1", type: "Reversal", amountCents: -250 }),
+      ledgerData({ childProfileId: "child-1", accountType: "Goal", amountCents: 5_000 }),
+    ]);
+
+    assert.equal(balances.get("child-1"), 750);
+  });
+});
+
 describe("FLE-95 account deletion", () => {
   test("deletes auth user and recursively deletes family data when request is submitted", async () => {
     const database = new FakeDatabase({
@@ -212,10 +306,38 @@ describe("FLE-95 account deletion", () => {
   });
 });
 
-function familyData() {
+function familyData(overrides = {}) {
   return {
     familyId: "family-1",
     timeZone: "Europe/Madrid",
+    ...overrides,
+  };
+}
+
+function childProfileData(childProfileId) {
+  return {
+    familyId: "family-1",
+    childProfileId,
+    displayName: childProfileId,
+  };
+}
+
+function ledgerData({
+  familyId = "family-1",
+  childProfileId = "child-1",
+  accountType = "Main",
+  type = "Bonus",
+  amountCents = 100,
+} = {}) {
+  return {
+    familyId,
+    childProfileId,
+    accountType,
+    type,
+    amountCents,
+    concept: "Seed",
+    createdBy: "Parent",
+    createdAt: Timestamp.fromDate(NOW),
   };
 }
 
@@ -294,7 +416,7 @@ class FakeDatabase {
   }
 
   collectionGroup(name) {
-    return new FakeQuery(this, name);
+    return new FakeQuery(this, name, [], null, "collectionGroup");
   }
 
   async runTransaction(callback) {
@@ -312,29 +434,31 @@ class FakeDatabase {
 }
 
 class FakeQuery {
-  constructor(database, collectionGroupName, filters = [], maxResults = null) {
+  constructor(database, target, filters = [], maxResults = null, scope = "collectionGroup") {
     this.database = database;
-    this.collectionGroupName = collectionGroupName;
+    this.target = target;
     this.filters = filters;
     this.maxResults = maxResults;
+    this.scope = scope;
   }
 
   where(field, operator, value) {
     return new FakeQuery(
       this.database,
-      this.collectionGroupName,
+      this.target,
       [...this.filters, { field, operator, value }],
       this.maxResults,
+      this.scope,
     );
   }
 
   limit(maxResults) {
-    return new FakeQuery(this.database, this.collectionGroupName, this.filters, maxResults);
+    return new FakeQuery(this.database, this.target, this.filters, maxResults, this.scope);
   }
 
   async get() {
     const docs = [...this.database.docs.entries()]
-      .filter(([path]) => path.split("/").at(-2) === this.collectionGroupName)
+      .filter(([path]) => matchesQueryPath(path, this.target, this.scope))
       .filter(([, data]) => this.filters.every((filter) => matchesFilter(data, filter)))
       .slice(0, this.maxResults ?? undefined)
       .map(([path, data]) => new FakeDocumentSnapshot(new FakeDocumentRef(this.database, path), data));
@@ -431,6 +555,14 @@ class FakeCollectionRef {
   doc(id) {
     return new FakeDocumentRef(this.database, `${this.path}/${id}`);
   }
+
+  where(field, operator, value) {
+    return new FakeQuery(this.database, this.path, [{ field, operator, value }], null, "collection");
+  }
+
+  async get() {
+    return new FakeQuery(this.database, this.path, [], null, "collection").get();
+  }
 }
 
 class FakeAuth {
@@ -453,6 +585,15 @@ function matchesFilter(data, filter) {
     return timestampMillis(data[filter.field]) <= timestampMillis(filter.value);
   }
   throw new Error(`Unsupported fake query operator: ${filter.operator}`);
+}
+
+function matchesQueryPath(path, target, scope) {
+  const parts = path.split("/");
+  if (scope === "collection") {
+    const targetParts = target.split("/");
+    return parts.length === targetParts.length + 1 && parts.slice(0, -1).join("/") === target;
+  }
+  return parts.at(-2) === target;
 }
 
 function timestampMillis(value) {

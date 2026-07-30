@@ -13,11 +13,14 @@ setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 const DEFAULT_TIME_ZONE = "Europe/Madrid";
 const MAX_RULES_PER_RUN = 100;
 const MAX_TASK_ASSIGNMENTS_PER_RUN = 100;
+const MAX_INTEREST_FAMILIES_PER_RUN = 100;
 
 export const runAllowanceRules = makeRunAllowanceRules(getFirestore(), "runAllowanceRules");
 export const runAllowanceRulesDebug = makeRunAllowanceRules(getFirestore("debug"), "runAllowanceRulesDebug");
 export const runTaskAssignments = makeRunTaskAssignments(getFirestore(), "runTaskAssignments");
 export const runTaskAssignmentsDebug = makeRunTaskAssignments(getFirestore("debug"), "runTaskAssignmentsDebug");
+export const runInterestAccruals = makeRunInterestAccruals(getFirestore(), "runInterestAccruals");
+export const runInterestAccrualsDebug = makeRunInterestAccruals(getFirestore("debug"), "runInterestAccrualsDebug");
 export const processAccountDeletionRequests = makeProcessAccountDeletionRequests(
   getFirestore(),
   getAuth(),
@@ -52,6 +55,19 @@ function makeRunTaskAssignments(database, functionName) {
     async () => {
       const processed = await processDueTaskAssignments(database, new Date());
       logger.info(`${functionName} completed`, { processed });
+    },
+  );
+}
+
+function makeRunInterestAccruals(database, functionName) {
+  return onSchedule(
+    {
+      schedule: "every 24 hours",
+      timeZone: DEFAULT_TIME_ZONE,
+    },
+    async () => {
+      const posted = await processDueInterestAccruals(database, new Date());
+      logger.info(`${functionName} completed`, { posted });
     },
   );
 }
@@ -192,6 +208,20 @@ export async function processDueTaskAssignments(database, nowDate) {
   return processed;
 }
 
+export async function processDueInterestAccruals(database, nowDate) {
+  const snapshot = await database
+    .collection("families")
+    .where("interestEnabled", "==", true)
+    .limit(MAX_INTEREST_FAMILIES_PER_RUN)
+    .get();
+
+  let posted = 0;
+  for (const familySnapshot of snapshot.docs) {
+    posted += await processFamilyInterestAccrual(database, familySnapshot.ref, familySnapshot.data(), nowDate);
+  }
+  return posted;
+}
+
 async function processRule(database, ruleRef, nowDate) {
   return database.runTransaction(async (transaction) => {
     const ruleSnapshot = await transaction.get(ruleRef);
@@ -321,6 +351,65 @@ async function processTaskAssignment(database, assignmentRef, nowDate) {
   });
 }
 
+async function processFamilyInterestAccrual(database, familyRef, family, nowDate) {
+  const validated = validateInterestFamily(family);
+  if (!validated.ok) {
+    logger.warn("Skipping invalid interest settings", {
+      familyPath: familyRef.path,
+      reason: validated.reason,
+    });
+    return 0;
+  }
+
+  const timeZone = family.timeZone || DEFAULT_TIME_ZONE;
+  const localNow = DateTime.fromJSDate(nowDate, { zone: timeZone }).startOf("day");
+  if (localNow.day !== validated.postingDayOfMonth) return 0;
+
+  const periodKey = localNow.toFormat("yyyyLL");
+  const childrenSnapshot = await familyRef.collection("childProfiles").get();
+  const childProfileIds = childrenSnapshot.docs
+    .filter((childSnapshot) => childSnapshot.exists)
+    .map((childSnapshot) => childSnapshot.id);
+  if (childProfileIds.length === 0) return 0;
+
+  const ledgerSnapshot = await familyRef.collection("ledgerTransactions").get();
+  const balancesByChild = mainBalancesByChild(ledgerSnapshot.docs.map((doc) => doc.data()));
+  const docs = buildInterestLedgerDocuments({
+    familyId: family.familyId || familyRef.id,
+    childProfileIds,
+    balancesByChild,
+    annualRateBasisPoints: validated.annualRateBasisPoints,
+    periodKey,
+    postedAt: localNow.toJSDate(),
+  });
+  if (docs.length === 0) return 0;
+
+  return database.runTransaction(async (transaction) => {
+    const ledgerRefs = docs.map((doc) => familyRef.collection("ledgerTransactions").doc(doc.id));
+    const existingSnapshots = [];
+    for (const ledgerRef of ledgerRefs) {
+      existingSnapshots.push(await transaction.get(ledgerRef));
+    }
+
+    let created = 0;
+    for (const [index, doc] of docs.entries()) {
+      if (!existingSnapshots[index].exists) {
+        transaction.create(ledgerRefs[index], doc.data);
+        created += 1;
+      }
+    }
+
+    if (created > 0 || family.interestLastPostedPeriodKey !== periodKey) {
+      transaction.update(familyRef, {
+        interestLastPostedPeriodKey: periodKey,
+        interestLastPostedAt: Timestamp.fromDate(nowDate),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    return created;
+  });
+}
+
 function validateRule(rule) {
   if (!rule.childProfileId || typeof rule.childProfileId !== "string") {
     return { ok: false, reason: "missing childProfileId" };
@@ -342,6 +431,23 @@ function validateRule(rule) {
     return { ok: false, reason: "invalid weekly day" };
   }
   return { ok: true };
+}
+
+function validateInterestFamily(family) {
+  if (family?.interestEnabled !== true) return { ok: false, reason: "interest disabled" };
+  const annualRateBasisPoints = Number(family.interestAnnualRateBasisPoints);
+  if (
+    !Number.isInteger(annualRateBasisPoints) ||
+    annualRateBasisPoints <= 0 ||
+    annualRateBasisPoints > 5_000
+  ) {
+    return { ok: false, reason: "invalid interestAnnualRateBasisPoints" };
+  }
+  const postingDayOfMonth = Number(family.interestPostingDayOfMonth);
+  if (!Number.isInteger(postingDayOfMonth) || postingDayOfMonth < 1 || postingDayOfMonth > 28) {
+    return { ok: false, reason: "invalid interestPostingDayOfMonth" };
+  }
+  return { ok: true, annualRateBasisPoints, postingDayOfMonth };
 }
 
 function validateTaskAssignment(assignment) {
@@ -372,6 +478,62 @@ function validateTaskAssignment(assignment) {
     }
   }
   return { ok: true };
+}
+
+export function buildInterestLedgerDocuments({
+  familyId,
+  childProfileIds,
+  balancesByChild,
+  annualRateBasisPoints,
+  periodKey,
+  postedAt,
+}) {
+  return childProfileIds
+    .map((childProfileId) => {
+      const balanceCents = Number(balancesByChild.get(childProfileId) ?? 0);
+      const amountCents = calculateMonthlyInterestCents(balanceCents, annualRateBasisPoints);
+      if (amountCents <= 0) return null;
+      return {
+        id: createInterestTransactionId(childProfileId, periodKey),
+        data: {
+          familyId,
+          childProfileId,
+          accountType: "Main",
+          type: "Interest",
+          amountCents,
+          concept: `Interes ${periodKey}`,
+          createdBy: "System",
+          createdAt: Timestamp.fromDate(postedAt),
+          source: {
+            type: "parentInterest",
+            periodKey,
+          },
+        },
+      };
+    })
+    .filter(Boolean);
+}
+
+export function calculateMonthlyInterestCents(balanceCents, annualRateBasisPoints) {
+  if (balanceCents <= 0) return 0;
+  return Math.floor((Number(balanceCents) * Number(annualRateBasisPoints)) / 10_000 / 12);
+}
+
+export function createInterestTransactionId(childProfileId, periodKey) {
+  return `interest_${safeDocumentIdPart(childProfileId)}_${periodKey}`;
+}
+
+export function mainBalancesByChild(transactions) {
+  const balances = new Map();
+  for (const transaction of transactions) {
+    if (transaction?.accountType !== "Main") continue;
+    if (!transaction.childProfileId || !Number.isFinite(Number(transaction.amountCents))) continue;
+    balances.set(
+      transaction.childProfileId,
+      (balances.get(transaction.childProfileId) ?? 0) + Number(transaction.amountCents),
+    );
+  }
+  return balances;
 }
 
 export function buildTaskInstanceDocuments({ familyId, assignmentId, assignment, dueAt, periodKey, nowDate }) {

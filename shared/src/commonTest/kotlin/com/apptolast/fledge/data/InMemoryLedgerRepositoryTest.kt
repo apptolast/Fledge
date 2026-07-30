@@ -102,6 +102,28 @@ class InMemoryLedgerRepositoryTest {
     }
 
     @Test
+    fun `FLE-48 interest entries increase the main virtual balance`() = runTest {
+        // Given
+        val repository = InMemoryLedgerRepository()
+        val childId = ChildProfileId("child-1")
+
+        // When
+        val interest = repository.appendTransaction(
+            sampleDraft(
+                childProfileId = childId,
+                type = LedgerTransactionType.Interest,
+                amountCents = MoneyCents(12),
+                concept = LedgerConcept("Interes 202607"),
+                createdBy = LedgerActor.System,
+            ),
+        )
+
+        // Then
+        assertEquals(LedgerTransactionType.Interest, interest.type)
+        assertEquals(BalanceCents(12), repository.balanceFor(childId, VirtualAccountType.Main))
+    }
+
+    @Test
     fun `FLE-18 reversing a transaction appends a compensating entry and keeps the original`() = runTest {
         // Given
         val repository = InMemoryLedgerRepository()
