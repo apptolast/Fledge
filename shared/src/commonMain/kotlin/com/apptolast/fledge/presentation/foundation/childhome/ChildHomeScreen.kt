@@ -56,6 +56,8 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.service.SavingsGoalProjection
+import com.apptolast.fledge.domain.service.SavingsGoalProjectionStatus
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -66,8 +68,16 @@ import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
 import fledge.shared.generated.resources.child_home_active_goal_amount
+import fledge.shared.generated.resources.child_home_active_goal_completed_body
+import fledge.shared.generated.resources.child_home_active_goal_completed_title
 import fledge.shared.generated.resources.child_home_active_goal_deposit
+import fledge.shared.generated.resources.child_home_active_goal_no_pace_body
+import fledge.shared.generated.resources.child_home_active_goal_no_pace_title
+import fledge.shared.generated.resources.child_home_active_goal_pace
 import fledge.shared.generated.resources.child_home_active_goal_progress
+import fledge.shared.generated.resources.child_home_active_goal_projection_body
+import fledge.shared.generated.resources.child_home_active_goal_projection_title
+import fledge.shared.generated.resources.child_home_active_goal_remaining
 import fledge.shared.generated.resources.child_home_active_goal_title
 import fledge.shared.generated.resources.child_home_active_goal_withdraw
 import fledge.shared.generated.resources.child_home_body
@@ -115,6 +125,8 @@ import fledge.shared.generated.resources.ledger_type_settlement
 import fledge.shared.generated.resources.ledger_type_task_reward
 import fledge.shared.generated.resources.operation_error_sync
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -218,6 +230,7 @@ fun ChildHomeContent(
                     ActiveSavingsGoalCard(
                         goal = goal,
                         currentCents = state.balances?.goal?.value ?: 0L,
+                        projection = state.activeSavingsGoalProjection,
                         currencyCode = state.currencyCode,
                         onDeposit = {
                             state.childProfileId?.let { childProfileId ->
@@ -509,12 +522,14 @@ private fun ChildTaskInstanceRow(
 private fun ActiveSavingsGoalCard(
     goal: SavingsGoal,
     currentCents: Long,
+    projection: SavingsGoalProjection?,
     currencyCode: String,
     onDeposit: () -> Unit,
     onWithdraw: () -> Unit,
 ) {
-    val progress = (currentCents.toFloat() / goal.targetCents.value.toFloat()).coerceIn(0f, 1f)
-    val progressPercent = (progress * 100).toInt()
+    val progressPercent = projection?.progressPercent
+        ?: ((currentCents.coerceAtLeast(0L) * 100) / goal.targetCents.value).coerceIn(0, 100).toInt()
+    val progress = progressPercent / 100f
 
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -578,10 +593,10 @@ private fun ActiveSavingsGoalCard(
                 progress = { progress },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text(
-                text = stringResource(Res.string.child_home_active_goal_progress, progressPercent),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            ActiveSavingsGoalProjectionSummary(
+                projection = projection,
+                progressPercent = progressPercent,
+                currencyCode = currencyCode,
             )
             Button(
                 onClick = onDeposit,
@@ -607,6 +622,105 @@ private fun ActiveSavingsGoalCard(
         }
     }
 }
+
+@Composable
+private fun ActiveSavingsGoalProjectionSummary(
+    projection: SavingsGoalProjection?,
+    progressPercent: Int,
+    currencyCode: String,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.child_home_active_goal_progress, progressPercent),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            projection?.dailyPaceCents?.let { dailyPace ->
+                Text(
+                    text = stringResource(
+                        Res.string.child_home_active_goal_pace,
+                        formatCents(dailyPace.value, currencyCode),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        projection?.let {
+            Text(
+                text = stringResource(
+                    Res.string.child_home_active_goal_remaining,
+                    formatCents(it.remainingCents.value, currencyCode),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ActiveSavingsGoalProjectionBand(
+                projection = it,
+                currencyCode = currencyCode,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActiveSavingsGoalProjectionBand(projection: SavingsGoalProjection, currencyCode: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = goalProjectionTitle(projection),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = goalProjectionBody(projection, currencyCode),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun goalProjectionTitle(projection: SavingsGoalProjection): String = when (projection.status) {
+    SavingsGoalProjectionStatus.Completed -> stringResource(Res.string.child_home_active_goal_completed_title)
+    SavingsGoalProjectionStatus.OnTrack -> stringResource(
+        Res.string.child_home_active_goal_projection_title,
+        projection.estimatedCompletionAt?.let(::formatDate) ?: "",
+    )
+    SavingsGoalProjectionStatus.NeedsContribution -> stringResource(Res.string.child_home_active_goal_no_pace_title)
+}
+
+@Composable
+private fun goalProjectionBody(projection: SavingsGoalProjection, currencyCode: String): String =
+    when (projection.status) {
+        SavingsGoalProjectionStatus.Completed -> stringResource(Res.string.child_home_active_goal_completed_body)
+        SavingsGoalProjectionStatus.OnTrack -> stringResource(
+            Res.string.child_home_active_goal_projection_body,
+            projection.estimatedDaysRemaining ?: 0,
+            projection.dailyPaceCents?.let { formatCents(it.value, currencyCode) }.orEmpty(),
+        )
+        SavingsGoalProjectionStatus.NeedsContribution -> stringResource(
+            Res.string.child_home_active_goal_no_pace_body,
+            formatCents(projection.remainingCents.value, currencyCode),
+        )
+    }
 
 @Composable
 private fun TaskStatusPill(status: TaskInstanceStatus) {
@@ -803,6 +917,8 @@ private fun formatCents(value: Long, currencyCode: String): String {
     return "$sign$whole,$cents $currencyCode"
 }
 
+private fun formatDate(value: Instant): String = value.toString().substringBefore("T")
+
 @Preview
 @Composable
 fun PreviewChildHomeContent() {
@@ -824,6 +940,14 @@ fun PreviewChildHomeContent() {
                     iconKey = "bike",
                     createdAt = Clock.System.now(),
                     updatedAt = Clock.System.now(),
+                ),
+                activeSavingsGoalProjection = SavingsGoalProjection(
+                    progressPercent = 30,
+                    remainingCents = BalanceCents(2_770),
+                    dailyPaceCents = BalanceCents(150),
+                    estimatedDaysRemaining = 19,
+                    estimatedCompletionAt = Clock.System.now().plus(19.days),
+                    status = SavingsGoalProjectionStatus.OnTrack,
                 ),
                 ledgerTransactions = listOf(
                     LedgerTransaction(
