@@ -163,6 +163,10 @@ class ManualAdjustmentViewModel(
         mutableUiState.update { state ->
             state.copy(
                 child = child,
+                syncNotice = listOf(
+                    familyRepository.syncStatus.value,
+                    ledgerRepository.syncStatus.value,
+                ).toFoundationSyncNotice(child != null),
                 error = when {
                     shouldShowMissingChild -> ManualAdjustmentError.MissingChild
                     state.error == ManualAdjustmentError.MissingChild -> null

@@ -32,6 +32,7 @@ import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
+import com.apptolast.fledge.domain.service.WeeklyParentDigestCalculator
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionViewModel
 import com.apptolast.fledge.presentation.foundation.admin.SecondaryAdminViewModel
@@ -57,6 +58,7 @@ import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetup
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalWithdrawalViewModel
 import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentViewModel
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
+import com.apptolast.fledge.presentation.foundation.weeklydigest.ParentWeeklyDigestViewModel
 import com.apptolast.fledge.presentation.initialFledgeLoginConfig
 import com.apptolast.fledge.shared.BuildKonfig
 import org.koin.core.context.loadKoinModules
@@ -84,6 +86,7 @@ val dataModule = module {
     single { SavingsGoalDepositProcessor(get(), get(), get()) }
     single { SavingsGoalWithdrawalProcessor(get(), get()) }
     single { TaskApprovalProcessor(get(), get()) }
+    single { WeeklyParentDigestCalculator() }
     // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
     // platformModule, so tests can substitute them without overriding the production graph.
     single {
@@ -123,6 +126,7 @@ val presentationModule = module {
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)
     viewModelOf(::ParentHomeViewModel)
+    viewModelOf(::ParentWeeklyDigestViewModel)
     viewModelOf(::PostLoginViewModel)
     viewModelOf(::TaskAssignmentViewModel)
     viewModelOf(::SavingsGoalSetupViewModel)

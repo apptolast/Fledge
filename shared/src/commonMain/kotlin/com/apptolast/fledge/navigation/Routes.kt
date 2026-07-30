@@ -24,6 +24,9 @@ data object ChildProfileSetupRoute
 data object ParentHomeRoute
 
 @Serializable
+data object ParentWeeklyDigestRoute
+
+@Serializable
 data object AccountDeletionRoute
 
 @Serializable
