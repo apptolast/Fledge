@@ -12,6 +12,10 @@ import com.apptolast.fledge.domain.model.ChildSession
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.DeviceId
 import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.FamilyAdminInvite
+import com.apptolast.fledge.domain.model.FamilyAdminInviteDraft
+import com.apptolast.fledge.domain.model.FamilyAdminInviteStatus
+import com.apptolast.fledge.domain.model.FamilyAdminRole
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettings
@@ -23,6 +27,7 @@ import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
+import com.apptolast.fledge.domain.model.normalizeFamilyAdminEmail
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.domain.security.Sha256
@@ -52,6 +57,8 @@ class FirestoreFamilyFoundationRepository(
     private var syncJob: Job? = null
 
     private val mutableActiveFamily = MutableStateFlow<Family?>(null)
+    private val mutableActiveAdminRole = MutableStateFlow<FamilyAdminRole?>(null)
+    private val mutableAdminInvites = MutableStateFlow<List<FamilyAdminInvite>>(emptyList())
     private val mutableChildren = MutableStateFlow<List<ChildProfile>>(emptyList())
     private val mutableChildDevices = MutableStateFlow<List<ChildDevice>>(emptyList())
     private val mutableChildPinPolicy = MutableStateFlow(ChildPinPolicy())
@@ -64,6 +71,8 @@ class FirestoreFamilyFoundationRepository(
 
     override val syncStatus: StateFlow<RepositorySyncStatus> = mutableSyncStatus
     override val activeFamily: StateFlow<Family?> = mutableActiveFamily
+    override val activeAdminRole: StateFlow<FamilyAdminRole?> = mutableActiveAdminRole
+    override val adminInvites: StateFlow<List<FamilyAdminInvite>> = mutableAdminInvites
     override val children: StateFlow<List<ChildProfile>> = mutableChildren
     override val childDevices: StateFlow<List<ChildDevice>> = mutableChildDevices
     override val childPinPolicy: StateFlow<ChildPinPolicy> = mutableChildPinPolicy
@@ -79,20 +88,21 @@ class FirestoreFamilyFoundationRepository(
             }
         }
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyAccesses(firestoreProvider).collectLatest { access ->
                 syncJob?.cancelAndJoin()
-                if (familyId == null) {
+                if (access == null) {
                     clearLocalState()
                 } else {
+                    mutableActiveAdminRole.value = access.role
                     resetSyncStatuses(RepositorySyncStatus.Loading)
-                    syncJob = launch { bindFamily(familyId) }
+                    syncJob = launch { bindFamily(access.familyId) }
                 }
             }
         }
     }
 
     override suspend fun createFamily(name: String, currency: CurrencyCode, timeZone: TimeZoneId): Family {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentOwnerFamilyId()
         val ref = familyDoc(familyId)
         require(!ref.get().exists) {
             "Family money settings are locked after creation."
@@ -112,8 +122,81 @@ class FirestoreFamilyFoundationRepository(
             ),
         )
         mutableActiveFamily.value = family
+        mutableActiveAdminRole.value = FamilyAdminRole.Owner
+        mutableAdminInvites.value = emptyList()
         mutableChildPinPolicy.value = ChildPinPolicy()
         return family
+    }
+
+    override suspend fun inviteAdmin(draft: FamilyAdminInviteDraft): FamilyAdminInvite {
+        require(mutableActiveAdminRole.value == FamilyAdminRole.Owner) {
+            "Only the family owner can manage admins."
+        }
+        val ownerUid = authProvider.currentOwnerFamilyId().value
+        val family = requireNotNull(activeFamily.value) { "Family does not exist." }
+        require(family.ownerUid == ownerUid || family.id.value == ownerUid) {
+            "Only the family owner can manage admins."
+        }
+
+        val now = Clock.System.now()
+        val email = normalizeFamilyAdminEmail(draft.email)
+        val invite = FamilyAdminInvite(
+            familyId = family.id,
+            email = email,
+            role = FamilyAdminRole.Admin,
+            status = FamilyAdminInviteStatus.Active,
+            invitedAt = now,
+            invitedByUid = ownerUid,
+        )
+        val adminEmails = (family.adminEmails + email).map(::normalizeFamilyAdminEmail).distinct().sorted()
+        familyDoc(family.id).set(
+            mapOf(
+                "adminEmails" to adminEmails,
+                "updatedAt" to now.toFirestoreTimestamp(),
+            ),
+            merge = true,
+        )
+        adminInviteDoc(email).set(invite.toFirestoreMap() + mapOf("updatedAt" to now.toFirestoreTimestamp()))
+        val updatedFamily = family.copy(adminEmails = adminEmails)
+        mutableActiveFamily.value = updatedFamily
+        mutableAdminInvites.value = updatedFamily.toActiveAdminInvites()
+        return invite
+    }
+
+    override suspend fun revokeAdminInvite(email: String): FamilyAdminInvite? {
+        require(mutableActiveAdminRole.value == FamilyAdminRole.Owner) {
+            "Only the family owner can manage admins."
+        }
+        val family = requireNotNull(activeFamily.value) { "Family does not exist." }
+        val normalizedEmail = normalizeFamilyAdminEmail(email)
+        if (normalizedEmail !in family.adminEmails) return null
+
+        val now = Clock.System.now()
+        val ownerUid = authProvider.currentOwnerFamilyId().value
+        val adminEmails = family.adminEmails.filterNot { it == normalizedEmail }
+        familyDoc(family.id).set(
+            mapOf(
+                "adminEmails" to adminEmails,
+                "updatedAt" to now.toFirestoreTimestamp(),
+            ),
+            merge = true,
+        )
+        val revoked = FamilyAdminInvite(
+            familyId = family.id,
+            email = normalizedEmail,
+            role = FamilyAdminRole.Admin,
+            status = FamilyAdminInviteStatus.Revoked,
+            invitedByUid = ownerUid,
+            revokedAt = now,
+        )
+        adminInviteDoc(normalizedEmail).set(
+            revoked.toFirestoreMap() + mapOf("updatedAt" to now.toFirestoreTimestamp()),
+            merge = true,
+        )
+        val updatedFamily = family.copy(adminEmails = adminEmails)
+        mutableActiveFamily.value = updatedFamily
+        mutableAdminInvites.value = updatedFamily.toActiveAdminInvites()
+        return revoked
     }
 
     override suspend fun addChildProfile(
@@ -123,7 +206,7 @@ class FirestoreFamilyFoundationRepository(
         avatarKey: String,
         pin: ChildPin,
     ): ChildProfile {
-        require(authProvider.currentFamilyId() == familyId) { "Family does not exist." }
+        require(authProvider.currentFamilyId(firestoreProvider) == familyId) { "Family does not exist." }
         require(familyDoc(familyId).get().exists) { "Family does not exist." }
         require(familyDoc(familyId).get().toVirtualMoneyConsent() != null) {
             "Virtual money consent must be recorded first."
@@ -145,7 +228,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun setChildPin(childProfileId: ChildProfileId, pin: ChildPin) {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val child = children.value.firstOrNull { it.id == childProfileId }
             ?: familyDoc(familyId).collection(CHILDREN_COLLECTION).document(childProfileId.value)
                 .get()
@@ -160,7 +243,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun validateChildPin(childProfileId: ChildProfileId, pin: ChildPin): ChildSession? {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val child = children.value.firstOrNull { it.id == childProfileId }
             ?: familyDoc(familyId).collection(CHILDREN_COLLECTION).document(childProfileId.value)
                 .get()
@@ -178,7 +261,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun setChildPinTimeout(timeoutMinutes: Int): ChildPinPolicy {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val policy = ChildPinPolicy(timeoutMinutes)
         familyDoc(familyId).set(
             mapOf(
@@ -192,7 +275,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun updateInterestSettings(draft: InterestSettingsDraft): InterestSettings {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val currentFamily = activeFamily.value
             ?: familyDoc(familyId).get().takeIf { it.exists }?.toFamily()
         requireNotNull(currentFamily) { "Family does not exist." }
@@ -212,7 +295,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun updateMatchSettings(draft: MatchSettingsDraft): MatchSettings {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val currentFamily = activeFamily.value
             ?: familyDoc(familyId).get().takeIf { it.exists }?.toFamily()
         requireNotNull(currentFamily) { "Family does not exist." }
@@ -231,7 +314,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun startPairing(childProfileId: ChildProfileId): PairingSession {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         require(
             children.value.any { it.id == childProfileId } ||
                 familyDoc(familyId).collection(CHILDREN_COLLECTION).document(childProfileId.value).get().exists,
@@ -253,7 +336,7 @@ class FirestoreFamilyFoundationRepository(
 
     override suspend fun registerChildDevice(pairingCode: PairingCode, label: String): ChildDevice {
         require(label.isNotBlank()) { "Device label cannot be blank." }
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val now = Clock.System.now()
         val pairingSnapshot = familyDoc(familyId).collection(PAIRING_SESSIONS_COLLECTION)
             .document(pairingCode.value)
@@ -279,7 +362,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun touchChildDevice(deviceId: DeviceId): ChildDevice? {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val device = childDevices.value.firstOrNull { it.id == deviceId }
             ?: familyDoc(familyId).collection(CHILD_DEVICES_COLLECTION).document(deviceId.value)
                 .get()
@@ -294,7 +377,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun recordVirtualMoneyConsent(): VirtualMoneyConsent {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val consent = VirtualMoneyConsent(
             acceptedAt = Clock.System.now(),
             disclosureVersion = VIRTUAL_MONEY_DISCLOSURE_VERSION,
@@ -308,7 +391,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun requireParentalGate(action: FoundationAction): ParentalGateRequest {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val request = ParentalGateRequest(action)
         familyDoc(familyId).set(request.toFirestorePatch(), merge = true)
         mutableParentalGateRequest.value = request
@@ -316,7 +399,7 @@ class FirestoreFamilyFoundationRepository(
     }
 
     override suspend fun confirmParentalGate(): FoundationAction? {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val action = parentalGateRequest.value?.action
             ?: familyDoc(familyId).get().takeIf { it.exists }?.toParentalGateRequest()?.action
         familyDoc(familyId).set(
@@ -341,6 +424,7 @@ class FirestoreFamilyFoundationRepository(
                     familyDocumentSyncStatus.value = snapshot.metadata.toRepositorySyncStatus()
                     if (snapshot.exists) {
                         mutableActiveFamily.value = snapshot.toFamily()
+                        mutableAdminInvites.value = snapshot.toFamily().toActiveAdminInvites()
                         mutableChildPinPolicy.value =
                             ChildPinPolicy(snapshot.optionalInt("childPinTimeoutMinutes") ?: 15)
                         mutableVirtualMoneyConsent.value = snapshot.toVirtualMoneyConsent()
@@ -381,6 +465,8 @@ class FirestoreFamilyFoundationRepository(
 
     private fun clearLocalState() {
         mutableActiveFamily.value = null
+        mutableActiveAdminRole.value = null
+        mutableAdminInvites.value = emptyList()
         mutableChildren.value = emptyList()
         mutableChildDevices.value = emptyList()
         mutableChildPinPolicy.value = ChildPinPolicy()
@@ -399,6 +485,19 @@ class FirestoreFamilyFoundationRepository(
     private fun familyDoc(familyId: FamilyId) = firestoreProvider.firestoreOrThrow()
         .collection(FAMILIES_COLLECTION)
         .document(familyId.value)
+
+    private fun adminInviteDoc(email: String) = firestoreProvider.firestoreOrThrow()
+        .collection(FAMILY_ADMIN_INVITES_COLLECTION)
+        .document(email)
+
+    private fun Family.toActiveAdminInvites(): List<FamilyAdminInvite> = adminEmails.map { email ->
+        FamilyAdminInvite(
+            familyId = id,
+            email = email,
+            role = FamilyAdminRole.Admin,
+            status = FamilyAdminInviteStatus.Active,
+        )
+    }
 
     private fun ChildPin.hashFor(salt: String): ChildPinHash =
         ChildPinHash(Sha256.hashHex("fledge-child-pin:$salt:$value"))

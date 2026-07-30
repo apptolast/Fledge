@@ -33,6 +33,9 @@ data object ParentInterestRoute
 data object ParentMatchRoute
 
 @Serializable
+data object SecondaryAdminRoute
+
+@Serializable
 data object TaskAssignmentRoute
 
 @Serializable

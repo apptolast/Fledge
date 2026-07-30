@@ -42,7 +42,7 @@ class FirestoreTaskAssignmentRepository(
 
     init {
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableAssignments.value = emptyList()
@@ -86,7 +86,7 @@ class FirestoreTaskAssignmentRepository(
     }
 
     override suspend fun saveAssignment(draft: TaskAssignmentDraft, createdAt: Instant): TaskAssignment {
-        require(authProvider.currentFamilyId() == draft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == draft.familyId) {
             "A signed-in parent can only save task assignments for the active family."
         }
         val ref = taskAssignmentCollection(draft.familyId).document

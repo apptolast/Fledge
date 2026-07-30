@@ -40,6 +40,7 @@ import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionViewModel
+import com.apptolast.fledge.presentation.foundation.admin.SecondaryAdminViewModel
 import com.apptolast.fledge.presentation.foundation.interest.ParentInterestViewModel
 import com.apptolast.fledge.presentation.foundation.match.ParentMatchViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
@@ -82,6 +83,7 @@ class AppModulesTest {
         assertNotNull(application.koin.get<SavingsGoalWithdrawalProcessor>())
         assertNotNull(application.koin.get<ParentInterestViewModel>())
         assertNotNull(application.koin.get<ParentMatchViewModel>())
+        assertNotNull(application.koin.get<SecondaryAdminViewModel>())
         assertNotNull(application.koin.get<SavingsGoalSetupViewModel>())
         assertNotNull(application.koin.get<SavingsGoalDepositViewModel>())
         assertNotNull(application.koin.get<SavingsGoalWithdrawalViewModel>())

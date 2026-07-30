@@ -42,7 +42,7 @@ class FirestoreTaskInstanceRepository(
 
     init {
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableInstances.value = emptyList()
@@ -135,7 +135,7 @@ class FirestoreTaskInstanceRepository(
     }
 
     private suspend fun instanceByIdFromFirestore(instanceId: TaskInstanceId): TaskInstance? {
-        val fallbackFamilyId = authProvider.currentFamilyId()
+        val fallbackFamilyId = authProvider.currentFamilyId(firestoreProvider)
         return taskInstanceCollection(fallbackFamilyId).document(instanceId.value)
             .get()
             .takeIf { it.exists }

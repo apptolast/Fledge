@@ -16,6 +16,7 @@ import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionScreen
+import com.apptolast.fledge.presentation.foundation.admin.SecondaryAdminScreen
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleScreen
 import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestScreen
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeScreen
@@ -116,6 +117,7 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onCreateTask = { navController.navigate(TaskAssignmentRoute) },
                 onOpenParentInterest = { navController.navigate(ParentInterestRoute) },
                 onOpenParentMatch = { navController.navigate(ParentMatchRoute) },
+                onOpenSecondaryAdmin = { navController.navigate(SecondaryAdminRoute) },
                 onOpenAccountDeletion = { navController.navigate(AccountDeletionRoute) },
                 onRequireParentalGate = { navController.navigate(ParentalGateRoute) },
             )
@@ -134,6 +136,9 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() },
             )
+        }
+        composable<SecondaryAdminRoute> {
+            SecondaryAdminScreen(onBack = { navController.popBackStack() })
         }
         composable<TaskAssignmentRoute> {
             TaskAssignmentScreen(

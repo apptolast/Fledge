@@ -55,7 +55,7 @@ class FirestoreMoneyFlowRepository(
             }
         }
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableAllowanceRules.value = emptyList()
@@ -115,7 +115,7 @@ class FirestoreMoneyFlowRepository(
         nextRunAt: Instant,
         createdAt: Instant,
     ): AllowanceRule {
-        require(authProvider.currentFamilyId() == draft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == draft.familyId) {
             "A signed-in parent can only save allowance rules for the active family."
         }
         val existing = allowanceRules.value.firstOrNull {
@@ -155,7 +155,7 @@ class FirestoreMoneyFlowRepository(
         nextRunAt: Instant,
         updatedAt: Instant,
     ): AllowanceRule {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val existing = allowanceRuleById(ruleId)
             ?: allowanceCollection(familyId).document(ruleId.value).get().takeIf { it.exists }?.toAllowanceRule()
         requireNotNull(existing) { "Allowance rule does not exist." }
@@ -175,7 +175,7 @@ class FirestoreMoneyFlowRepository(
         draft: CashOutSettlementDraft,
         requestedAt: Instant,
     ): CashOutSettlement {
-        require(authProvider.currentFamilyId() == draft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == draft.familyId) {
             "A signed-in parent can only create settlements for the active family."
         }
         val ref = settlementCollection(draft.familyId).document
@@ -226,7 +226,7 @@ class FirestoreMoneyFlowRepository(
         settlementId: SettlementId,
         transform: (CashOutSettlement) -> CashOutSettlement,
     ): CashOutSettlement {
-        val familyId = authProvider.currentFamilyId()
+        val familyId = authProvider.currentFamilyId(firestoreProvider)
         val existing = settlementById(settlementId)
             ?: settlementCollection(familyId).document(settlementId.value).get()
                 .takeIf { it.exists }

@@ -40,7 +40,7 @@ class FirestoreTaskTemplateRepository(
 
     init {
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableTemplates.value = emptyList()
@@ -73,7 +73,7 @@ class FirestoreTaskTemplateRepository(
     }
 
     override suspend fun saveTemplate(draft: TaskTemplateDraft, createdAt: Instant): TaskTemplate {
-        require(authProvider.currentFamilyId() == draft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == draft.familyId) {
             "A signed-in parent can only save task templates for the active family."
         }
         val ref = taskTemplateCollection(draft.familyId).document
@@ -92,7 +92,7 @@ class FirestoreTaskTemplateRepository(
         currentYear: Int,
         createdAt: Instant,
     ): List<TaskTemplate> {
-        require(authProvider.currentFamilyId() == familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == familyId) {
             "A signed-in parent can only seed task templates for the active family."
         }
 

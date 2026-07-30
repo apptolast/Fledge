@@ -32,6 +32,7 @@ import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionViewModel
+import com.apptolast.fledge.presentation.foundation.admin.SecondaryAdminViewModel
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleViewModel
 import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestViewModel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
@@ -110,6 +111,7 @@ val presentationModule = module {
     viewModelOf(::CashOutRequestViewModel)
     viewModelOf(::ParentInterestViewModel)
     viewModelOf(::ParentMatchViewModel)
+    viewModelOf(::SecondaryAdminViewModel)
     viewModelOf(::ManualAdjustmentViewModel)
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)

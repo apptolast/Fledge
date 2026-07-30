@@ -17,6 +17,7 @@ import {
 const PROJECT_ID = "fledge-rules-test";
 const FAMILY_ID = "parent-1";
 const OTHER_FAMILY_ID = "parent-2";
+const ADMIN_EMAIL = "coparent@example.com";
 const CHILD_ID = "child-1";
 const SIBLING_ID = "child-2";
 const NOW = Timestamp.fromDate(new Date("2026-07-29T10:00:00.000Z"));
@@ -49,6 +50,13 @@ function parentDb(uid = FAMILY_ID) {
   return dbFor(uid);
 }
 
+function adminDb({
+  uid = "admin-user",
+  email = ADMIN_EMAIL,
+} = {}) {
+  return dbFor(uid, { email });
+}
+
 function childDb({
   uid = "child-user",
   familyId = FAMILY_ID,
@@ -69,6 +77,10 @@ async function seed(path, data) {
 
 function familyPath(familyId = FAMILY_ID) {
   return `families/${familyId}`;
+}
+
+function adminInvitePath(email = ADMIN_EMAIL) {
+  return `familyAdminInvites/${email}`;
 }
 
 function childProfilePath(childProfileId = CHILD_ID, familyId = FAMILY_ID) {
@@ -103,13 +115,32 @@ function pushRegistrationPath(registrationId = "push-1", familyId = FAMILY_ID) {
   return `${familyPath(familyId)}/pushRegistrations/${registrationId}`;
 }
 
-function familyData(familyId = FAMILY_ID) {
+function familyData(familyId = FAMILY_ID, { adminEmails = [] } = {}) {
   return {
     familyId,
     name: "Familia Garcia",
     currency: "EUR",
     timeZone: "Europe/Madrid",
+    ownerUid: familyId,
+    adminEmails,
     moneySettingsLocked: true,
+  };
+}
+
+function adminInviteData({
+  familyId = FAMILY_ID,
+  email = ADMIN_EMAIL,
+  status = "Active",
+  invitedByUid = FAMILY_ID,
+} = {}) {
+  return {
+    familyId,
+    email,
+    role: "Admin",
+    status,
+    invitedAt: NOW,
+    invitedByUid,
+    updatedAt: NOW,
   };
 }
 
@@ -305,6 +336,29 @@ describe("FLE-83 Firestore membership rules", () => {
     await assertFails(getDoc(doc(otherParent, familyPath())));
     await assertFails(setDoc(doc(otherParent, familyPath()), familyData()));
     await assertFails(setDoc(doc(otherParent, childProfilePath(SIBLING_ID)), childProfileData(SIBLING_ID)));
+  });
+
+  test("FLE-52 owner invites admin and admin receives limited family access", async () => {
+    const owner = parentDb();
+    const admin = adminDb();
+    const otherParent = parentDb(OTHER_FAMILY_ID);
+
+    await assertSucceeds(setDoc(doc(owner, familyPath()), familyData()));
+    await assertSucceeds(setDoc(doc(owner, adminInvitePath()), adminInviteData()));
+    await assertSucceeds(updateDoc(doc(owner, familyPath()), { adminEmails: [ADMIN_EMAIL] }));
+    await seed(childProfilePath(CHILD_ID), childProfileData(CHILD_ID));
+
+    await assertSucceeds(getDoc(doc(admin, adminInvitePath())));
+    await assertSucceeds(getDoc(doc(admin, familyPath())));
+    await assertSucceeds(setDoc(doc(admin, ledgerPath("admin-entry")), ledgerData({ createdBy: "Parent" })));
+    await assertSucceeds(setDoc(doc(admin, childProfilePath(SIBLING_ID)), childProfileData(SIBLING_ID)));
+
+    await assertFails(updateDoc(doc(admin, familyPath()), { name: "Admin tamper" }));
+    await assertFails(setDoc(
+      doc(admin, adminInvitePath("other@example.com")),
+      adminInviteData({ email: "other@example.com", invitedByUid: "admin-user" }),
+    ));
+    await assertFails(getDoc(doc(otherParent, familyPath())));
   });
 
   test("a child token can read only its own profile, ledger and allowance", async () => {

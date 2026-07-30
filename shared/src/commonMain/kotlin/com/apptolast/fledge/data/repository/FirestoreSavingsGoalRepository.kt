@@ -40,7 +40,7 @@ class FirestoreSavingsGoalRepository(
 
     init {
         scope.launch {
-            authProvider.authenticatedFamilyIds().collectLatest { familyId ->
+            authProvider.authenticatedFamilyIds(firestoreProvider).collectLatest { familyId ->
                 syncJob?.cancelAndJoin()
                 if (familyId == null) {
                     mutableGoals.value = emptyList()
@@ -73,7 +73,7 @@ class FirestoreSavingsGoalRepository(
     }
 
     override suspend fun saveGoal(draft: SavingsGoalDraft, createdAt: Instant): SavingsGoal {
-        require(authProvider.currentFamilyId() == draft.familyId) {
+        require(authProvider.currentFamilyId(firestoreProvider) == draft.familyId) {
             "A signed-in parent can only save savings goals for the active family."
         }
         val ref = savingsGoalCollection(draft.familyId).document
