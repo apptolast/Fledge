@@ -30,6 +30,9 @@ data object AccountDeletionRoute
 data object ParentInterestRoute
 
 @Serializable
+data object ParentMatchRoute
+
+@Serializable
 data object TaskAssignmentRoute
 
 @Serializable

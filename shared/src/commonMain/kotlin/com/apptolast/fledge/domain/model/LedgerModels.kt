@@ -61,6 +61,7 @@ enum class LedgerTransactionType {
     GoalTransfer,
     Settlement,
     Interest,
+    Match,
     Reversal,
 }
 

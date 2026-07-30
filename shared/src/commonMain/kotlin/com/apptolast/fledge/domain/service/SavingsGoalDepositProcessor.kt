@@ -6,19 +6,23 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.LedgerTransferGroupId
+import com.apptolast.fledge.domain.model.MatchSettings
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.domain.model.SavingsGoalStatus
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.LedgerTransferPair
 import com.apptolast.fledge.domain.repository.SavingsGoalRepository
+import kotlin.math.min
 import kotlin.time.Clock
 import kotlin.time.Instant
 
 class SavingsGoalDepositProcessor(
     private val savingsGoalRepository: SavingsGoalRepository,
     private val ledgerRepository: LedgerRepository,
+    private val familyRepository: FamilyFoundationRepository? = null,
 ) {
     suspend fun depositToGoal(
         goalId: SavingsGoalId,
@@ -41,7 +45,7 @@ class SavingsGoalDepositProcessor(
             "goal-transfer-${goal.id.value}-${createdAt.epochSeconds}-${createdAt.nanosecondsOfSecond}",
         )
         val concept = LedgerConcept("Ahorro: ${goal.title}")
-        return ledgerRepository.appendTransferPair(
+        val transfer = ledgerRepository.appendTransferPair(
             debitDraft = LedgerTransactionDraft(
                 familyId = goal.familyId,
                 childProfileId = childProfileId,
@@ -64,5 +68,32 @@ class SavingsGoalDepositProcessor(
             ),
             createdAt = createdAt,
         )
+        if (createdBy == LedgerActor.Child) {
+            calculateParentalMatchCents(
+                contributionCents = amountCents,
+                settings = familyRepository?.activeFamily?.value?.matchSettings ?: MatchSettings(),
+            )?.let { matchCents ->
+                ledgerRepository.appendTransaction(
+                    LedgerTransactionDraft(
+                        familyId = goal.familyId,
+                        childProfileId = childProfileId,
+                        accountType = goal.accountType,
+                        type = LedgerTransactionType.Match,
+                        amountCents = matchCents,
+                        concept = LedgerConcept("Match parental: ${goal.title}"),
+                        createdBy = LedgerActor.System,
+                    ),
+                    createdAt = createdAt,
+                )
+            }
+        }
+        return transfer
     }
+}
+
+internal fun calculateParentalMatchCents(contributionCents: MoneyCents, settings: MatchSettings): MoneyCents? {
+    if (!settings.enabled) return null
+    val uncapped = contributionCents.value * settings.matchBasisPoints / 10_000
+    val capped = min(uncapped, settings.maxMatchCents)
+    return capped.takeIf { it > 0 }?.let(::MoneyCents)
 }

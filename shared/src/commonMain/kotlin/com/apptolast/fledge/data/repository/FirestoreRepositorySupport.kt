@@ -24,6 +24,7 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.LedgerTransferGroupId
+import com.apptolast.fledge.domain.model.MatchSettings
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.PairingCode
@@ -141,6 +142,9 @@ internal fun Family.toFirestoreMap(): Map<String, Any?> = mapOf(
     "interestAnnualRateBasisPoints" to interestSettings.annualRateBasisPoints,
     "interestPostingDayOfMonth" to interestSettings.postingDayOfMonth,
     "interestLastPostedPeriodKey" to interestSettings.lastPostedPeriodKey,
+    "matchEnabled" to matchSettings.enabled,
+    "matchBasisPoints" to matchSettings.matchBasisPoints,
+    "matchMaxCents" to matchSettings.maxMatchCents,
 )
 
 internal fun DocumentSnapshot.toFamily(): Family = Family(
@@ -150,6 +154,7 @@ internal fun DocumentSnapshot.toFamily(): Family = Family(
     timeZone = TimeZoneId(requiredString("timeZone")),
     moneySettingsLocked = optionalBoolean("moneySettingsLocked") ?: true,
     interestSettings = toInterestSettings(),
+    matchSettings = toMatchSettings(),
 )
 
 internal fun InterestSettings.toFirestorePatch(): Map<String, Any?> = mapOf(
@@ -164,6 +169,18 @@ internal fun DocumentSnapshot.toInterestSettings(): InterestSettings = InterestS
     annualRateBasisPoints = optionalInt("interestAnnualRateBasisPoints") ?: 0,
     postingDayOfMonth = optionalInt("interestPostingDayOfMonth") ?: 1,
     lastPostedPeriodKey = optionalString("interestLastPostedPeriodKey"),
+)
+
+internal fun MatchSettings.toFirestorePatch(): Map<String, Any?> = mapOf(
+    "matchEnabled" to enabled,
+    "matchBasisPoints" to matchBasisPoints,
+    "matchMaxCents" to maxMatchCents,
+)
+
+internal fun DocumentSnapshot.toMatchSettings(): MatchSettings = MatchSettings(
+    enabled = optionalBoolean("matchEnabled") ?: false,
+    matchBasisPoints = optionalInt("matchBasisPoints") ?: 0,
+    maxMatchCents = optionalLong("matchMaxCents") ?: 0L,
 )
 
 internal fun ChildProfile.toFirestoreMap(familyId: FamilyId): Map<String, Any?> = mapOf(

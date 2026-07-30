@@ -16,6 +16,8 @@ import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettings
 import com.apptolast.fledge.domain.model.InterestSettingsDraft
+import com.apptolast.fledge.domain.model.MatchSettings
+import com.apptolast.fledge.domain.model.MatchSettingsDraft
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
@@ -206,6 +208,25 @@ class FirestoreFamilyFoundationRepository(
             merge = true,
         )
         mutableActiveFamily.value = currentFamily.copy(interestSettings = settings)
+        return settings
+    }
+
+    override suspend fun updateMatchSettings(draft: MatchSettingsDraft): MatchSettings {
+        val familyId = authProvider.currentFamilyId()
+        val currentFamily = activeFamily.value
+            ?: familyDoc(familyId).get().takeIf { it.exists }?.toFamily()
+        requireNotNull(currentFamily) { "Family does not exist." }
+
+        val settings = MatchSettings(
+            enabled = draft.enabled,
+            matchBasisPoints = draft.matchBasisPoints,
+            maxMatchCents = draft.maxMatchCents,
+        )
+        familyDoc(familyId).set(
+            settings.toFirestorePatch() + mapOf("updatedAt" to Clock.System.now().toFirestoreTimestamp()),
+            merge = true,
+        )
+        mutableActiveFamily.value = currentFamily.copy(matchSettings = settings)
         return settings
     }
 

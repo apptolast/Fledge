@@ -65,6 +65,7 @@ data class Family(
     val timeZone: TimeZoneId,
     val moneySettingsLocked: Boolean = true,
     val interestSettings: InterestSettings = InterestSettings(),
+    val matchSettings: MatchSettings = MatchSettings(),
 )
 
 @Serializable
@@ -94,6 +95,35 @@ data class InterestSettingsDraft(val enabled: Boolean, val annualRateBasisPoints
             enabled = enabled,
             annualRateBasisPoints = annualRateBasisPoints,
             postingDayOfMonth = postingDayOfMonth,
+        )
+    }
+}
+
+@Serializable
+data class MatchSettings(val enabled: Boolean = false, val matchBasisPoints: Int = 0, val maxMatchCents: Long = 0) {
+    init {
+        require(matchBasisPoints in 0..10_000) {
+            "Parental match must be between 0.00% and 100.00%."
+        }
+        require(maxMatchCents >= 0) {
+            "Parental match cap cannot be negative."
+        }
+        require(!enabled || matchBasisPoints > 0) {
+            "Enabled parental match requires a positive percentage."
+        }
+        require(!enabled || maxMatchCents > 0) {
+            "Enabled parental match requires a positive cap."
+        }
+    }
+}
+
+@Serializable
+data class MatchSettingsDraft(val enabled: Boolean, val matchBasisPoints: Int, val maxMatchCents: Long) {
+    init {
+        MatchSettings(
+            enabled = enabled,
+            matchBasisPoints = matchBasisPoints,
+            maxMatchCents = maxMatchCents,
         )
     }
 }

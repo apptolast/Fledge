@@ -41,6 +41,7 @@ import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetup
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupViewModel
 import com.apptolast.fledge.presentation.foundation.interest.ParentInterestViewModel
 import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentViewModel
+import com.apptolast.fledge.presentation.foundation.match.ParentMatchViewModel
 import com.apptolast.fledge.presentation.foundation.pairing.PairingViewModel
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateViewModel
 import com.apptolast.fledge.presentation.foundation.parenthome.ParentHomeViewModel
@@ -74,7 +75,7 @@ val dataModule = module {
     single { FirestoreTaskTemplateRepository(get(), get()) } bind TaskTemplateRepository::class
     single { AllowanceProcessor(get(), get()) }
     single { CashOutProcessor(get(), get()) }
-    single { SavingsGoalDepositProcessor(get(), get()) }
+    single { SavingsGoalDepositProcessor(get(), get(), get()) }
     single { SavingsGoalWithdrawalProcessor(get(), get()) }
     single { TaskApprovalProcessor(get(), get()) }
     // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
@@ -108,6 +109,7 @@ val presentationModule = module {
     viewModelOf(::AllowanceRuleViewModel)
     viewModelOf(::CashOutRequestViewModel)
     viewModelOf(::ParentInterestViewModel)
+    viewModelOf(::ParentMatchViewModel)
     viewModelOf(::ManualAdjustmentViewModel)
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)
