@@ -198,6 +198,14 @@
     <string name="child_home_active_goal_title">Active goal</string>
     <string name="child_home_active_goal_amount">%1$s of %2$s</string>
     <string name="child_home_active_goal_progress">%d%% saved</string>
+    <string name="child_home_active_goal_remaining">%1$s to go</string>
+    <string name="child_home_active_goal_pace">Pace %1$s/day</string>
+    <string name="child_home_active_goal_projection_title">You arrive on %1$s</string>
+    <string name="child_home_active_goal_projection_body">%1$d days if you keep %2$s per day.</string>
+    <string name="child_home_active_goal_no_pace_title">Add something today</string>
+    <string name="child_home_active_goal_no_pace_body">Once money starts moving, we will calculate when you arrive. %1$s to go.</string>
+    <string name="child_home_active_goal_completed_title">Goal reached</string>
+    <string name="child_home_active_goal_completed_body">You already have enough in GOAL for this target.</string>
     <string name="child_home_active_goal_deposit">Add money</string>
     <string name="child_home_active_goal_withdraw">Take money out</string>
     <string name="child_home_tasks_title">Today's tasks</string>

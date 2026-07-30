@@ -2,6 +2,7 @@ package com.apptolast.fledge.presentation.foundation.childhome
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.CashOutSettlement
 import com.apptolast.fledge.domain.model.ChildLedgerBalances
 import com.apptolast.fledge.domain.model.ChildProfileId
@@ -19,6 +20,8 @@ import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.SavingsGoalProjection
+import com.apptolast.fledge.domain.service.SavingsGoalProjectionCalculator
 import com.apptolast.fledge.domain.service.SettlementReminderPolicy
 import com.apptolast.fledge.presentation.foundation.FoundationOperationError
 import com.apptolast.fledge.presentation.foundation.FoundationSyncNotice
@@ -39,6 +42,7 @@ data class ChildHomeUiState(
     val settlementReminders: List<SettlementReminder> = emptyList(),
     val taskInstances: List<TaskInstance> = emptyList(),
     val activeSavingsGoal: SavingsGoal? = null,
+    val activeSavingsGoalProjection: SavingsGoalProjection? = null,
     val selectedPhotoEvidenceByTaskId: Map<TaskInstanceId, String> = emptyMap(),
     val currencyCode: String = "EUR",
     val syncNotice: FoundationSyncNotice? = FoundationSyncNotice.Loading,
@@ -60,6 +64,7 @@ class ChildHomeViewModel(
     private val taskInstanceRepository: TaskInstanceRepository,
     private val cashOutProcessor: CashOutProcessor,
 ) : ViewModel() {
+    private val savingsGoalProjectionCalculator = SavingsGoalProjectionCalculator()
     private val mutableUiState = MutableStateFlow(ChildHomeUiState())
     val uiState: StateFlow<ChildHomeUiState> = mutableUiState
 
@@ -193,6 +198,7 @@ class ChildHomeViewModel(
                 settlementReminders = SettlementReminderPolicy.remindersFor(settlements, Clock.System.now()),
             )
         }
+        refreshSavingsGoalProjection()
     }
 
     private fun refreshTaskState() {
@@ -207,6 +213,23 @@ class ChildHomeViewModel(
         mutableUiState.update {
             it.copy(activeSavingsGoal = savingsGoalRepository.activeGoalForChild(childProfileId))
         }
+        refreshSavingsGoalProjection()
+    }
+
+    private fun refreshSavingsGoalProjection() {
+        val state = mutableUiState.value
+        val goal = state.activeSavingsGoal
+        val projection = if (goal != null) {
+            savingsGoalProjectionCalculator.project(
+                goal = goal,
+                currentGoalBalance = state.balances?.goal ?: BalanceCents(0),
+                transactions = state.ledgerTransactions,
+                now = Clock.System.now(),
+            )
+        } else {
+            null
+        }
+        mutableUiState.update { it.copy(activeSavingsGoalProjection = projection) }
     }
 
     private suspend fun runOperation(block: suspend () -> Unit): Boolean {

@@ -29,6 +29,8 @@ import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildTaskSubmissionError
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 
@@ -322,6 +324,71 @@ class ChildHomeViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(goal, state.activeSavingsGoal)
         assertEquals(BalanceCents(1_230), state.balances?.goal)
+    }
+
+    @Test
+    fun `FLE-39 child home exposes progress projection for active goal`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val now = Clock.System.now()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                accountType = VirtualAccountType.Goal,
+                type = LedgerTransactionType.GoalTransfer,
+                amountCents = MoneyCents(1_200),
+                concept = LedgerConcept("Ahorro bici"),
+                createdBy = LedgerActor.Child,
+                transferGroupId = LedgerTransferGroupId("transfer-1"),
+            ),
+            createdAt = now.minus(4.days),
+        )
+        savingsGoalRepository.saveGoal(
+            SavingsGoalDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                title = "Bici nueva",
+                targetCents = MoneyCents(3_600),
+                iconKey = "bike",
+            ),
+            createdAt = now.minus(8.days),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        val projection = viewModel.uiState.value.activeSavingsGoalProjection
+        assertEquals(33, projection?.progressPercent)
+        assertEquals(BalanceCents(2_400), projection?.remainingCents)
+        assertEquals(BalanceCents(300), projection?.dailyPaceCents)
+        assertEquals(8, projection?.estimatedDaysRemaining)
     }
 
     private fun taskInstance(
