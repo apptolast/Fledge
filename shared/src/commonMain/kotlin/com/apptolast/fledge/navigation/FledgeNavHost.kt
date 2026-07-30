@@ -15,6 +15,7 @@ import com.apptolast.customlogin.presentation.navigation.authRoutesFlow
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.SavingsGoalId
+import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionScreen
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleScreen
 import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestScreen
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeScreen
@@ -111,8 +112,12 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onAdjustChild = { childId -> navController.navigate(ManualAdjustmentRoute(childId.value)) },
                 onCreateSavingsGoal = { childId -> navController.navigate(SavingsGoalSetupRoute(childId.value)) },
                 onCreateTask = { navController.navigate(TaskAssignmentRoute) },
+                onOpenAccountDeletion = { navController.navigate(AccountDeletionRoute) },
                 onRequireParentalGate = { navController.navigate(ParentalGateRoute) },
             )
+        }
+        composable<AccountDeletionRoute> {
+            AccountDeletionScreen(onBack = { navController.popBackStack() })
         }
         composable<TaskAssignmentRoute> {
             TaskAssignmentScreen(

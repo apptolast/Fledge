@@ -7,6 +7,7 @@ import com.apptolast.customlogin.domain.AuthProvider
 import com.apptolast.fledge.data.remote.firebase.FirebaseBootstrap
 import com.apptolast.fledge.data.remote.firebase.firebaseApplicationId
 import com.apptolast.fledge.data.remote.firebase.firebaseEnvironmentOf
+import com.apptolast.fledge.data.repository.FirestoreAccountDeletionRepository
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
@@ -15,6 +16,7 @@ import com.apptolast.fledge.data.repository.FirestoreSavingsGoalRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskAssignmentRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskInstanceRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
+import com.apptolast.fledge.domain.repository.AccountDeletionRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
@@ -29,6 +31,7 @@ import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
+import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionViewModel
 import com.apptolast.fledge.presentation.foundation.allowance.AllowanceRuleViewModel
 import com.apptolast.fledge.presentation.foundation.cashout.CashOutRequestViewModel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
@@ -59,6 +62,7 @@ import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
 
 val dataModule = module {
+    single { FirestoreAccountDeletionRepository(get(), get()) } bind AccountDeletionRepository::class
     single { FirestoreFamilyFoundationRepository(get(), get()) } bind FamilyFoundationRepository::class
     single { FirestoreLedgerRepository(get(), get()) } bind LedgerRepository::class
     single { FirestoreMoneyFlowRepository(get(), get()) } bind MoneyFlowRepository::class
@@ -93,6 +97,7 @@ val dataModule = module {
 val presentationModule = module {
     single { FoundationRouteDecider() }
     viewModelOf(::RoleSelectorViewModel)
+    viewModelOf(::AccountDeletionViewModel)
     viewModelOf(::FamilySetupViewModel)
     viewModelOf(::VirtualMoneyConsentViewModel)
     viewModelOf(::ChildProfileSetupViewModel)

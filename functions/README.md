@@ -66,3 +66,34 @@ After processing:
 - `Once` assignments are marked inactive.
 - `Daily`, `Weekly` and `Custom` assignments advance `dueAt`.
 - No ledger money is created here. Task rewards are paid only when later approved.
+
+## Account deletion
+
+`processAccountDeletionRequests` listens to:
+
+```text
+families/{familyId}
+```
+
+The debug variant `processAccountDeletionRequestsDebug` listens to the same document path in the
+`debug` Firestore database.
+
+Expected request fields written by the parent app:
+
+- `familyId`: same value as the authenticated parent UID.
+- `accountDeletionStatus`: `Requested`.
+- `accountDeletionRequestedAt`: Firestore timestamp.
+- `accountDeletionUpdatedAt`: Firestore timestamp.
+
+When a family document transitions to `Requested`, the function:
+
+- marks the family document as `Deleting`;
+- deletes the Firebase Auth user, treating `auth/user-not-found` as already deleted;
+- recursively deletes `families/{familyId}` and all subcollections;
+- writes `accountDeletionAudit/{familyId}` with `Completed` or `Failed`.
+
+The client never directly deletes family data. Store-facing deletion URL:
+
+```text
+https://fledge-c685d.web.app/account-deletion/
+```

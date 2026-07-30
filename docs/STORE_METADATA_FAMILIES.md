@@ -268,8 +268,8 @@ primary app functionality.
 - Does the app share user data? `No`, if Firebase/Google Cloud is treated only as a service provider
   processing data for app functionality. Confirm final Play Console definitions before submission.
 - Is all user data encrypted in transit? `Yes`.
-- Can users request data deletion? `No` until FLE-95 is implemented. Do not submit final store forms
-  while this answer is false.
+- Can users request data deletion? `Yes`, through the in-app `Cuenta y datos` flow and the public
+  deletion URL `https://fledge-c685d.web.app/account-deletion/`.
 - Data collection required or optional:
   - Parent email and auth identifiers: required for account.
   - Child profile/family records: required for core functionality after onboarding.
@@ -337,7 +337,7 @@ Do not submit to review until these are complete:
 
 - [ ] Public privacy policy URL exists, is not a PDF, is not geofenced and names Fledge/AppToLast.
 - [ ] Privacy policy is linked inside the app and in both store consoles.
-- [ ] FLE-95 implements in-app and web account/data deletion.
+- [x] FLE-95 implements in-app and web account/data deletion.
 - [ ] FLE-83 hardens Firestore rules by family membership and role before any external beta.
 - [ ] FLE-86 validates Firebase/Functions/Firestore end-to-end in the target environment.
 - [ ] Store forms match actual SDK inventory and privacy policy.

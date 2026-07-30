@@ -5,6 +5,7 @@ import {
   buildTaskInstanceDocuments,
   createTaskInstanceId,
   nextTaskDueDateAfter,
+  processAccountDeletionRequest,
   processDueTaskAssignments,
   taskPeriodKey,
 } from "./index.js";
@@ -121,10 +122,108 @@ describe("FLE-29 task instance scheduler", () => {
   });
 });
 
+describe("FLE-95 account deletion", () => {
+  test("deletes auth user and recursively deletes family data when request is submitted", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": accountDeletionFamilyData(),
+      "families/family-1/childProfiles/child-1": { familyId: "family-1", childProfileId: "child-1" },
+      "families/family-1/ledgerTransactions/tx-1": { familyId: "family-1" },
+    });
+    const auth = new FakeAuth();
+    const result = await processAccountDeletionRequest({
+      database,
+      auth,
+      familyId: "family-1",
+      familyRef: database.collection("families").doc("family-1"),
+      before: { accountDeletionStatus: "NotRequested" },
+      after: database.docs.get("families/family-1"),
+      nowDate: NOW,
+    });
+
+    assert.equal(result.status, "completed");
+    assert.deepEqual(auth.deletedUsers, ["family-1"]);
+    assert.equal(database.docs.has("families/family-1"), false);
+    assert.equal(database.docs.has("families/family-1/childProfiles/child-1"), false);
+    assert.equal(database.docs.get("accountDeletionAudit/family-1").status, "Completed");
+  });
+
+  test("skips updates that are not a new Requested transition", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": { familyId: "family-1", accountDeletionStatus: "Deleting" },
+    });
+    const auth = new FakeAuth();
+    const result = await processAccountDeletionRequest({
+      database,
+      auth,
+      familyId: "family-1",
+      familyRef: database.collection("families").doc("family-1"),
+      before: { accountDeletionStatus: "Requested" },
+      after: { accountDeletionStatus: "Deleting" },
+      nowDate: NOW,
+    });
+
+    assert.equal(result.status, "skipped");
+    assert.deepEqual(auth.deletedUsers, []);
+    assert.equal(database.docs.has("families/family-1"), true);
+  });
+
+  test("treats an already deleted auth user as successful", async () => {
+    const database = new FakeDatabase({
+      "families/family-1": accountDeletionFamilyData(),
+    });
+    const auth = new FakeAuth({ failure: { code: "auth/user-not-found", message: "auth/user-not-found" } });
+    const result = await processAccountDeletionRequest({
+      database,
+      auth,
+      familyId: "family-1",
+      familyRef: database.collection("families").doc("family-1"),
+      before: { accountDeletionStatus: "NotRequested" },
+      after: database.docs.get("families/family-1"),
+      nowDate: NOW,
+    });
+
+    assert.equal(result.status, "completed");
+    assert.equal(result.authDeleteStatus, "AlreadyDeleted");
+    assert.equal(database.docs.get("accountDeletionAudit/family-1").authDeleteStatus, "AlreadyDeleted");
+  });
+
+  test("marks request failed and writes audit if recursive Firestore deletion fails", async () => {
+    const database = new FakeDatabase(
+      {
+        "families/family-1": accountDeletionFamilyData(),
+        "families/family-1/childProfiles/child-1": { familyId: "family-1", childProfileId: "child-1" },
+      },
+      { recursiveDeleteError: new Error("recursive delete failed") },
+    );
+    const auth = new FakeAuth();
+    const result = await processAccountDeletionRequest({
+      database,
+      auth,
+      familyId: "family-1",
+      familyRef: database.collection("families").doc("family-1"),
+      before: { accountDeletionStatus: "NotRequested" },
+      after: database.docs.get("families/family-1"),
+      nowDate: NOW,
+    });
+
+    assert.equal(result.status, "failed");
+    assert.equal(database.docs.get("families/family-1").accountDeletionStatus, "Failed");
+    assert.equal(database.docs.get("accountDeletionAudit/family-1").status, "Failed");
+  });
+});
+
 function familyData() {
   return {
     familyId: "family-1",
     timeZone: "Europe/Madrid",
+  };
+}
+
+function accountDeletionFamilyData() {
+  return {
+    familyId: "family-1",
+    accountDeletionStatus: "Requested",
+    accountDeletionRequestedAt: Timestamp.fromDate(NOW),
   };
 }
 
@@ -185,8 +284,13 @@ function taskInstanceCount(database) {
 }
 
 class FakeDatabase {
-  constructor(seed) {
+  constructor(seed, options = {}) {
     this.docs = new Map(Object.entries(seed).map(([path, data]) => [path, { ...data }]));
+    this.recursiveDeleteError = options.recursiveDeleteError ?? null;
+  }
+
+  collection(name) {
+    return new FakeCollectionRef(this, name);
   }
 
   collectionGroup(name) {
@@ -195,6 +299,15 @@ class FakeDatabase {
 
   async runTransaction(callback) {
     return callback(new FakeTransaction(this));
+  }
+
+  async recursiveDelete(ref) {
+    if (this.recursiveDeleteError) throw this.recursiveDeleteError;
+    for (const path of [...this.docs.keys()]) {
+      if (path === ref.path || path.startsWith(`${ref.path}/`)) {
+        this.docs.delete(path);
+      }
+    }
   }
 }
 
@@ -284,6 +397,23 @@ class FakeDocumentRef {
   collection(name) {
     return new FakeCollectionRef(this.database, `${this.path}/${name}`);
   }
+
+  async update(data) {
+    const existing = this.database.docs.get(this.path);
+    if (!existing) {
+      throw new Error(`Document does not exist: ${this.path}`);
+    }
+    this.database.docs.set(this.path, { ...existing, ...data });
+  }
+
+  async set(data, options = {}) {
+    if (options.merge) {
+      const existing = this.database.docs.get(this.path) ?? {};
+      this.database.docs.set(this.path, { ...existing, ...data });
+    } else {
+      this.database.docs.set(this.path, { ...data });
+    }
+  }
 }
 
 class FakeCollectionRef {
@@ -300,6 +430,18 @@ class FakeCollectionRef {
 
   doc(id) {
     return new FakeDocumentRef(this.database, `${this.path}/${id}`);
+  }
+}
+
+class FakeAuth {
+  constructor({ failure = null } = {}) {
+    this.failure = failure;
+    this.deletedUsers = [];
+  }
+
+  async deleteUser(uid) {
+    this.deletedUsers.push(uid);
+    if (this.failure) throw this.failure;
   }
 }
 

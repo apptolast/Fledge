@@ -16,6 +16,7 @@ import com.apptolast.fledge.data.remote.firebase.FirebaseBootstrap
 import com.apptolast.fledge.data.remote.firebase.FirebaseEnvironment
 import com.apptolast.fledge.data.remote.firebase.FirebaseInitializer
 import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
+import com.apptolast.fledge.data.repository.FirestoreAccountDeletionRepository
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
@@ -24,6 +25,7 @@ import com.apptolast.fledge.data.repository.FirestoreSavingsGoalRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskAssignmentRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskInstanceRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
+import com.apptolast.fledge.domain.repository.AccountDeletionRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
@@ -37,6 +39,7 @@ import com.apptolast.fledge.domain.service.CashOutProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
+import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupViewModel
@@ -61,6 +64,8 @@ class AppModulesTest {
 
         // When / Then
         assertNotNull(application.koin.get<FoundationRouteDecider>())
+        assertNotNull(application.koin.get<AccountDeletionRepository>())
+        assertNotNull(application.koin.get<AccountDeletionViewModel>())
         assertNotNull(application.koin.get<RoleSelectorViewModel>())
         assertNotNull(application.koin.get<LedgerRepository>())
         assertNotNull(application.koin.get<MoneyFlowRepository>())
@@ -125,6 +130,7 @@ class AppModulesTest {
 
         // When
         val familyFoundation = application.koin.get<FamilyFoundationRepository>()
+        val accountDeletion = application.koin.get<AccountDeletionRepository>()
         val ledger = application.koin.get<LedgerRepository>()
         val moneyFlow = application.koin.get<MoneyFlowRepository>()
         val pushRegistrations = application.koin.get<PushRegistrationRepository>()
@@ -134,6 +140,7 @@ class AppModulesTest {
         val taskTemplates = application.koin.get<TaskTemplateRepository>()
 
         // Then production bindings now point to Firestore-backed repositories
+        assertIs<FirestoreAccountDeletionRepository>(accountDeletion)
         assertIs<FirestoreFamilyFoundationRepository>(familyFoundation)
         assertIs<FirestoreLedgerRepository>(ledger)
         assertIs<FirestoreMoneyFlowRepository>(moneyFlow)
