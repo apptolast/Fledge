@@ -40,7 +40,7 @@ FLE-42 prepara el contrato de datos y seguridad sin cambiar el bootstrap Firebas
 4. [x] Tests rojos de reglas Firestore.
 5. [x] Implementar dominio, repositorios, mappers y DI.
 6. [x] Actualizar reglas y documentacion de auditoria SDK.
-7. [ ] Formatear, validar Gradle/rules/iOS y abrir PR.
+7. [x] Formatear, validar Gradle/rules/iOS y abrir PR.
 
 ## Validacion Esperada
 
@@ -68,3 +68,4 @@ xcodebuild -quiet -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration
 - Verde: `npm test`.
 - Verde: `git diff --check`.
 - Verde: `xcodebuild -quiet -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`.
+- PR: https://github.com/apptolast/Fledge/pull/22
