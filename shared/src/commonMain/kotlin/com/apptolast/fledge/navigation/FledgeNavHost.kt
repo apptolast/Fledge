@@ -38,6 +38,7 @@ import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorScreen
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositScreen
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupScreen
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalWithdrawalScreen
+import com.apptolast.fledge.presentation.foundation.statementexport.ParentStatementExportScreen
 import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentScreen
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentScreen
 import com.apptolast.fledge.presentation.foundation.weeklydigest.ParentWeeklyDigestScreen
@@ -124,6 +125,7 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onCreateSavingsGoal = { childId -> navController.navigate(SavingsGoalSetupRoute(childId.value)) },
                 onInviteGuest = { childId -> navController.navigate(GuestSponsorInviteRoute(childId.value)) },
                 onOpenWeeklyDigest = { navController.navigate(ParentWeeklyDigestRoute) },
+                onOpenStatementExport = { navController.navigate(ParentStatementExportRoute) },
                 onCreateTask = { navController.navigate(TaskAssignmentRoute) },
                 onOpenParentInterest = { navController.navigate(ParentInterestRoute) },
                 onOpenParentMatch = { navController.navigate(ParentMatchRoute) },
@@ -134,6 +136,9 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
         }
         composable<ParentWeeklyDigestRoute> {
             ParentWeeklyDigestScreen(onBack = { navController.popBackStack() })
+        }
+        composable<ParentStatementExportRoute> {
+            ParentStatementExportScreen(onBack = { navController.popBackStack() })
         }
         composable<AccountDeletionRoute> {
             AccountDeletionScreen(onBack = { navController.popBackStack() })

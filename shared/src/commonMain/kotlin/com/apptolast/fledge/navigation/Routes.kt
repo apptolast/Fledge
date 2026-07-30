@@ -27,6 +27,9 @@ data object ParentHomeRoute
 data object ParentWeeklyDigestRoute
 
 @Serializable
+data object ParentStatementExportRoute
+
+@Serializable
 data object AccountDeletionRoute
 
 @Serializable

@@ -98,6 +98,9 @@ import fledge.shared.generated.resources.parent_home_secondary_admin_review
 import fledge.shared.generated.resources.parent_home_settlements_empty_body
 import fledge.shared.generated.resources.parent_home_settlements_title
 import fledge.shared.generated.resources.parent_home_setup
+import fledge.shared.generated.resources.parent_home_statement_export
+import fledge.shared.generated.resources.parent_home_statement_export_body
+import fledge.shared.generated.resources.parent_home_statement_export_review
 import fledge.shared.generated.resources.parent_home_task_approval_amount
 import fledge.shared.generated.resources.parent_home_task_approval_approve
 import fledge.shared.generated.resources.parent_home_task_approval_error_amount
@@ -126,6 +129,7 @@ fun ParentHomeScreen(
     onCreateSavingsGoal: (ChildProfileId) -> Unit,
     onInviteGuest: (ChildProfileId) -> Unit,
     onOpenWeeklyDigest: () -> Unit,
+    onOpenStatementExport: () -> Unit,
     onCreateTask: () -> Unit,
     onOpenParentInterest: () -> Unit,
     onOpenParentMatch: () -> Unit,
@@ -146,6 +150,7 @@ fun ParentHomeScreen(
         onCreateSavingsGoal = onCreateSavingsGoal,
         onInviteGuest = onInviteGuest,
         onOpenWeeklyDigest = onOpenWeeklyDigest,
+        onOpenStatementExport = onOpenStatementExport,
         onCreateTask = onCreateTask,
         onOpenParentInterest = onOpenParentInterest,
         onOpenParentMatch = onOpenParentMatch,
@@ -188,6 +193,7 @@ fun ParentHomeContent(
     onCreateSavingsGoal: (ChildProfileId) -> Unit,
     onInviteGuest: (ChildProfileId) -> Unit,
     onOpenWeeklyDigest: () -> Unit,
+    onOpenStatementExport: () -> Unit,
     onCreateTask: () -> Unit,
     onOpenParentInterest: () -> Unit,
     onOpenParentMatch: () -> Unit,
@@ -251,6 +257,9 @@ fun ParentHomeContent(
                 }
                 item {
                     WeeklyDigestPromptCard(onOpenWeeklyDigest = onOpenWeeklyDigest)
+                }
+                item {
+                    StatementExportPromptCard(onOpenStatementExport = onOpenStatementExport)
                 }
             }
             if (state.goalCompletionNotices.isNotEmpty()) {
@@ -550,6 +559,41 @@ private fun WeeklyDigestPromptCard(onOpenWeeklyDigest: () -> Unit) {
                     .heightIn(min = 48.dp),
             ) {
                 Text(stringResource(Res.string.parent_home_weekly_digest_review))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatementExportPromptCard(onOpenStatementExport: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.parent_home_statement_export),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(Res.string.parent_home_statement_export_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenStatementExport,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.parent_home_statement_export_review))
             }
         }
     }
@@ -1057,6 +1101,7 @@ fun PreviewParentHomeContent() {
             onCreateSavingsGoal = {},
             onInviteGuest = {},
             onOpenWeeklyDigest = {},
+            onOpenStatementExport = {},
             onCreateTask = {},
             onOpenParentInterest = {},
             onOpenParentMatch = {},
@@ -1089,6 +1134,7 @@ fun PreviewParentHomeFirstRunEmptyContent() {
             onCreateSavingsGoal = {},
             onInviteGuest = {},
             onOpenWeeklyDigest = {},
+            onOpenStatementExport = {},
             onCreateTask = {},
             onOpenParentInterest = {},
             onOpenParentMatch = {},
@@ -1134,6 +1180,7 @@ fun PreviewParentHomeEmptyActivityContent() {
             onCreateSavingsGoal = {},
             onInviteGuest = {},
             onOpenWeeklyDigest = {},
+            onOpenStatementExport = {},
             onCreateTask = {},
             onOpenParentInterest = {},
             onOpenParentMatch = {},

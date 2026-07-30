@@ -29,6 +29,7 @@ import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.repository.TaskTemplateRepository
 import com.apptolast.fledge.domain.service.AllowanceProcessor
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.FamilyStatementExportBuilder
 import com.apptolast.fledge.domain.service.SavingsGoalDepositProcessor
 import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.domain.service.TaskApprovalProcessor
@@ -56,6 +57,7 @@ import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalDepositViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalSetupViewModel
 import com.apptolast.fledge.presentation.foundation.savingsgoal.SavingsGoalWithdrawalViewModel
+import com.apptolast.fledge.presentation.foundation.statementexport.ParentStatementExportViewModel
 import com.apptolast.fledge.presentation.foundation.taskassignment.TaskAssignmentViewModel
 import com.apptolast.fledge.presentation.foundation.virtualconsent.VirtualMoneyConsentViewModel
 import com.apptolast.fledge.presentation.foundation.weeklydigest.ParentWeeklyDigestViewModel
@@ -86,6 +88,7 @@ val dataModule = module {
     single { SavingsGoalDepositProcessor(get(), get(), get()) }
     single { SavingsGoalWithdrawalProcessor(get(), get()) }
     single { TaskApprovalProcessor(get(), get()) }
+    single { FamilyStatementExportBuilder() }
     single { WeeklyParentDigestCalculator() }
     // Firebase SDK bootstrap (FLE-78). The FirebaseInitializer and the FirestoreProvider come from
     // platformModule, so tests can substitute them without overriding the production graph.
@@ -126,6 +129,7 @@ val presentationModule = module {
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)
     viewModelOf(::ParentHomeViewModel)
+    viewModelOf(::ParentStatementExportViewModel)
     viewModelOf(::ParentWeeklyDigestViewModel)
     viewModelOf(::PostLoginViewModel)
     viewModelOf(::TaskAssignmentViewModel)
