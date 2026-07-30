@@ -61,6 +61,8 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.service.CompoundInterestExplanationLevel
+import com.apptolast.fledge.domain.service.CompoundInterestProjection
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
 import com.apptolast.fledge.domain.service.SavingsGoalProjection
 import com.apptolast.fledge.domain.service.SavingsGoalProjectionStatus
@@ -101,6 +103,14 @@ import fledge.shared.generated.resources.child_home_active_goal_title
 import fledge.shared.generated.resources.child_home_active_goal_withdraw
 import fledge.shared.generated.resources.child_home_body
 import fledge.shared.generated.resources.child_home_cash_out
+import fledge.shared.generated.resources.child_home_compound_interest_gain
+import fledge.shared.generated.resources.child_home_compound_interest_older_body
+import fledge.shared.generated.resources.child_home_compound_interest_one_year
+import fledge.shared.generated.resources.child_home_compound_interest_rate
+import fledge.shared.generated.resources.child_home_compound_interest_three_years
+import fledge.shared.generated.resources.child_home_compound_interest_title
+import fledge.shared.generated.resources.child_home_compound_interest_today
+import fledge.shared.generated.resources.child_home_compound_interest_younger_body
 import fledge.shared.generated.resources.child_home_empty_goal_action
 import fledge.shared.generated.resources.child_home_empty_goal_body
 import fledge.shared.generated.resources.child_home_empty_goal_title
@@ -289,6 +299,14 @@ fun ChildHomeContent(
                 item {
                     ChildGoalCompletionNoticeCard(
                         notice = notice,
+                        currencyCode = state.currencyCode,
+                    )
+                }
+            }
+            state.compoundInterestProjection?.let { projection ->
+                item {
+                    CompoundInterestProjectionCard(
+                        projection = projection,
                         currencyCode = state.currencyCode,
                     )
                 }
@@ -1005,6 +1023,133 @@ private fun goalProjectionBody(projection: SavingsGoalProjection, currencyCode: 
     }
 
 @Composable
+private fun CompoundInterestProjectionCard(projection: CompoundInterestProjection, currencyCode: String) {
+    val maxCents = projection.threeYearsCents.value.coerceAtLeast(1)
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ChildHomeIcon(
+                    iconKey = ChildHomeIconKey.CoinsIn,
+                    modifier = Modifier.size(44.dp),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.child_home_compound_interest_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = compoundInterestBody(projection.explanationLevel),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+            Text(
+                text = stringResource(
+                    Res.string.child_home_compound_interest_rate,
+                    formatBasisPoints(projection.annualRateBasisPoints),
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                fontWeight = FontWeight.SemiBold,
+            )
+            CompoundInterestMilestone(
+                label = stringResource(Res.string.child_home_compound_interest_today),
+                amount = projection.currentCents,
+                gain = null,
+                maxCents = maxCents,
+                currencyCode = currencyCode,
+            )
+            CompoundInterestMilestone(
+                label = stringResource(Res.string.child_home_compound_interest_one_year),
+                amount = projection.oneYearCents,
+                gain = projection.oneYearGainCents,
+                maxCents = maxCents,
+                currencyCode = currencyCode,
+            )
+            CompoundInterestMilestone(
+                label = stringResource(Res.string.child_home_compound_interest_three_years),
+                amount = projection.threeYearsCents,
+                gain = projection.threeYearsGainCents,
+                maxCents = maxCents,
+                currencyCode = currencyCode,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompoundInterestMilestone(
+    label: String,
+    amount: BalanceCents,
+    gain: BalanceCents?,
+    maxCents: Long,
+    currencyCode: String,
+) {
+    val progress = (amount.value.toDouble() / maxCents.toDouble()).toFloat().coerceIn(0.08f, 1f)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = formatCents(amount.value, currencyCode),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 8.dp),
+        )
+        gain?.takeIf { it.value > 0 }?.let {
+            Text(
+                text = stringResource(
+                    Res.string.child_home_compound_interest_gain,
+                    formatCents(it.value, currencyCode),
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun compoundInterestBody(level: CompoundInterestExplanationLevel): String = when (level) {
+    CompoundInterestExplanationLevel.Younger ->
+        stringResource(Res.string.child_home_compound_interest_younger_body)
+    CompoundInterestExplanationLevel.Older ->
+        stringResource(Res.string.child_home_compound_interest_older_body)
+}
+
+@Composable
 private fun TaskStatusPill(status: TaskInstanceStatus) {
     val visual = childHomeTaskStatusVisual(status)
     Surface(
@@ -1293,6 +1438,12 @@ private fun formatCents(value: Long, currencyCode: String): String {
     return "$sign$whole,$cents $currencyCode"
 }
 
+private fun formatBasisPoints(value: Int): String {
+    val whole = value / 100
+    val cents = (value % 100).toString().padStart(2, '0')
+    return if (cents == "00") whole.toString() else "$whole,$cents"
+}
+
 private fun formatDate(value: Instant): String = value.toString().substringBefore("T")
 
 @Preview
@@ -1334,6 +1485,15 @@ fun PreviewChildHomeContent() {
                     currentCents = BalanceCents(4_200),
                     targetCents = MoneyCents(4_000),
                     completedAt = Clock.System.now(),
+                ),
+                compoundInterestProjection = CompoundInterestProjection(
+                    annualRateBasisPoints = 333,
+                    currentCents = BalanceCents(1_230),
+                    oneYearCents = BalanceCents(1_270),
+                    threeYearsCents = BalanceCents(1_357),
+                    oneYearGainCents = BalanceCents(40),
+                    threeYearsGainCents = BalanceCents(127),
+                    explanationLevel = CompoundInterestExplanationLevel.Younger,
                 ),
                 ledgerTransactions = listOf(
                     LedgerTransaction(

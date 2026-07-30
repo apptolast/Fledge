@@ -10,6 +10,7 @@ import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.FamilyId
+import com.apptolast.fledge.domain.model.InterestSettingsDraft
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
@@ -25,6 +26,7 @@ import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.CompoundInterestExplanationLevel
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeEmptyStateAction
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeEmptyStateKind
 import com.apptolast.fledge.presentation.foundation.childhome.ChildHomeViewModel
@@ -505,6 +507,154 @@ class ChildHomeViewModelTest {
         assertEquals("Bici nueva", notice?.goalTitle)
         assertEquals(BalanceCents(4_200), notice?.currentCents)
         assertEquals(MoneyCents(4_000), notice?.targetCents)
+    }
+
+    @Test
+    fun `FLE-49 AC-01 child home exposes compound interest projection when interest is enabled`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            birthYear = 2012,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        foundationRepository.updateInterestSettings(
+            InterestSettingsDraft(
+                enabled = true,
+                annualRateBasisPoints = 1_200,
+                postingDayOfMonth = 1,
+            ),
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                accountType = VirtualAccountType.Main,
+                type = LedgerTransactionType.Bonus,
+                amountCents = MoneyCents(10_000),
+                concept = LedgerConcept("Paga extra"),
+                createdBy = LedgerActor.Parent,
+            ),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        val projection = viewModel.uiState.value.compoundInterestProjection
+        assertEquals(BalanceCents(10_000), projection?.currentCents)
+        assertEquals(BalanceCents(11_266), projection?.oneYearCents)
+        assertEquals(BalanceCents(14_292), projection?.threeYearsCents)
+        assertEquals(CompoundInterestExplanationLevel.Older, projection?.explanationLevel)
+    }
+
+    @Test
+    fun `FLE-49 AC-02 child home hides compound interest projection when disabled or balance is zero`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucia",
+            birthYear = 2018,
+            avatarKey = "star",
+            pin = ChildPin("1234"),
+        )
+        foundationRepository.updateInterestSettings(
+            InterestSettingsDraft(
+                enabled = true,
+                annualRateBasisPoints = 333,
+                postingDayOfMonth = 1,
+            ),
+        )
+        val zeroBalanceViewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        zeroBalanceViewModel.load(child.id)
+
+        // Then
+        assertEquals(null, zeroBalanceViewModel.uiState.value.compoundInterestProjection)
+
+        // Given
+        val disabledRepository = InMemoryFamilyFoundationRepository()
+        val disabledLedgerRepository = InMemoryLedgerRepository()
+        val disabledMoneyFlowRepository = InMemoryMoneyFlowRepository()
+        val disabledSavingsGoalRepository = InMemorySavingsGoalRepository()
+        val disabledTaskInstanceRepository = InMemoryTaskInstanceRepository()
+        val disabledFamily = disabledRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        disabledRepository.recordVirtualMoneyConsent()
+        val disabledChild = disabledRepository.addChildProfile(
+            familyId = disabledFamily.id,
+            displayName = "Lucia",
+            birthYear = 2018,
+            avatarKey = "star",
+            pin = ChildPin("1234"),
+        )
+        disabledLedgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = disabledFamily.id,
+                childProfileId = disabledChild.id,
+                accountType = VirtualAccountType.Main,
+                type = LedgerTransactionType.Bonus,
+                amountCents = MoneyCents(2_000),
+                concept = LedgerConcept("Paga extra"),
+                createdBy = LedgerActor.Parent,
+            ),
+        )
+        val disabledInterestViewModel = ChildHomeViewModel(
+            disabledRepository,
+            disabledLedgerRepository,
+            disabledMoneyFlowRepository,
+            disabledSavingsGoalRepository,
+            disabledTaskInstanceRepository,
+            CashOutProcessor(disabledMoneyFlowRepository, disabledLedgerRepository),
+        )
+
+        // When
+        disabledInterestViewModel.load(disabledChild.id)
+
+        // Then
+        assertEquals(null, disabledInterestViewModel.uiState.value.compoundInterestProjection)
     }
 
     private fun taskInstance(

@@ -20,6 +20,8 @@ import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.CompoundInterestProjection
+import com.apptolast.fledge.domain.service.CompoundInterestProjectionCalculator
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotifier
 import com.apptolast.fledge.domain.service.SavingsGoalProjection
@@ -35,6 +37,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 data class ChildHomeUiState(
     val childProfileId: ChildProfileId? = null,
@@ -46,6 +50,7 @@ data class ChildHomeUiState(
     val activeSavingsGoal: SavingsGoal? = null,
     val activeSavingsGoalProjection: SavingsGoalProjection? = null,
     val activeSavingsGoalCompletionNotice: SavingsGoalCompletionNotice? = null,
+    val compoundInterestProjection: CompoundInterestProjection? = null,
     val selectedPhotoEvidenceByTaskId: Map<TaskInstanceId, String> = emptyMap(),
     val currencyCode: String = "EUR",
     val syncNotice: FoundationSyncNotice? = FoundationSyncNotice.Loading,
@@ -69,6 +74,7 @@ class ChildHomeViewModel(
 ) : ViewModel() {
     private val savingsGoalProjectionCalculator = SavingsGoalProjectionCalculator()
     private val savingsGoalCompletionNotifier = SavingsGoalCompletionNotifier()
+    private val compoundInterestProjectionCalculator = CompoundInterestProjectionCalculator()
     private val mutableUiState = MutableStateFlow(ChildHomeUiState())
     val uiState: StateFlow<ChildHomeUiState> = mutableUiState
 
@@ -91,11 +97,13 @@ class ChildHomeViewModel(
         viewModelScope.launch {
             repository.activeFamily.collect { family ->
                 mutableUiState.update { it.copy(currencyCode = family?.currency?.value ?: "EUR") }
+                refreshCompoundInterestState()
             }
         }
         viewModelScope.launch {
             repository.children.collect {
                 refreshSavingsGoalDerivedState()
+                refreshCompoundInterestState()
             }
         }
         viewModelScope.launch {
@@ -125,6 +133,7 @@ class ChildHomeViewModel(
         refreshMoneyState()
         refreshGoalState()
         refreshTaskState()
+        refreshCompoundInterestState()
     }
 
     fun attachPhotoEvidence(instanceId: TaskInstanceId, photoEvidenceUri: String) {
@@ -208,6 +217,7 @@ class ChildHomeViewModel(
             )
         }
         refreshSavingsGoalDerivedState()
+        refreshCompoundInterestState()
     }
 
     private fun refreshTaskState() {
@@ -258,6 +268,25 @@ class ChildHomeViewModel(
                 activeSavingsGoalCompletionNotice = completionNotice,
             )
         }
+    }
+
+    private fun refreshCompoundInterestState() {
+        val state = mutableUiState.value
+        val childProfileId = state.childProfileId
+        val family = repository.activeFamily.value
+        val child = childProfileId?.let { id -> repository.children.value.firstOrNull { it.id == id } }
+        val settings = family?.interestSettings
+        val projection = if (child != null && settings?.enabled == true) {
+            compoundInterestProjectionCalculator.project(
+                mainBalance = state.balances?.main ?: BalanceCents(0),
+                annualRateBasisPoints = settings.annualRateBasisPoints,
+                birthYear = child.birthYear,
+                currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year,
+            )
+        } else {
+            null
+        }
+        mutableUiState.update { it.copy(compoundInterestProjection = projection) }
     }
 
     private suspend fun runOperation(block: suspend () -> Unit): Boolean {
