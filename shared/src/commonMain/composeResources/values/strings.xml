@@ -283,6 +283,14 @@
     <string name="child_home_active_goal_completed_body">Ya tienes suficiente en GOAL para esta meta.</string>
     <string name="child_home_active_goal_deposit">Meter dinero</string>
     <string name="child_home_active_goal_withdraw">Sacar dinero</string>
+    <string name="child_home_compound_interest_title">Tu dinero crece solo</string>
+    <string name="child_home_compound_interest_younger_body">Cada mes, Fledge suma un poquito mas a lo que ya tenias ahorrado.</string>
+    <string name="child_home_compound_interest_older_body">El interes compuesto reinvierte cada mes lo ganado para que el saldo crezca sobre el saldo nuevo.</string>
+    <string name="child_home_compound_interest_rate">%1$s%% anual</string>
+    <string name="child_home_compound_interest_today">Hoy</string>
+    <string name="child_home_compound_interest_one_year">1 ano</string>
+    <string name="child_home_compound_interest_three_years">3 anos</string>
+    <string name="child_home_compound_interest_gain">+%1$s extra</string>
     <string name="child_home_action_cd_goal_deposit">Meter dinero en el objetivo</string>
     <string name="child_home_action_cd_goal_withdraw">Sacar dinero del objetivo</string>
     <string name="child_home_action_cd_goal_withdraw_disabled">No puedes sacar dinero porque el objetivo no tiene saldo</string>

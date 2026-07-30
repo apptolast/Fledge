@@ -255,6 +255,14 @@
     <string name="child_home_active_goal_completed_body">You already have enough in GOAL for this target.</string>
     <string name="child_home_active_goal_deposit">Add money</string>
     <string name="child_home_active_goal_withdraw">Take money out</string>
+    <string name="child_home_compound_interest_title">Your money grows by itself</string>
+    <string name="child_home_compound_interest_younger_body">Each month, Fledge adds a little more to what you already saved.</string>
+    <string name="child_home_compound_interest_older_body">Compound interest reinvests each month's gain so the balance grows from the new total.</string>
+    <string name="child_home_compound_interest_rate">%1$s%% annual</string>
+    <string name="child_home_compound_interest_today">Today</string>
+    <string name="child_home_compound_interest_one_year">1 year</string>
+    <string name="child_home_compound_interest_three_years">3 years</string>
+    <string name="child_home_compound_interest_gain">+%1$s extra</string>
     <string name="child_home_action_cd_goal_deposit">Add money to the goal</string>
     <string name="child_home_action_cd_goal_withdraw">Take money out of the goal</string>
     <string name="child_home_action_cd_goal_withdraw_disabled">You cannot take money out because the goal has no balance</string>
