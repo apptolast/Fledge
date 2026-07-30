@@ -25,6 +25,7 @@ import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.LedgerTransferGroupId
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
@@ -53,6 +54,7 @@ import com.apptolast.fledge.domain.model.TimeZoneId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
+import com.apptolast.fledge.domain.model.toMoneyPotType
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import dev.gitlive.firebase.firestore.DocumentSnapshot
 import dev.gitlive.firebase.firestore.FirebaseFirestore
@@ -277,6 +279,7 @@ internal fun SavingsGoal.toFirestoreMap(): Map<String, Any?> = mapOf(
     "title" to title,
     "targetCents" to targetCents.value,
     "accountType" to accountType.name,
+    "potType" to potType.name,
     "iconKey" to iconKey,
     "imageUri" to imageUri,
     "status" to status.name,
@@ -284,19 +287,23 @@ internal fun SavingsGoal.toFirestoreMap(): Map<String, Any?> = mapOf(
     "updatedAt" to updatedAt.toFirestoreTimestamp(),
 )
 
-internal fun DocumentSnapshot.toSavingsGoal(): SavingsGoal = SavingsGoal(
-    id = SavingsGoalId(id),
-    familyId = FamilyId(requiredString("familyId")),
-    childProfileId = ChildProfileId(requiredString("childProfileId")),
-    title = requiredString("title"),
-    targetCents = MoneyCents(requiredLong("targetCents")),
-    accountType = VirtualAccountType.valueOf(requiredString("accountType")),
-    iconKey = optionalString("iconKey"),
-    imageUri = optionalString("imageUri"),
-    status = SavingsGoalStatus.valueOf(requiredString("status")),
-    createdAt = requiredTimestamp("createdAt"),
-    updatedAt = requiredTimestamp("updatedAt"),
-)
+internal fun DocumentSnapshot.toSavingsGoal(): SavingsGoal {
+    val accountType = VirtualAccountType.valueOf(requiredString("accountType"))
+    return SavingsGoal(
+        id = SavingsGoalId(id),
+        familyId = FamilyId(requiredString("familyId")),
+        childProfileId = ChildProfileId(requiredString("childProfileId")),
+        title = requiredString("title"),
+        targetCents = MoneyCents(requiredLong("targetCents")),
+        accountType = accountType,
+        potType = optionalString("potType")?.let(MoneyPotType::valueOf) ?: accountType.toMoneyPotType(),
+        iconKey = optionalString("iconKey"),
+        imageUri = optionalString("imageUri"),
+        status = SavingsGoalStatus.valueOf(requiredString("status")),
+        createdAt = requiredTimestamp("createdAt"),
+        updatedAt = requiredTimestamp("updatedAt"),
+    )
+}
 
 internal fun CashOutSettlement.toFirestoreMap(): Map<String, Any?> = mapOf(
     "familyId" to familyId.value,

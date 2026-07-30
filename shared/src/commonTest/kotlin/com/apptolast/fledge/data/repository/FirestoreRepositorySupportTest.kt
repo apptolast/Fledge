@@ -17,6 +17,7 @@ import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.LedgerTransferGroupId
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.domain.model.SavingsGoalStatus
@@ -166,6 +167,7 @@ class FirestoreRepositorySupportTest {
             title = "Bici nueva",
             targetCents = MoneyCents(4_000),
             accountType = VirtualAccountType.Goal,
+            potType = MoneyPotType.Save,
             iconKey = "bike",
             imageUri = null,
             status = SavingsGoalStatus.Active,
@@ -182,6 +184,7 @@ class FirestoreRepositorySupportTest {
         assertEquals("Bici nueva", data["title"])
         assertEquals(4_000L, data["targetCents"])
         assertEquals("Goal", data["accountType"])
+        assertEquals("Save", data["potType"])
         assertEquals("bike", data["iconKey"])
         assertEquals(null, data["imageUri"])
         assertEquals("Active", data["status"])

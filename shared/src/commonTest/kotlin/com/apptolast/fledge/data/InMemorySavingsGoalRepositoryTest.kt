@@ -4,6 +4,7 @@ import com.apptolast.fledge.data.repository.InMemorySavingsGoalRepository
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.SavingsGoalId
@@ -34,9 +35,31 @@ class InMemorySavingsGoalRepositoryTest {
 
         // Then
         assertEquals(SavingsGoalStatus.Active, saved.status)
+        assertEquals(MoneyPotType.Save, saved.potType)
         assertEquals(VirtualAccountType.Goal, saved.accountType)
         assertEquals(saved, repository.goals.value.single())
         assertEquals(saved, repository.activeGoalForChild(ChildProfileId("child-1")))
+    }
+
+    @Test
+    fun `FLE-50 repository saves Give goal in GIVE account`() = runTest {
+        // Given
+        val repository = InMemorySavingsGoalRepository()
+        val draft = SavingsGoalDraft(
+            familyId = FamilyId("family-1"),
+            childProfileId = ChildProfileId("child-1"),
+            title = "Donacion",
+            targetCents = MoneyCents(2_000),
+            potType = MoneyPotType.Give,
+            iconKey = "target",
+        )
+
+        // When
+        val saved = repository.saveGoal(draft, Instant.fromEpochSeconds(1_700_100_000))
+
+        // Then
+        assertEquals(MoneyPotType.Give, saved.potType)
+        assertEquals(VirtualAccountType.Give, saved.accountType)
     }
 
     @Test

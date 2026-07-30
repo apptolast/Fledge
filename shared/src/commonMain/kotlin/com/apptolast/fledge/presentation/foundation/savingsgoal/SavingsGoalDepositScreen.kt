@@ -52,10 +52,10 @@ import fledge.shared.generated.resources.savings_goal_deposit_confirm
 import fledge.shared.generated.resources.savings_goal_deposit_error_insufficient_main
 import fledge.shared.generated.resources.savings_goal_deposit_error_invalid_amount
 import fledge.shared.generated.resources.savings_goal_deposit_error_missing_goal
-import fledge.shared.generated.resources.savings_goal_deposit_goal_after
-import fledge.shared.generated.resources.savings_goal_deposit_goal_credit
 import fledge.shared.generated.resources.savings_goal_deposit_main_after
 import fledge.shared.generated.resources.savings_goal_deposit_main_debit
+import fledge.shared.generated.resources.savings_goal_deposit_pot_after
+import fledge.shared.generated.resources.savings_goal_deposit_pot_credit
 import fledge.shared.generated.resources.savings_goal_deposit_quick_five
 import fledge.shared.generated.resources.savings_goal_deposit_quick_label
 import fledge.shared.generated.resources.savings_goal_deposit_quick_one
@@ -63,6 +63,8 @@ import fledge.shared.generated.resources.savings_goal_deposit_quick_two
 import fledge.shared.generated.resources.savings_goal_deposit_subtitle
 import fledge.shared.generated.resources.savings_goal_deposit_summary_title
 import fledge.shared.generated.resources.savings_goal_deposit_title
+import fledge.shared.generated.resources.savings_goal_setup_account_give
+import fledge.shared.generated.resources.savings_goal_setup_account_goal
 import kotlin.time.Clock
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -198,7 +200,8 @@ private fun SavingsGoalDepositForm(
 ) {
     val requestedAmount = parseAmountCents(state.amountInput)?.takeIf { it > 0L } ?: 0L
     val mainBalance = state.balances?.main?.value ?: 0L
-    val goalBalance = state.balances?.goal?.value ?: 0L
+    val goalAccountType = state.goal?.accountType ?: VirtualAccountType.Goal
+    val goalBalance = state.balances.balanceFor(goalAccountType)
     Card(
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -261,6 +264,7 @@ private fun SavingsGoalDepositForm(
                 requestedAmount = requestedAmount,
                 mainAfter = mainBalance - requestedAmount,
                 goalAfter = goalBalance + requestedAmount,
+                goalAccountLabel = savingsGoalAccountLabel(goalAccountType),
                 currencyCode = state.currencyCode,
             )
         }
@@ -287,7 +291,13 @@ private fun RowScope.QuickAmountChip(
 }
 
 @Composable
-private fun DepositSummary(requestedAmount: Long, mainAfter: Long, goalAfter: Long, currencyCode: String) {
+private fun DepositSummary(
+    requestedAmount: Long,
+    mainAfter: Long,
+    goalAfter: Long,
+    goalAccountLabel: String,
+    currencyCode: String,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(14.dp),
@@ -315,11 +325,13 @@ private fun DepositSummary(requestedAmount: Long, mainAfter: Long, goalAfter: Lo
             )
             SummaryRow(
                 label = stringResource(
-                    Res.string.savings_goal_deposit_goal_credit,
+                    Res.string.savings_goal_deposit_pot_credit,
+                    goalAccountLabel,
                     formatCents(requestedAmount, currencyCode),
                 ),
                 value = stringResource(
-                    Res.string.savings_goal_deposit_goal_after,
+                    Res.string.savings_goal_deposit_pot_after,
+                    goalAccountLabel,
                     formatCents(goalAfter, currencyCode),
                 ),
             )
@@ -353,6 +365,13 @@ private fun savingsGoalDepositErrorText(error: SavingsGoalDepositError): String 
     SavingsGoalDepositError.InvalidAmount -> stringResource(Res.string.savings_goal_deposit_error_invalid_amount)
     SavingsGoalDepositError.InsufficientMainBalance ->
         stringResource(Res.string.savings_goal_deposit_error_insufficient_main)
+}
+
+@Composable
+private fun savingsGoalAccountLabel(accountType: VirtualAccountType): String = when (accountType) {
+    VirtualAccountType.Main -> stringResource(Res.string.savings_goal_setup_account_goal)
+    VirtualAccountType.Goal -> stringResource(Res.string.savings_goal_setup_account_goal)
+    VirtualAccountType.Give -> stringResource(Res.string.savings_goal_setup_account_give)
 }
 
 private fun formatCents(value: Long, currencyCode: String): String {

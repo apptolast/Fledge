@@ -98,6 +98,7 @@ class InMemoryLedgerRepository : LedgerRepository {
         childProfileId = childProfileId,
         main = balanceFor(childProfileId, VirtualAccountType.Main),
         goal = balanceFor(childProfileId, VirtualAccountType.Goal),
+        give = balanceFor(childProfileId, VirtualAccountType.Give),
     )
 
     private fun appendOnly(transaction: LedgerTransaction) {

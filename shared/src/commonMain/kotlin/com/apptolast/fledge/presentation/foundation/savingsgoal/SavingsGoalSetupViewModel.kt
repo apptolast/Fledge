@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.MoneyPotType
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
@@ -26,6 +27,7 @@ data class SavingsGoalSetupUiState(
     val child: ChildProfile? = null,
     val title: String = "",
     val targetAmountInput: String = "",
+    val selectedPotType: MoneyPotType = MoneyPotType.Save,
     val selectedIconKey: String = DEFAULT_SAVINGS_GOAL_ICON,
     val imageUri: String? = null,
     val currencyCode: String = "EUR",
@@ -93,6 +95,18 @@ class SavingsGoalSetupViewModel(
         }
     }
 
+    fun selectPotType(potType: MoneyPotType) {
+        if (potType == MoneyPotType.Spend) return
+        mutableUiState.update {
+            it.copy(
+                selectedPotType = potType,
+                error = null,
+                operationError = null,
+                savedGoal = null,
+            )
+        }
+    }
+
     fun selectIcon(iconKey: String) {
         mutableUiState.update {
             it.copy(
@@ -156,6 +170,7 @@ class SavingsGoalSetupViewModel(
                     childProfileId = child.id,
                     title = title,
                     targetCents = MoneyCents(targetCents),
+                    potType = state.selectedPotType,
                     iconKey = iconKey,
                     imageUri = imageUri,
                 ),

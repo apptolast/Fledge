@@ -172,13 +172,16 @@ function savingsGoalData({
   iconKey = "bike",
   imageUri = null,
   status = "Active",
+  potType = "Save",
+  accountType = "Goal",
 } = {}) {
   return {
     familyId,
     childProfileId,
     title,
     targetCents,
-    accountType: "Goal",
+    accountType,
+    potType,
     iconKey,
     imageUri,
     status,
@@ -430,6 +433,14 @@ describe("FLE-83 Firestore membership rules", () => {
     await assertFails(setDoc(
       doc(parent, savingsGoalPath("no-visual")),
       savingsGoalData({ iconKey: null, imageUri: null }),
+    ));
+    await assertSucceeds(setDoc(
+      doc(parent, savingsGoalPath("give-goal")),
+      savingsGoalData({ potType: "Give", accountType: "Give" }),
+    ));
+    await assertFails(setDoc(
+      doc(parent, savingsGoalPath("mismatched-pot")),
+      savingsGoalData({ potType: "Give", accountType: "Goal" }),
     ));
     await assertFails(setDoc(doc(child, savingsGoalPath("child-write")), savingsGoalData()));
     await assertFails(updateDoc(doc(child, savingsGoalPath("own-goal")), {

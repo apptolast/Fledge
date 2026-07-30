@@ -48,6 +48,7 @@ value class LedgerConcept(val value: String) {
 enum class VirtualAccountType {
     Main,
     Goal,
+    Give,
 }
 
 @Serializable
@@ -92,7 +93,12 @@ data class LedgerTransaction(
 }
 
 @Serializable
-data class ChildLedgerBalances(val childProfileId: ChildProfileId, val main: BalanceCents, val goal: BalanceCents)
+data class ChildLedgerBalances(
+    val childProfileId: ChildProfileId,
+    val main: BalanceCents,
+    val goal: BalanceCents,
+    val give: BalanceCents = BalanceCents(0),
+)
 
 data class LedgerTransactionDraft(
     val familyId: FamilyId,

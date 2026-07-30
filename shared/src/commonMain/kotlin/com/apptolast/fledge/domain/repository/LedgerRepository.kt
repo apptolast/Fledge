@@ -56,7 +56,7 @@ internal fun requireValidTransferDraftPair(debitDraft: LedgerTransactionDraft, c
     require(debitDraft.type == LedgerTransactionType.GoalTransfer) { "Debit must be a goal transfer." }
     require(creditDraft.type == LedgerTransactionType.GoalTransfer) { "Credit must be a goal transfer." }
     require(isMainGoalPair(debitDraft.accountType, creditDraft.accountType)) {
-        "Transfer pair must move between MAIN and GOAL."
+        "Transfer pair must move between MAIN and a goal pot."
     }
     require(debitDraft.amountCents.value < 0) { "Debit amount must be negative." }
     require(creditDraft.amountCents.value > 0) { "Credit amount must be positive." }
@@ -74,7 +74,7 @@ internal fun requireValidTransferPair(pair: LedgerTransferPair) {
     require(pair.debit.type == LedgerTransactionType.GoalTransfer) { "Debit must be a goal transfer." }
     require(pair.credit.type == LedgerTransactionType.GoalTransfer) { "Credit must be a goal transfer." }
     require(isMainGoalPair(pair.debit.accountType, pair.credit.accountType)) {
-        "Transfer pair must move between MAIN and GOAL."
+        "Transfer pair must move between MAIN and a goal pot."
     }
     require(pair.debit.amountCents.value < 0) { "Debit amount must be negative." }
     require(pair.credit.amountCents.value > 0) { "Credit amount must be positive." }
@@ -88,4 +88,6 @@ internal fun requireValidTransferPair(pair: LedgerTransferPair) {
 
 private fun isMainGoalPair(debitAccountType: VirtualAccountType, creditAccountType: VirtualAccountType): Boolean =
     (debitAccountType == VirtualAccountType.Main && creditAccountType == VirtualAccountType.Goal) ||
-        (debitAccountType == VirtualAccountType.Goal && creditAccountType == VirtualAccountType.Main)
+        (debitAccountType == VirtualAccountType.Goal && creditAccountType == VirtualAccountType.Main) ||
+        (debitAccountType == VirtualAccountType.Main && creditAccountType == VirtualAccountType.Give) ||
+        (debitAccountType == VirtualAccountType.Give && creditAccountType == VirtualAccountType.Main)

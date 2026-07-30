@@ -150,7 +150,7 @@ class SavingsGoalWithdrawalViewModel(
                 }
                 return false
             }
-            (state.balances?.goal?.value ?: 0L) < amountCents -> {
+            state.balances.balanceFor(goal.accountType) < amountCents -> {
                 mutableUiState.update {
                     it.copy(error = SavingsGoalWithdrawalError.InsufficientGoalBalance, operationError = null)
                 }

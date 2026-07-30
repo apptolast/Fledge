@@ -170,6 +170,7 @@ service cloud.firestore {
         "title",
         "targetCents",
         "accountType",
+        "potType",
         "iconKey",
         "imageUri",
         "status",
@@ -186,6 +187,7 @@ service cloud.firestore {
           "title",
           "targetCents",
           "accountType",
+          "potType",
           "status",
           "createdAt",
           "updatedAt",
@@ -196,7 +198,11 @@ service cloud.firestore {
         && hasNonBlankText("title")
         && request.resource.data.targetCents is int
         && request.resource.data.targetCents > 0
-        && request.resource.data.accountType == "Goal"
+        && request.resource.data.potType in ["Save", "Give"]
+        && (
+          (request.resource.data.potType == "Save" && request.resource.data.accountType == "Goal")
+          || (request.resource.data.potType == "Give" && request.resource.data.accountType == "Give")
+        )
         && optionalNonBlankText("iconKey")
         && optionalNonBlankText("imageUri")
         && (hasNonBlankText("iconKey") || hasNonBlankText("imageUri"))

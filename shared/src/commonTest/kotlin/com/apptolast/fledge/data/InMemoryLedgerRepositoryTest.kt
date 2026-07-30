@@ -57,7 +57,7 @@ class InMemoryLedgerRepositoryTest {
     }
 
     @Test
-    fun `FLE-19 balances are calculated independently for MAIN and GOAL accounts`() = runTest {
+    fun `FLE-19 FLE-50 balances are calculated independently for MAIN GOAL and GIVE accounts`() = runTest {
         // Given
         val repository = InMemoryLedgerRepository()
         val childId = ChildProfileId("child-1")
@@ -80,6 +80,13 @@ class InMemoryLedgerRepositoryTest {
         repository.appendTransaction(
             sampleDraft(
                 childProfileId = childId,
+                accountType = VirtualAccountType.Give,
+                amountCents = MoneyCents(125),
+            ),
+        )
+        repository.appendTransaction(
+            sampleDraft(
+                childProfileId = childId,
                 accountType = VirtualAccountType.Main,
                 amountCents = MoneyCents(-150),
                 type = LedgerTransactionType.Penalty,
@@ -90,6 +97,7 @@ class InMemoryLedgerRepositoryTest {
         val balances = repository.balancesFor(childId)
         assertEquals(BalanceCents(850), balances.main)
         assertEquals(BalanceCents(250), balances.goal)
+        assertEquals(BalanceCents(125), balances.give)
     }
 
     @Test
