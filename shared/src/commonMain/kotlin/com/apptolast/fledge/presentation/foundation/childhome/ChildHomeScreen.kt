@@ -29,7 +29,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.BalanceCents
@@ -59,7 +64,6 @@ import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
 import com.apptolast.fledge.domain.service.SavingsGoalProjection
 import com.apptolast.fledge.domain.service.SavingsGoalProjectionStatus
-import com.apptolast.fledge.presentation.foundation.components.ActionableEmptyStateCard
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -69,6 +73,19 @@ import fledge.shared.generated.resources.cash_out_mark_received
 import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
+import fledge.shared.generated.resources.child_home_action_cd_cash_out
+import fledge.shared.generated.resources.child_home_action_cd_cash_out_disabled
+import fledge.shared.generated.resources.child_home_action_cd_empty_goal
+import fledge.shared.generated.resources.child_home_action_cd_empty_tasks
+import fledge.shared.generated.resources.child_home_action_cd_external_link
+import fledge.shared.generated.resources.child_home_action_cd_goal_deposit
+import fledge.shared.generated.resources.child_home_action_cd_goal_withdraw
+import fledge.shared.generated.resources.child_home_action_cd_goal_withdraw_disabled
+import fledge.shared.generated.resources.child_home_action_cd_parent_zone
+import fledge.shared.generated.resources.child_home_action_cd_purchase
+import fledge.shared.generated.resources.child_home_action_cd_settings
+import fledge.shared.generated.resources.child_home_action_cd_task_add_photo
+import fledge.shared.generated.resources.child_home_action_cd_task_submit
 import fledge.shared.generated.resources.child_home_active_goal_amount
 import fledge.shared.generated.resources.child_home_active_goal_completed_body
 import fledge.shared.generated.resources.child_home_active_goal_completed_title
@@ -96,6 +113,9 @@ import fledge.shared.generated.resources.child_home_external_link
 import fledge.shared.generated.resources.child_home_goal_balance
 import fledge.shared.generated.resources.child_home_goal_completion_body
 import fledge.shared.generated.resources.child_home_goal_completion_title
+import fledge.shared.generated.resources.child_home_goal_status_completed
+import fledge.shared.generated.resources.child_home_goal_status_needs_contribution
+import fledge.shared.generated.resources.child_home_goal_status_on_track
 import fledge.shared.generated.resources.child_home_ledger_title
 import fledge.shared.generated.resources.child_home_main_balance
 import fledge.shared.generated.resources.child_home_parent_zone
@@ -137,6 +157,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -310,15 +331,21 @@ fun ChildHomeContent(
                 }
             }
             item {
-                Button(
+                val cashOutSpec = childHomeActionSpec(ChildHomeActionKind.CashOut)
+                val isCashOutEnabled = state.childProfileId != null && (state.balances?.main?.value ?: 0L) > 0
+                ChildHomeActionButton(
+                    spec = cashOutSpec,
                     onClick = { state.childProfileId?.let(onRequestCashOut) },
-                    enabled = state.childProfileId != null && (state.balances?.main?.value ?: 0L) > 0,
+                    enabled = isCashOutEnabled,
+                    contentDescription = if (isCashOutEnabled) {
+                        childHomeText(cashOutSpec.contentDescriptionKey)
+                    } else {
+                        stringResource(Res.string.child_home_action_cd_cash_out_disabled)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                ) {
-                    Text(stringResource(Res.string.child_home_cash_out))
-                }
+                        .heightIn(min = cashOutSpec.minTouchTargetDp.dp),
+                )
             }
             item {
                 Text(
@@ -385,47 +412,221 @@ fun ChildHomeContent(
                 Spacer(Modifier.heightIn(min = 8.dp))
             }
             item {
-                Button(
+                ChildHomeActionButton(
+                    spec = childHomeActionSpec(ChildHomeActionKind.ParentZone),
                     onClick = { onProtectedAction(FoundationAction.OpenParentZone) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
-                ) {
-                    Text(stringResource(Res.string.child_home_parent_zone))
-                }
+                )
             }
             item {
-                OutlinedButton(
+                ChildHomeActionButton(
+                    spec = childHomeActionSpec(ChildHomeActionKind.Settings),
                     onClick = { onProtectedAction(FoundationAction.ManageSettings) },
+                    outlined = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
-                ) {
-                    Text(stringResource(Res.string.child_home_settings))
-                }
+                )
             }
             item {
-                OutlinedButton(
+                ChildHomeActionButton(
+                    spec = childHomeActionSpec(ChildHomeActionKind.Purchase),
                     onClick = { onProtectedAction(FoundationAction.StartPurchase) },
+                    outlined = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
-                ) {
-                    Text(stringResource(Res.string.child_home_purchase))
-                }
+                )
             }
             item {
-                OutlinedButton(
+                ChildHomeActionButton(
+                    spec = childHomeActionSpec(ChildHomeActionKind.ExternalLink),
                     onClick = { onProtectedAction(FoundationAction.OpenExternalLink) },
+                    outlined = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
-                ) {
-                    Text(stringResource(Res.string.child_home_external_link))
-                }
+                )
             }
         }
     }
+}
+
+@Composable
+private fun ChildHomeActionButton(
+    spec: ChildHomeActionSpec,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    outlined: Boolean = false,
+    label: String? = null,
+    contentDescription: String? = null,
+) {
+    val resolvedLabel = label ?: childHomeText(spec.labelKey)
+    val resolvedContentDescription = contentDescription ?: childHomeText(spec.contentDescriptionKey)
+    val contentColor = if (!enabled) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else if (outlined) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
+    val childModifier = modifier
+        .heightIn(min = spec.minTouchTargetDp.dp)
+        .semantics(mergeDescendants = true) {
+            role = spec.semanticsRole.toComposeRole()
+            this.contentDescription = resolvedContentDescription
+        }
+
+    if (outlined) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor),
+            modifier = childModifier,
+        ) {
+            ChildHomeActionButtonContent(
+                spec = spec,
+                label = resolvedLabel,
+                contentColor = contentColor,
+            )
+        }
+    } else {
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = contentColor,
+            ),
+            modifier = childModifier,
+        ) {
+            ChildHomeActionButtonContent(
+                spec = spec,
+                label = resolvedLabel,
+                contentColor = contentColor,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChildHomeActionButtonContent(
+    spec: ChildHomeActionSpec,
+    label: String,
+    contentColor: androidx.compose.ui.graphics.Color,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ChildHomeInlineIcon(
+            iconKey = spec.iconKey,
+            contentColor = contentColor,
+        )
+        Text(
+            text = label,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun ChildHomeIcon(
+    iconKey: ChildHomeIconKey,
+    modifier: Modifier = Modifier,
+    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = iconKey.symbol,
+                style = if (iconKey.symbol.length > 2) {
+                    MaterialTheme.typography.labelSmall
+                } else {
+                    MaterialTheme.typography.titleMedium
+                },
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChildHomeInlineIcon(
+    iconKey: ChildHomeIconKey,
+    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
+) {
+    Text(
+        text = iconKey.symbol,
+        style = if (iconKey.symbol.length > 2) {
+            MaterialTheme.typography.labelSmall
+        } else {
+            MaterialTheme.typography.labelLarge
+        },
+        color = contentColor,
+        fontWeight = FontWeight.Bold,
+    )
+}
+
+private fun ChildHomeSemanticsRole.toComposeRole(): Role = when (this) {
+    ChildHomeSemanticsRole.Button -> Role.Button
+}
+
+@Composable
+private fun childHomeText(key: ChildHomeTextKey): String = stringResource(childHomeTextResource(key))
+
+private fun childHomeTextResource(key: ChildHomeTextKey): StringResource = when (key) {
+    ChildHomeTextKey.TaskAddPhotoLabel -> Res.string.child_home_task_add_photo
+    ChildHomeTextKey.TaskAddPhotoDescription -> Res.string.child_home_action_cd_task_add_photo
+    ChildHomeTextKey.TaskSubmitLabel -> Res.string.child_home_task_submit
+    ChildHomeTextKey.TaskSubmitDescription -> Res.string.child_home_action_cd_task_submit
+    ChildHomeTextKey.GoalDepositLabel -> Res.string.child_home_active_goal_deposit
+    ChildHomeTextKey.GoalDepositDescription -> Res.string.child_home_action_cd_goal_deposit
+    ChildHomeTextKey.GoalWithdrawLabel -> Res.string.child_home_active_goal_withdraw
+    ChildHomeTextKey.GoalWithdrawDescription -> Res.string.child_home_action_cd_goal_withdraw
+    ChildHomeTextKey.GoalWithdrawDisabledDescription -> Res.string.child_home_action_cd_goal_withdraw_disabled
+    ChildHomeTextKey.CashOutLabel -> Res.string.child_home_cash_out
+    ChildHomeTextKey.CashOutDescription -> Res.string.child_home_action_cd_cash_out
+    ChildHomeTextKey.CashOutDisabledDescription -> Res.string.child_home_action_cd_cash_out_disabled
+    ChildHomeTextKey.ParentZoneLabel -> Res.string.child_home_parent_zone
+    ChildHomeTextKey.ParentZoneDescription -> Res.string.child_home_action_cd_parent_zone
+    ChildHomeTextKey.SettingsLabel -> Res.string.child_home_settings
+    ChildHomeTextKey.SettingsDescription -> Res.string.child_home_action_cd_settings
+    ChildHomeTextKey.PurchaseLabel -> Res.string.child_home_purchase
+    ChildHomeTextKey.PurchaseDescription -> Res.string.child_home_action_cd_purchase
+    ChildHomeTextKey.ExternalLinkLabel -> Res.string.child_home_external_link
+    ChildHomeTextKey.ExternalLinkDescription -> Res.string.child_home_action_cd_external_link
+    ChildHomeTextKey.EmptyTasksActionLabel -> Res.string.child_home_empty_tasks_action
+    ChildHomeTextKey.EmptyTasksActionDescription -> Res.string.child_home_action_cd_empty_tasks
+    ChildHomeTextKey.EmptyGoalActionLabel -> Res.string.child_home_empty_goal_action
+    ChildHomeTextKey.EmptyGoalActionDescription -> Res.string.child_home_action_cd_empty_goal
+    ChildHomeTextKey.TaskStatusPendingLabel -> Res.string.child_home_task_status_pending
+    ChildHomeTextKey.TaskStatusSubmittedLabel -> Res.string.child_home_task_status_submitted
+    ChildHomeTextKey.TaskStatusApprovedLabel -> Res.string.child_home_task_status_approved
+    ChildHomeTextKey.TaskStatusRejectedLabel -> Res.string.child_home_task_status_rejected
+    ChildHomeTextKey.TaskStatusExpiredLabel -> Res.string.child_home_task_status_expired
+    ChildHomeTextKey.GoalStatusCompletedLabel -> Res.string.child_home_goal_status_completed
+    ChildHomeTextKey.GoalStatusOnTrackLabel -> Res.string.child_home_goal_status_on_track
+    ChildHomeTextKey.GoalStatusNeedsContributionLabel -> Res.string.child_home_goal_status_needs_contribution
 }
 
 @Composable
@@ -454,6 +655,10 @@ private fun ChildTaskInstanceRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                ChildHomeIcon(
+                    iconKey = ChildHomeIconKey.Tasks,
+                    modifier = Modifier.size(44.dp),
+                )
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -479,36 +684,30 @@ private fun ChildTaskInstanceRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (instance.requiresPhoto && isActionable) {
-                OutlinedButton(
+                ChildHomeActionButton(
+                    spec = childHomeActionSpec(ChildHomeActionKind.TaskAddPhoto),
                     onClick = { onAttachPhotoEvidence(instance.id) },
                     enabled = !isBusy,
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    outlined = true,
+                    label = if (hasPhotoEvidence) {
+                        stringResource(Res.string.child_home_task_photo_ready)
+                    } else {
+                        stringResource(Res.string.child_home_task_add_photo)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
-                ) {
-                    Text(
-                        text = if (hasPhotoEvidence) {
-                            stringResource(Res.string.child_home_task_photo_ready)
-                        } else {
-                            stringResource(Res.string.child_home_task_add_photo)
-                        },
-                    )
-                }
+                )
             }
             if (isActionable) {
-                Button(
+                ChildHomeActionButton(
+                    spec = childHomeActionSpec(ChildHomeActionKind.TaskSubmit),
                     onClick = { onSubmitTask(instance.id) },
                     enabled = !isBusy,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 52.dp),
-                ) {
-                    Text(stringResource(Res.string.child_home_task_submit))
-                }
+                )
             } else if (instance.status == TaskInstanceStatus.Submitted) {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
@@ -521,9 +720,13 @@ private fun ChildTaskInstanceRow(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalArrangement = Arrangement.spacedBy(
+                            space = 8.dp,
+                            alignment = Alignment.CenterHorizontally,
+                        ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        ChildHomeInlineIcon(iconKey = ChildHomeIconKey.Clock)
                         Text(
                             text = stringResource(Res.string.child_home_task_waiting),
                             style = MaterialTheme.typography.labelLarge,
@@ -552,25 +755,39 @@ private fun ChildGoalCompletionNoticeCard(notice: SavingsGoalCompletionNotice, c
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(Res.string.child_home_goal_completion_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+            ChildHomeIcon(
+                iconKey = ChildHomeIconKey.Trophy,
+                modifier = Modifier.size(44.dp),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             )
-            Text(
-                text = stringResource(
-                    Res.string.child_home_goal_completion_body,
-                    notice.goalTitle,
-                    formatCents(notice.currentCents.value, currencyCode),
-                    formatCents(notice.targetCents.value, currencyCode),
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.child_home_goal_completion_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = stringResource(
+                        Res.string.child_home_goal_completion_body,
+                        notice.goalTitle,
+                        formatCents(notice.currentCents.value, currencyCode),
+                        formatCents(notice.targetCents.value, currencyCode),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -609,24 +826,12 @@ private fun ActiveSavingsGoalCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.tertiary,
+                ChildHomeIcon(
+                    iconKey = childHomeGoalIconKey(goal.iconKey),
                     modifier = Modifier.size(44.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = goal.iconKey?.firstOrNull()?.uppercaseChar()?.toString().orEmpty(),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onTertiary,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                )
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -655,26 +860,31 @@ private fun ActiveSavingsGoalCard(
                 progressPercent = progressPercent,
                 currencyCode = currencyCode,
             )
-            Button(
-                onClick = onDeposit,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp),
+                    .heightIn(min = 56.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(Res.string.child_home_active_goal_deposit))
-            }
-            OutlinedButton(
-                onClick = onWithdraw,
-                enabled = currentCents > 0,
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(Res.string.child_home_active_goal_withdraw))
+                ChildHomeActionButton(
+                    spec = childHomeActionSpec(ChildHomeActionKind.GoalDeposit),
+                    onClick = onDeposit,
+                    modifier = Modifier.weight(1f),
+                )
+                val withdrawSpec = childHomeActionSpec(ChildHomeActionKind.GoalWithdraw)
+                val canWithdraw = currentCents > 0
+                ChildHomeActionButton(
+                    spec = withdrawSpec,
+                    onClick = onWithdraw,
+                    enabled = canWithdraw,
+                    outlined = true,
+                    contentDescription = if (canWithdraw) {
+                        childHomeText(withdrawSpec.contentDescriptionKey)
+                    } else {
+                        stringResource(Res.string.child_home_action_cd_goal_withdraw_disabled)
+                    },
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -686,6 +896,7 @@ private fun ActiveSavingsGoalProjectionSummary(
     progressPercent: Int,
     currencyCode: String,
 ) {
+    val visual = childHomeGoalProgressVisual(projection?.status ?: SavingsGoalProjectionStatus.NeedsContribution)
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),
@@ -695,11 +906,17 @@ private fun ActiveSavingsGoalProjectionSummary(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(Res.string.child_home_active_goal_progress, progressPercent),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ChildHomeInlineIcon(iconKey = visual.iconKey)
+                Text(
+                    text = stringResource(Res.string.child_home_active_goal_progress, progressPercent),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             projection?.dailyPaceCents?.let { dailyPace ->
                 Text(
                     text = stringResource(
@@ -731,6 +948,7 @@ private fun ActiveSavingsGoalProjectionSummary(
 
 @Composable
 private fun ActiveSavingsGoalProjectionBand(projection: SavingsGoalProjection, currencyCode: String) {
+    val visual = childHomeGoalProgressVisual(projection.status)
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(14.dp),
@@ -740,11 +958,17 @@ private fun ActiveSavingsGoalProjectionBand(projection: SavingsGoalProjection, c
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(
-                text = goalProjectionTitle(projection),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ChildHomeInlineIcon(iconKey = visual.iconKey)
+                Text(
+                    text = goalProjectionTitle(projection),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
             Text(
                 text = goalProjectionBody(projection, currencyCode),
                 style = MaterialTheme.typography.bodySmall,
@@ -781,17 +1005,24 @@ private fun goalProjectionBody(projection: SavingsGoalProjection, currencyCode: 
 
 @Composable
 private fun TaskStatusPill(status: TaskInstanceStatus) {
+    val visual = childHomeTaskStatusVisual(status)
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         shape = RoundedCornerShape(18.dp),
     ) {
-        Text(
-            text = taskStatusLabel(status),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
+        Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        )
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ChildHomeInlineIcon(iconKey = visual.iconKey)
+            Text(
+                text = taskStatusLabel(status),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
     }
 }
 
@@ -920,21 +1151,68 @@ private fun ChildHomeUiState.emptyState(kind: ChildHomeEmptyStateKind): ChildHom
 private fun ChildHomeEmptyStateCard(emptyState: ChildHomeEmptyState, onProtectedAction: (FoundationAction) -> Unit) {
     val action = when (emptyState.action) {
         ChildHomeEmptyStateAction.OpenParentZone -> ChildEmptyStateActionUi(
-            label = childHomeEmptyStateActionLabel(emptyState.kind),
+            spec = when (emptyState.kind) {
+                ChildHomeEmptyStateKind.SavingsGoal -> childHomeActionSpec(ChildHomeActionKind.EmptyGoalAction)
+                else -> childHomeActionSpec(ChildHomeActionKind.EmptyTasksAction)
+            },
             onClick = { onProtectedAction(FoundationAction.OpenParentZone) },
         )
 
         null -> null
     }
-    ActionableEmptyStateCard(
-        title = childHomeEmptyStateTitle(emptyState.kind),
-        body = childHomeEmptyStateBody(emptyState.kind),
-        actionLabel = action?.label,
-        onAction = action?.onClick,
-    )
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ChildHomeIcon(
+                    iconKey = childHomeEmptyStateIcon(emptyState.kind),
+                    modifier = Modifier.size(44.dp),
+                )
+                Text(
+                    text = childHomeEmptyStateTitle(emptyState.kind),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                text = childHomeEmptyStateBody(emptyState.kind),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (action != null) {
+                ChildHomeActionButton(
+                    spec = action.spec,
+                    onClick = action.onClick,
+                    outlined = action.spec.priority == ChildHomeActionPriority.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
 }
 
-private data class ChildEmptyStateActionUi(val label: String, val onClick: () -> Unit)
+private data class ChildEmptyStateActionUi(val spec: ChildHomeActionSpec, val onClick: () -> Unit)
+
+private fun childHomeEmptyStateIcon(kind: ChildHomeEmptyStateKind): ChildHomeIconKey = when (kind) {
+    ChildHomeEmptyStateKind.Tasks -> ChildHomeIconKey.Tasks
+    ChildHomeEmptyStateKind.SavingsGoal -> ChildHomeIconKey.Target
+    ChildHomeEmptyStateKind.Settlements -> ChildHomeIconKey.Banknote
+    ChildHomeEmptyStateKind.Ledger -> ChildHomeIconKey.Ledger
+}
 
 @Composable
 private fun childHomeEmptyStateTitle(kind: ChildHomeEmptyStateKind): String = when (kind) {
@@ -950,12 +1228,6 @@ private fun childHomeEmptyStateBody(kind: ChildHomeEmptyStateKind): String = whe
     ChildHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.child_home_empty_goal_body)
     ChildHomeEmptyStateKind.Settlements -> stringResource(Res.string.child_home_empty_settlements_body)
     ChildHomeEmptyStateKind.Ledger -> stringResource(Res.string.child_home_empty_ledger_body)
-}
-
-@Composable
-private fun childHomeEmptyStateActionLabel(kind: ChildHomeEmptyStateKind): String = when (kind) {
-    ChildHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.child_home_empty_goal_action)
-    else -> stringResource(Res.string.child_home_empty_tasks_action)
 }
 
 @Composable
