@@ -14,6 +14,7 @@ import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransactionDraft
 import com.apptolast.fledge.domain.model.LedgerTransactionType
+import com.apptolast.fledge.domain.model.LedgerTransferGroupId
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.SavingsGoalDraft
 import com.apptolast.fledge.domain.model.TaskAssignmentId
@@ -292,6 +293,7 @@ class ChildHomeViewModelTest {
                 amountCents = MoneyCents(1_230),
                 concept = LedgerConcept("Ahorro bici"),
                 createdBy = LedgerActor.Child,
+                transferGroupId = LedgerTransferGroupId("transfer-1"),
             ),
         )
         val goal = savingsGoalRepository.saveGoal(

@@ -12,6 +12,7 @@ import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
+import com.apptolast.fledge.domain.model.LedgerTransferGroupId
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalId
@@ -74,6 +75,7 @@ class FirestoreRepositorySupportTest {
             concept = LedgerConcept("Tarea completada"),
             createdBy = LedgerActor.Parent,
             createdAt = Instant.fromEpochSeconds(1_700_000_000, 123_456_789),
+            transferGroupId = LedgerTransferGroupId("transfer-1"),
         )
 
         // When
@@ -89,6 +91,7 @@ class FirestoreRepositorySupportTest {
         assertEquals("Parent", data["createdBy"])
         assertIs<Timestamp>(data["createdAt"])
         assertEquals(null, data["reversesTransactionId"])
+        assertEquals("transfer-1", data["transferGroupId"])
     }
 
     @Test

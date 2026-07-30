@@ -28,6 +28,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -168,7 +169,7 @@ private class FailingLedgerRepository(syncStatus: RepositorySyncStatus = Reposit
     override val syncStatus: StateFlow<RepositorySyncStatus> = MutableStateFlow(syncStatus)
     override val transactions: StateFlow<List<LedgerTransaction>> = MutableStateFlow(emptyList())
 
-    override suspend fun appendTransaction(draft: LedgerTransactionDraft): LedgerTransaction {
+    override suspend fun appendTransaction(draft: LedgerTransactionDraft, createdAt: Instant): LedgerTransaction {
         error("Network unavailable")
     }
 

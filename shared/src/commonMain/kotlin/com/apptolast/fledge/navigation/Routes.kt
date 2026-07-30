@@ -30,6 +30,9 @@ data object TaskAssignmentRoute
 data class SavingsGoalSetupRoute(val childProfileId: String)
 
 @Serializable
+data class SavingsGoalDepositRoute(val childProfileId: String, val goalId: String)
+
+@Serializable
 data class AllowanceRuleRoute(val childProfileId: String)
 
 @Serializable

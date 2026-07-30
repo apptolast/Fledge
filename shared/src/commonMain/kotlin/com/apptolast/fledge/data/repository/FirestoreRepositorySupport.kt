@@ -22,6 +22,7 @@ import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
+import com.apptolast.fledge.domain.model.LedgerTransferGroupId
 import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
@@ -195,6 +196,7 @@ internal fun LedgerTransaction.toFirestoreMap(): Map<String, Any?> = mapOf(
     "createdBy" to createdBy.name,
     "createdAt" to createdAt.toFirestoreTimestamp(),
     "reversesTransactionId" to reversesTransactionId?.value,
+    "transferGroupId" to transferGroupId?.value,
 )
 
 internal fun DocumentSnapshot.toLedgerTransaction(): LedgerTransaction = LedgerTransaction(
@@ -208,6 +210,7 @@ internal fun DocumentSnapshot.toLedgerTransaction(): LedgerTransaction = LedgerT
     createdBy = LedgerActor.valueOf(requiredString("createdBy")),
     createdAt = requiredTimestamp("createdAt"),
     reversesTransactionId = optionalString("reversesTransactionId")?.let(::TransactionId),
+    transferGroupId = optionalString("transferGroupId")?.let(::LedgerTransferGroupId),
 )
 
 internal fun AllowanceRule.toFirestoreMap(): Map<String, Any?> = mapOf(
