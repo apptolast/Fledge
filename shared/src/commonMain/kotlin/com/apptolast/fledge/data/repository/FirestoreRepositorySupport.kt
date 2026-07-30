@@ -20,6 +20,8 @@ import com.apptolast.fledge.domain.model.Family
 import com.apptolast.fledge.domain.model.FamilyAdminInvite
 import com.apptolast.fledge.domain.model.FamilyAdminInviteStatus
 import com.apptolast.fledge.domain.model.FamilyAdminRole
+import com.apptolast.fledge.domain.model.FamilyGuestInvite
+import com.apptolast.fledge.domain.model.FamilyGuestInviteStatus
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
 import com.apptolast.fledge.domain.model.InterestSettings
@@ -60,6 +62,7 @@ import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
 import com.apptolast.fledge.domain.model.VirtualMoneyConsent
 import com.apptolast.fledge.domain.model.normalizeFamilyAdminEmail
+import com.apptolast.fledge.domain.model.normalizeFamilyGuestEmail
 import com.apptolast.fledge.domain.model.toMoneyPotType
 import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import dev.gitlive.firebase.firestore.DocumentSnapshot
@@ -75,6 +78,7 @@ import kotlinx.coroutines.flow.mapLatest
 
 internal const val FAMILIES_COLLECTION = "families"
 internal const val FAMILY_ADMIN_INVITES_COLLECTION = "familyAdminInvites"
+internal const val FAMILY_GUEST_INVITES_COLLECTION = "familyGuestInvites"
 
 internal fun FirestoreProvider.firestoreOrThrow(): FirebaseFirestore {
     check(isAvailable) { "Firebase is not configured; Firestore persistence is unavailable." }
@@ -234,6 +238,27 @@ internal fun DocumentSnapshot.toFamilyAdminInvite(): FamilyAdminInvite = FamilyA
     email = normalizeFamilyAdminEmail(requiredString("email")),
     role = FamilyAdminRole.valueOf(optionalString("role") ?: FamilyAdminRole.Admin.name),
     status = FamilyAdminInviteStatus.valueOf(optionalString("status") ?: FamilyAdminInviteStatus.Active.name),
+    invitedAt = optionalTimestamp("invitedAt"),
+    invitedByUid = optionalString("invitedByUid"),
+    revokedAt = optionalTimestamp("revokedAt"),
+)
+
+internal fun FamilyGuestInvite.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "email" to email,
+    "role" to "Guest",
+    "status" to status.name,
+    "childProfileIds" to childProfileIds.map { it.value },
+    "invitedAt" to invitedAt?.toFirestoreTimestamp(),
+    "invitedByUid" to invitedByUid,
+    "revokedAt" to revokedAt?.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toFamilyGuestInvite(): FamilyGuestInvite = FamilyGuestInvite(
+    familyId = FamilyId(requiredString("familyId")),
+    email = normalizeFamilyGuestEmail(requiredString("email")),
+    childProfileIds = requiredStringList("childProfileIds").map(::ChildProfileId).distinctBy { it.value },
+    status = FamilyGuestInviteStatus.valueOf(optionalString("status") ?: FamilyGuestInviteStatus.Active.name),
     invitedAt = optionalTimestamp("invitedAt"),
     invitedByUid = optionalString("invitedByUid"),
     revokedAt = optionalTimestamp("revokedAt"),

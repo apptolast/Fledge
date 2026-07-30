@@ -155,6 +155,7 @@ import fledge.shared.generated.resources.ledger_account_give
 import fledge.shared.generated.resources.ledger_account_goal
 import fledge.shared.generated.resources.ledger_account_main
 import fledge.shared.generated.resources.ledger_actor_child
+import fledge.shared.generated.resources.ledger_actor_guest
 import fledge.shared.generated.resources.ledger_actor_parent
 import fledge.shared.generated.resources.ledger_actor_system
 import fledge.shared.generated.resources.ledger_reversal_of
@@ -1476,6 +1477,7 @@ private fun ledgerTransactionTypeLabel(type: LedgerTransactionType): String = wh
 private fun ledgerActorLabel(actor: LedgerActor): String = when (actor) {
     LedgerActor.Parent -> stringResource(Res.string.ledger_actor_parent)
     LedgerActor.Child -> stringResource(Res.string.ledger_actor_child)
+    LedgerActor.Guest -> stringResource(Res.string.ledger_actor_guest)
     LedgerActor.System -> stringResource(Res.string.ledger_actor_system)
 }
 

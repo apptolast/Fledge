@@ -28,6 +28,7 @@ fun PostLoginScreen(
     onNavigateToVirtualMoneyConsent: () -> Unit,
     onNavigateToChildProfileSetup: () -> Unit,
     onNavigateToParentHome: () -> Unit,
+    onNavigateToGuestHome: () -> Unit,
     viewModel: PostLoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -39,6 +40,7 @@ fun PostLoginScreen(
             PostLoginNavigationTarget.VirtualMoneyConsent -> onNavigateToVirtualMoneyConsent()
             PostLoginNavigationTarget.ChildProfileSetup -> onNavigateToChildProfileSetup()
             PostLoginNavigationTarget.ParentHome -> onNavigateToParentHome()
+            PostLoginNavigationTarget.GuestHome -> onNavigateToGuestHome()
         }
     }
 

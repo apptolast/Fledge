@@ -9,6 +9,7 @@ import com.apptolast.fledge.data.remote.firebase.firebaseApplicationId
 import com.apptolast.fledge.data.remote.firebase.firebaseEnvironmentOf
 import com.apptolast.fledge.data.repository.FirestoreAccountDeletionRepository
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
+import com.apptolast.fledge.data.repository.FirestoreGuestSponsorRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
 import com.apptolast.fledge.data.repository.FirestorePushRegistrationRepository
@@ -18,6 +19,7 @@ import com.apptolast.fledge.data.repository.FirestoreTaskInstanceRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.AccountDeletionRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.domain.repository.GuestSponsorRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.repository.PushRegistrationRepository
@@ -40,6 +42,8 @@ import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetViewMo
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
 import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupViewModel
+import com.apptolast.fledge.presentation.foundation.guest.GuestHomeViewModel
+import com.apptolast.fledge.presentation.foundation.guest.GuestSponsorInviteViewModel
 import com.apptolast.fledge.presentation.foundation.interest.ParentInterestViewModel
 import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentViewModel
 import com.apptolast.fledge.presentation.foundation.match.ParentMatchViewModel
@@ -67,6 +71,7 @@ import org.koin.mp.KoinPlatformTools
 val dataModule = module {
     single { FirestoreAccountDeletionRepository(get(), get()) } bind AccountDeletionRepository::class
     single { FirestoreFamilyFoundationRepository(get(), get()) } bind FamilyFoundationRepository::class
+    single { FirestoreGuestSponsorRepository(get(), get()) } bind GuestSponsorRepository::class
     single { FirestoreLedgerRepository(get(), get()) } bind LedgerRepository::class
     single { FirestoreMoneyFlowRepository(get(), get()) } bind MoneyFlowRepository::class
     single { FirestorePushRegistrationRepository(get(), get()) } bind PushRegistrationRepository::class
@@ -112,6 +117,8 @@ val presentationModule = module {
     viewModelOf(::ParentInterestViewModel)
     viewModelOf(::ParentMatchViewModel)
     viewModelOf(::SecondaryAdminViewModel)
+    viewModelOf(::GuestSponsorInviteViewModel)
+    viewModelOf(::GuestHomeViewModel)
     viewModelOf(::ManualAdjustmentViewModel)
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)

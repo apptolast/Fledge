@@ -24,6 +24,8 @@ import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetScreen
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinScreen
 import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupScreen
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupScreen
+import com.apptolast.fledge.presentation.foundation.guest.GuestHomeScreen
+import com.apptolast.fledge.presentation.foundation.guest.GuestSponsorInviteScreen
 import com.apptolast.fledge.presentation.foundation.interest.ParentInterestScreen
 import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentScreen
 import com.apptolast.fledge.presentation.foundation.match.ParentMatchScreen
@@ -96,6 +98,11 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                         popUpTo(PostLoginRoute) { inclusive = true }
                     }
                 },
+                onNavigateToGuestHome = {
+                    navController.navigate(GuestHomeRoute) {
+                        popUpTo(PostLoginRoute) { inclusive = true }
+                    }
+                },
             )
         }
         composable<FamilySetupRoute> {
@@ -114,6 +121,7 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onConfigureAllowance = { childId -> navController.navigate(AllowanceRuleRoute(childId.value)) },
                 onAdjustChild = { childId -> navController.navigate(ManualAdjustmentRoute(childId.value)) },
                 onCreateSavingsGoal = { childId -> navController.navigate(SavingsGoalSetupRoute(childId.value)) },
+                onInviteGuest = { childId -> navController.navigate(GuestSponsorInviteRoute(childId.value)) },
                 onCreateTask = { navController.navigate(TaskAssignmentRoute) },
                 onOpenParentInterest = { navController.navigate(ParentInterestRoute) },
                 onOpenParentMatch = { navController.navigate(ParentMatchRoute) },
@@ -139,6 +147,16 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
         }
         composable<SecondaryAdminRoute> {
             SecondaryAdminScreen(onBack = { navController.popBackStack() })
+        }
+        composable<GuestHomeRoute> {
+            GuestHomeScreen()
+        }
+        composable<GuestSponsorInviteRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<GuestSponsorInviteRoute>()
+            GuestSponsorInviteScreen(
+                childProfileId = ChildProfileId(route.childProfileId),
+                onBack = { navController.popBackStack() },
+            )
         }
         composable<TaskAssignmentRoute> {
             TaskAssignmentScreen(

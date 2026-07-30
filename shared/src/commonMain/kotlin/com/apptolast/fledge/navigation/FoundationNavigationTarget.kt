@@ -15,6 +15,7 @@ sealed interface PostLoginNavigationTarget {
     data object VirtualMoneyConsent : PostLoginNavigationTarget
     data object ChildProfileSetup : PostLoginNavigationTarget
     data object ParentHome : PostLoginNavigationTarget
+    data object GuestHome : PostLoginNavigationTarget
 }
 
 class FoundationRouteDecider {
@@ -28,11 +29,17 @@ class FoundationRouteDecider {
 
     fun postLoginTarget(
         hasFamily: Boolean,
+        hasGuestAccess: Boolean,
         hasVirtualMoneyConsent: Boolean,
         hasChildProfiles: Boolean,
         syncStatus: RepositorySyncStatus,
+        guestSyncStatus: RepositorySyncStatus = RepositorySyncStatus.Synced,
     ): PostLoginNavigationTarget = when {
-        !hasFamily && syncStatus == RepositorySyncStatus.Loading -> PostLoginNavigationTarget.Pending
+        !hasFamily &&
+            !hasGuestAccess &&
+            (syncStatus == RepositorySyncStatus.Loading || guestSyncStatus == RepositorySyncStatus.Loading) ->
+            PostLoginNavigationTarget.Pending
+        !hasFamily && hasGuestAccess -> PostLoginNavigationTarget.GuestHome
         !hasFamily -> PostLoginNavigationTarget.FamilySetup
         !hasVirtualMoneyConsent -> PostLoginNavigationTarget.VirtualMoneyConsent
         !hasChildProfiles && syncStatus == RepositorySyncStatus.Loading -> PostLoginNavigationTarget.Pending

@@ -36,6 +36,12 @@ data object ParentMatchRoute
 data object SecondaryAdminRoute
 
 @Serializable
+data object GuestHomeRoute
+
+@Serializable
+data class GuestSponsorInviteRoute(val childProfileId: String)
+
+@Serializable
 data object TaskAssignmentRoute
 
 @Serializable

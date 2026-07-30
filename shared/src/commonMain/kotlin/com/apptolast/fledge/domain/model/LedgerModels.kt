@@ -69,6 +69,7 @@ enum class LedgerTransactionType {
 enum class LedgerActor {
     Parent,
     Child,
+    Guest,
     System,
 }
 

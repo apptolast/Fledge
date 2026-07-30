@@ -18,6 +18,7 @@ const PROJECT_ID = "fledge-rules-test";
 const FAMILY_ID = "parent-1";
 const OTHER_FAMILY_ID = "parent-2";
 const ADMIN_EMAIL = "coparent@example.com";
+const GUEST_EMAIL = "abuela@example.com";
 const CHILD_ID = "child-1";
 const SIBLING_ID = "child-2";
 const NOW = Timestamp.fromDate(new Date("2026-07-29T10:00:00.000Z"));
@@ -57,6 +58,13 @@ function adminDb({
   return dbFor(uid, { email });
 }
 
+function guestDb({
+  uid = "guest-user",
+  email = GUEST_EMAIL,
+} = {}) {
+  return dbFor(uid, { email });
+}
+
 function childDb({
   uid = "child-user",
   familyId = FAMILY_ID,
@@ -81,6 +89,10 @@ function familyPath(familyId = FAMILY_ID) {
 
 function adminInvitePath(email = ADMIN_EMAIL) {
   return `familyAdminInvites/${email}`;
+}
+
+function guestInvitePath(email = GUEST_EMAIL) {
+  return `familyGuestInvites/${email}`;
 }
 
 function childProfilePath(childProfileId = CHILD_ID, familyId = FAMILY_ID) {
@@ -138,6 +150,25 @@ function adminInviteData({
     email,
     role: "Admin",
     status,
+    invitedAt: NOW,
+    invitedByUid,
+    updatedAt: NOW,
+  };
+}
+
+function guestInviteData({
+  familyId = FAMILY_ID,
+  email = GUEST_EMAIL,
+  childProfileIds = [CHILD_ID],
+  status = "Active",
+  invitedByUid = FAMILY_ID,
+} = {}) {
+  return {
+    familyId,
+    email,
+    role: "Guest",
+    status,
+    childProfileIds,
     invitedAt: NOW,
     invitedByUid,
     updatedAt: NOW,
@@ -359,6 +390,74 @@ describe("FLE-83 Firestore membership rules", () => {
       adminInviteData({ email: "other@example.com", invitedByUid: "admin-user" }),
     ));
     await assertFails(getDoc(doc(otherParent, familyPath())));
+  });
+
+  test("FLE-53 guest sponsor can only read and contribute to sponsored children", async () => {
+    const owner = parentDb();
+    const guest = guestDb();
+
+    await assertSucceeds(setDoc(doc(owner, familyPath()), familyData()));
+    await seed(childProfilePath(CHILD_ID), childProfileData(CHILD_ID));
+    await seed(childProfilePath(SIBLING_ID), childProfileData(SIBLING_ID));
+    await seed(ledgerPath("own-ledger"), ledgerData({ childProfileId: CHILD_ID }));
+    await seed(ledgerPath("sibling-ledger"), ledgerData({ childProfileId: SIBLING_ID }));
+    await assertSucceeds(setDoc(doc(owner, guestInvitePath()), guestInviteData()));
+
+    await assertSucceeds(getDoc(doc(guest, guestInvitePath())));
+    await assertSucceeds(getDoc(doc(guest, familyPath())));
+    await assertSucceeds(getDoc(doc(guest, childProfilePath(CHILD_ID))));
+    await assertSucceeds(getDoc(doc(guest, ledgerPath("own-ledger"))));
+    await assertSucceeds(setDoc(
+      doc(guest, ledgerPath("guest-gift")),
+      ledgerData({
+        childProfileId: CHILD_ID,
+        type: "Gift",
+        amountCents: 1500,
+        createdBy: "Guest",
+      }),
+    ));
+    await assertSucceeds(setDoc(
+      doc(guest, ledgerPath("guest-match")),
+      ledgerData({
+        childProfileId: CHILD_ID,
+        type: "Match",
+        amountCents: 500,
+        createdBy: "Guest",
+      }),
+    ));
+
+    await assertFails(getDoc(doc(guest, childProfilePath(SIBLING_ID))));
+    await assertFails(getDoc(doc(guest, ledgerPath("sibling-ledger"))));
+    await assertFails(updateDoc(doc(guest, familyPath()), { name: "Guest tamper" }));
+    await assertFails(setDoc(doc(guest, childProfilePath("guest-child")), childProfileData("guest-child")));
+    await assertFails(setDoc(doc(guest, allowanceRulePath("guest-allowance")), allowanceRuleData()));
+    await assertFails(setDoc(
+      doc(guest, ledgerPath("guest-sibling-gift")),
+      ledgerData({
+        childProfileId: SIBLING_ID,
+        type: "Gift",
+        amountCents: 1500,
+        createdBy: "Guest",
+      }),
+    ));
+    await assertFails(setDoc(
+      doc(guest, ledgerPath("guest-negative")),
+      ledgerData({
+        childProfileId: CHILD_ID,
+        type: "Gift",
+        amountCents: -100,
+        createdBy: "Guest",
+      }),
+    ));
+    await assertFails(setDoc(
+      doc(guest, ledgerPath("guest-parent-actor")),
+      ledgerData({
+        childProfileId: CHILD_ID,
+        type: "Gift",
+        amountCents: 1500,
+        createdBy: "Parent",
+      }),
+    ));
   });
 
   test("a child token can read only its own profile, ledger and allowance", async () => {

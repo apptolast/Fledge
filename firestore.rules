@@ -33,6 +33,27 @@ service cloud.firestore {
       return isOwner(familyId) || isAdmin(familyId);
     }
 
+    function guestInviteExistsForEmail(email) {
+      return exists(/databases/$(database)/documents/familyGuestInvites/$(email));
+    }
+
+    function guestInviteDocument(email) {
+      return get(/databases/$(database)/documents/familyGuestInvites/$(email)).data;
+    }
+
+    function isGuest(familyId) {
+      return hasAuthEmail()
+        && guestInviteExistsForEmail(request.auth.token.email)
+        && guestInviteDocument(request.auth.token.email).familyId == familyId
+        && guestInviteDocument(request.auth.token.email).status == "Active";
+    }
+
+    function isGuestForChild(familyId, childProfileId) {
+      return isGuest(familyId)
+        && guestInviteDocument(request.auth.token.email).keys().hasAny(["childProfileIds"])
+        && childProfileId in guestInviteDocument(request.auth.token.email).childProfileIds;
+    }
+
     function isChild(familyId) {
       return signedIn()
         && request.auth.token.keys().hasAll(["role", "familyId", "childProfileId"])
@@ -110,6 +131,37 @@ service cloud.firestore {
         && request.resource.data.email == inviteEmail
         && request.resource.data.role == "Admin"
         && request.resource.data.status in ["Active", "Revoked"]
+        && request.resource.data.updatedAt is timestamp
+        && optionalNonBlankText("invitedByUid")
+        && (nullOrAbsent("invitedAt") || request.resource.data.invitedAt is timestamp)
+        && (nullOrAbsent("revokedAt") || request.resource.data.revokedAt is timestamp);
+    }
+
+    function guestInviteWriteIsValid(inviteEmail) {
+      return request.resource.data.keys().hasOnly([
+          "familyId",
+          "email",
+          "role",
+          "status",
+          "childProfileIds",
+          "invitedAt",
+          "invitedByUid",
+          "revokedAt",
+          "updatedAt",
+        ])
+        && request.resource.data.keys().hasAll([
+          "familyId",
+          "email",
+          "role",
+          "status",
+          "childProfileIds",
+          "updatedAt",
+        ])
+        && request.resource.data.email == inviteEmail
+        && request.resource.data.role == "Guest"
+        && request.resource.data.status in ["Active", "Revoked"]
+        && request.resource.data.childProfileIds is list
+        && request.resource.data.childProfileIds.size() > 0
         && request.resource.data.updatedAt is timestamp
         && optionalNonBlankText("invitedByUid")
         && (nullOrAbsent("invitedAt") || request.resource.data.invitedAt is timestamp)
@@ -433,6 +485,43 @@ service cloud.firestore {
         );
     }
 
+    function guestLedgerCreateIsValid(familyId, childProfileId) {
+      return request.resource.data.keys().hasOnly([
+          "familyId",
+          "childProfileId",
+          "accountType",
+          "type",
+          "amountCents",
+          "concept",
+          "createdBy",
+          "createdAt",
+          "reversesTransactionId",
+          "transferGroupId",
+        ])
+        && request.resource.data.keys().hasAll([
+          "familyId",
+          "childProfileId",
+          "accountType",
+          "type",
+          "amountCents",
+          "concept",
+          "createdBy",
+          "createdAt",
+        ])
+        && requestMatchesChild(familyId, childProfileId)
+        && isGuestForChild(familyId, childProfileId)
+        && exists(/databases/$(database)/documents/families/$(familyId)/childProfiles/$(childProfileId))
+        && request.resource.data.accountType == "Main"
+        && request.resource.data.type in ["Gift", "Match"]
+        && request.resource.data.amountCents is int
+        && request.resource.data.amountCents > 0
+        && hasNonBlankText("concept")
+        && request.resource.data.createdBy == "Guest"
+        && request.resource.data.createdAt is timestamp
+        && nullOrAbsent("reversesTransactionId")
+        && nullOrAbsent("transferGroupId");
+    }
+
     match /familyAdminInvites/{inviteEmail} {
       allow read: if hasAuthEmail() && request.auth.token.email == inviteEmail;
       allow read: if resource.data.keys().hasAny(["familyId"]) && isOwner(resource.data.familyId);
@@ -442,8 +531,17 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /familyGuestInvites/{inviteEmail} {
+      allow read: if hasAuthEmail() && request.auth.token.email == inviteEmail;
+      allow read: if resource.data.keys().hasAny(["familyId"]) && isOwner(resource.data.familyId);
+      allow create, update: if guestInviteWriteIsValid(inviteEmail)
+        && isOwner(request.resource.data.familyId)
+        && request.resource.data.invitedByUid == request.auth.uid;
+      allow delete: if false;
+    }
+
     match /families/{familyId} {
-      allow read: if isFamilyMember(familyId);
+      allow read: if isFamilyMember(familyId) || isGuest(familyId);
       allow create: if isOwner(familyId) && requestMatchesFamily(familyId);
       allow update: if isOwner(familyId) && requestKeepsFamilyId();
       allow delete: if false;
@@ -504,7 +602,8 @@ service cloud.firestore {
 
       match /childProfiles/{childProfileId} {
         allow read: if isParent(familyId)
-          || (isChild(familyId) && childProfileId == authChildProfileId());
+          || (isChild(familyId) && childProfileId == authChildProfileId())
+          || isGuestForChild(familyId, childProfileId);
         allow create, update: if isParent(familyId) && requestMatchesChild(familyId, childProfileId);
         allow delete: if false;
       }
@@ -537,8 +636,10 @@ service cloud.firestore {
 
       match /ledgerTransactions/{transactionId} {
         allow read: if isParent(familyId)
-          || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
+          || (isChild(familyId) && resource.data.childProfileId == authChildProfileId())
+          || isGuestForChild(familyId, resource.data.childProfileId);
         allow create: if isParent(familyId) && requestMatchesFamily(familyId);
+        allow create: if guestLedgerCreateIsValid(familyId, request.resource.data.childProfileId);
         allow update, delete: if false;
       }
     }

@@ -41,9 +41,11 @@ class FoundationRouteDecisionTest {
         // When
         val target = decider.postLoginTarget(
             hasFamily = false,
+            hasGuestAccess = false,
             hasVirtualMoneyConsent = false,
             hasChildProfiles = false,
             syncStatus = RepositorySyncStatus.Loading,
+            guestSyncStatus = RepositorySyncStatus.Loading,
         )
 
         // Then
@@ -58,6 +60,7 @@ class FoundationRouteDecisionTest {
         // When
         val target = decider.postLoginTarget(
             hasFamily = true,
+            hasGuestAccess = false,
             hasVirtualMoneyConsent = true,
             hasChildProfiles = true,
             syncStatus = RepositorySyncStatus.Synced,
@@ -75,6 +78,7 @@ class FoundationRouteDecisionTest {
         // When
         val target = decider.postLoginTarget(
             hasFamily = false,
+            hasGuestAccess = false,
             hasVirtualMoneyConsent = false,
             hasChildProfiles = false,
             syncStatus = RepositorySyncStatus.Synced,
@@ -94,6 +98,7 @@ class FoundationRouteDecisionTest {
             PostLoginNavigationTarget.VirtualMoneyConsent,
             decider.postLoginTarget(
                 hasFamily = true,
+                hasGuestAccess = false,
                 hasVirtualMoneyConsent = false,
                 hasChildProfiles = false,
                 syncStatus = RepositorySyncStatus.Synced,
@@ -103,10 +108,30 @@ class FoundationRouteDecisionTest {
             PostLoginNavigationTarget.ChildProfileSetup,
             decider.postLoginTarget(
                 hasFamily = true,
+                hasGuestAccess = false,
                 hasVirtualMoneyConsent = true,
                 hasChildProfiles = false,
                 syncStatus = RepositorySyncStatus.Synced,
             ),
         )
+    }
+
+    @Test
+    fun `FLE-53 post login sends pure guests to guest home`() {
+        // Given
+        val decider = FoundationRouteDecider()
+
+        // When
+        val target = decider.postLoginTarget(
+            hasFamily = false,
+            hasGuestAccess = true,
+            hasVirtualMoneyConsent = false,
+            hasChildProfiles = false,
+            syncStatus = RepositorySyncStatus.Synced,
+            guestSyncStatus = RepositorySyncStatus.Synced,
+        )
+
+        // Then
+        assertEquals(PostLoginNavigationTarget.GuestHome, target)
     }
 }
