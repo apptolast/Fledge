@@ -82,6 +82,8 @@ import fledge.shared.generated.resources.parent_home_goal_completion_body
 import fledge.shared.generated.resources.parent_home_goal_completion_title
 import fledge.shared.generated.resources.parent_home_main_balance
 import fledge.shared.generated.resources.parent_home_pairing
+import fledge.shared.generated.resources.parent_home_parent_interest
+import fledge.shared.generated.resources.parent_home_parent_interest_review
 import fledge.shared.generated.resources.parent_home_pending_count
 import fledge.shared.generated.resources.parent_home_pending_liquidation
 import fledge.shared.generated.resources.parent_home_pending_total
@@ -115,6 +117,7 @@ fun ParentHomeScreen(
     onAdjustChild: (ChildProfileId) -> Unit,
     onCreateSavingsGoal: (ChildProfileId) -> Unit,
     onCreateTask: () -> Unit,
+    onOpenParentInterest: () -> Unit,
     onOpenAccountDeletion: () -> Unit,
     onRequireParentalGate: () -> Unit,
     viewModel: ParentHomeViewModel = koinViewModel(),
@@ -130,6 +133,7 @@ fun ParentHomeScreen(
         onAdjustChild = onAdjustChild,
         onCreateSavingsGoal = onCreateSavingsGoal,
         onCreateTask = onCreateTask,
+        onOpenParentInterest = onOpenParentInterest,
         onOpenAccountDeletion = onOpenAccountDeletion,
         onMarkSettlementPaid = { settlementId ->
             scope.launch {
@@ -167,6 +171,7 @@ fun ParentHomeContent(
     onAdjustChild: (ChildProfileId) -> Unit,
     onCreateSavingsGoal: (ChildProfileId) -> Unit,
     onCreateTask: () -> Unit,
+    onOpenParentInterest: () -> Unit,
     onOpenAccountDeletion: () -> Unit,
     onMarkSettlementPaid: (SettlementId) -> Unit,
     onUpdateApprovalAmount: (TaskInstanceId, String) -> Unit,
@@ -399,6 +404,7 @@ fun ParentHomeContent(
                     firstChildId = state.children.firstOrNull()?.id,
                     onAddChild = onAddChild,
                     onPairChild = onPairChild,
+                    onOpenParentInterest = onOpenParentInterest,
                     onOpenAccountDeletion = onOpenAccountDeletion,
                     onRequireParentalGate = onRequireParentalGate,
                 )
@@ -852,6 +858,7 @@ private fun SetupActionRow(
     firstChildId: ChildProfileId?,
     onAddChild: () -> Unit,
     onPairChild: (ChildProfileId) -> Unit,
+    onOpenParentInterest: () -> Unit,
     onOpenAccountDeletion: () -> Unit,
     onRequireParentalGate: (FoundationAction) -> Unit,
 ) {
@@ -873,6 +880,7 @@ private fun SetupActionRow(
                     when (action.id) {
                         "add-child" -> onAddChild()
                         "pair-device" -> firstChildId?.let(onPairChild)
+                        "parent-interest" -> onOpenParentInterest()
                         "account-deletion" -> onOpenAccountDeletion()
                         else -> onRequireParentalGate(FoundationAction.ManageSettings)
                     }
@@ -889,6 +897,7 @@ private fun SetupActionRow(
 private fun setupActionLabel(action: SetupAction): String = when (action.id) {
     "add-child" -> stringResource(Res.string.parent_home_add_child)
     "pair-device" -> stringResource(Res.string.parent_home_pairing)
+    "parent-interest" -> stringResource(Res.string.parent_home_parent_interest)
     "account-deletion" -> stringResource(Res.string.parent_home_account_deletion)
     else -> stringResource(Res.string.parent_home_gate_setup)
 }
@@ -897,6 +906,7 @@ private fun setupActionLabel(action: SetupAction): String = when (action.id) {
 private fun setupActionButtonLabel(action: SetupAction): String = when (action.id) {
     "add-child" -> stringResource(Res.string.parent_home_add_child)
     "pair-device" -> stringResource(Res.string.parent_home_pairing)
+    "parent-interest" -> stringResource(Res.string.parent_home_parent_interest_review)
     "account-deletion" -> stringResource(Res.string.parent_home_account_deletion_review)
     else -> stringResource(Res.string.parent_home_gate)
 }
@@ -967,6 +977,7 @@ fun PreviewParentHomeContent() {
             onAdjustChild = {},
             onCreateSavingsGoal = {},
             onCreateTask = {},
+            onOpenParentInterest = {},
             onOpenAccountDeletion = {},
             onMarkSettlementPaid = {},
             onUpdateApprovalAmount = { _, _ -> },
@@ -994,6 +1005,7 @@ fun PreviewParentHomeFirstRunEmptyContent() {
             onAdjustChild = {},
             onCreateSavingsGoal = {},
             onCreateTask = {},
+            onOpenParentInterest = {},
             onOpenAccountDeletion = {},
             onMarkSettlementPaid = {},
             onUpdateApprovalAmount = { _, _ -> },
@@ -1034,6 +1046,7 @@ fun PreviewParentHomeEmptyActivityContent() {
             onAdjustChild = {},
             onCreateSavingsGoal = {},
             onCreateTask = {},
+            onOpenParentInterest = {},
             onOpenAccountDeletion = {},
             onMarkSettlementPaid = {},
             onUpdateApprovalAmount = { _, _ -> },

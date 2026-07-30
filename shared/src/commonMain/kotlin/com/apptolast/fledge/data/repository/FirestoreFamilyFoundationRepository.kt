@@ -14,6 +14,8 @@ import com.apptolast.fledge.domain.model.DeviceId
 import com.apptolast.fledge.domain.model.Family
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.domain.model.InterestSettings
+import com.apptolast.fledge.domain.model.InterestSettingsDraft
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
@@ -185,6 +187,26 @@ class FirestoreFamilyFoundationRepository(
         )
         mutableChildPinPolicy.value = policy
         return policy
+    }
+
+    override suspend fun updateInterestSettings(draft: InterestSettingsDraft): InterestSettings {
+        val familyId = authProvider.currentFamilyId()
+        val currentFamily = activeFamily.value
+            ?: familyDoc(familyId).get().takeIf { it.exists }?.toFamily()
+        requireNotNull(currentFamily) { "Family does not exist." }
+
+        val settings = InterestSettings(
+            enabled = draft.enabled,
+            annualRateBasisPoints = draft.annualRateBasisPoints,
+            postingDayOfMonth = draft.postingDayOfMonth,
+            lastPostedPeriodKey = currentFamily.interestSettings.lastPostedPeriodKey,
+        )
+        familyDoc(familyId).set(
+            settings.toFirestorePatch() + mapOf("updatedAt" to Clock.System.now().toFirestoreTimestamp()),
+            merge = true,
+        )
+        mutableActiveFamily.value = currentFamily.copy(interestSettings = settings)
+        return settings
     }
 
     override suspend fun startPairing(childProfileId: ChildProfileId): PairingSession {

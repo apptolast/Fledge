@@ -6,6 +6,7 @@ import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildProfile
 import com.apptolast.fledge.domain.model.CurrencyCode
 import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.domain.model.InterestSettingsDraft
 import com.apptolast.fledge.domain.model.TimeZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -64,6 +65,34 @@ class InMemoryFamilyFoundationRepositoryTest {
         }
         assertEquals(CurrencyCode("EUR"), repository.activeFamily.value?.currency)
         assertEquals(TimeZoneId("Europe/Madrid"), repository.activeFamily.value?.timeZone)
+    }
+
+    @Test
+    fun `FLE-48 parent updates family interest without unlocking money settings`() = runTest {
+        // Given
+        val repository = InMemoryFamilyFoundationRepository()
+        val family = repository.createFamily(
+            name = "Familia Garcia",
+            currency = CurrencyCode("EUR"),
+            timeZone = TimeZoneId("Europe/Madrid"),
+        )
+
+        // When
+        val settings = repository.updateInterestSettings(
+            InterestSettingsDraft(
+                enabled = true,
+                annualRateBasisPoints = 250,
+                postingDayOfMonth = 5,
+            ),
+        )
+
+        // Then
+        assertTrue(settings.enabled)
+        assertEquals(250, settings.annualRateBasisPoints)
+        assertEquals(5, settings.postingDayOfMonth)
+        assertEquals(family.currency, repository.activeFamily.value?.currency)
+        assertEquals(family.timeZone, repository.activeFamily.value?.timeZone)
+        assertTrue(repository.activeFamily.value?.moneySettingsLocked == true)
     }
 
     @Test

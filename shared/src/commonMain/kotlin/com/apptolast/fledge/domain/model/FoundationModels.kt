@@ -64,7 +64,39 @@ data class Family(
     val currency: CurrencyCode,
     val timeZone: TimeZoneId,
     val moneySettingsLocked: Boolean = true,
+    val interestSettings: InterestSettings = InterestSettings(),
 )
+
+@Serializable
+data class InterestSettings(
+    val enabled: Boolean = false,
+    val annualRateBasisPoints: Int = 0,
+    val postingDayOfMonth: Int = 1,
+    val lastPostedPeriodKey: String? = null,
+) {
+    init {
+        require(annualRateBasisPoints in 0..5_000) {
+            "Annual interest rate must be between 0.00% and 50.00%."
+        }
+        require(postingDayOfMonth in 1..28) {
+            "Interest posting day must be between 1 and 28."
+        }
+        require(lastPostedPeriodKey == null || lastPostedPeriodKey.matches(Regex("\\d{6}"))) {
+            "Last posted period key must use yyyyMM format."
+        }
+    }
+}
+
+@Serializable
+data class InterestSettingsDraft(val enabled: Boolean, val annualRateBasisPoints: Int, val postingDayOfMonth: Int) {
+    init {
+        InterestSettings(
+            enabled = enabled,
+            annualRateBasisPoints = annualRateBasisPoints,
+            postingDayOfMonth = postingDayOfMonth,
+        )
+    }
+}
 
 @Serializable
 data class ChildProfile(

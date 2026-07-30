@@ -23,6 +23,7 @@ import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetScreen
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinScreen
 import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupScreen
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupScreen
+import com.apptolast.fledge.presentation.foundation.interest.ParentInterestScreen
 import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentScreen
 import com.apptolast.fledge.presentation.foundation.onboarding.OnboardingScreen
 import com.apptolast.fledge.presentation.foundation.pairing.PairingScreen
@@ -112,12 +113,19 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
                 onAdjustChild = { childId -> navController.navigate(ManualAdjustmentRoute(childId.value)) },
                 onCreateSavingsGoal = { childId -> navController.navigate(SavingsGoalSetupRoute(childId.value)) },
                 onCreateTask = { navController.navigate(TaskAssignmentRoute) },
+                onOpenParentInterest = { navController.navigate(ParentInterestRoute) },
                 onOpenAccountDeletion = { navController.navigate(AccountDeletionRoute) },
                 onRequireParentalGate = { navController.navigate(ParentalGateRoute) },
             )
         }
         composable<AccountDeletionRoute> {
             AccountDeletionScreen(onBack = { navController.popBackStack() })
+        }
+        composable<ParentInterestRoute> {
+            ParentInterestScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() },
+            )
         }
         composable<TaskAssignmentRoute> {
             TaskAssignmentScreen(

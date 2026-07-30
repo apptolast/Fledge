@@ -18,6 +18,7 @@ import com.apptolast.fledge.domain.model.DeviceId
 import com.apptolast.fledge.domain.model.Family
 import com.apptolast.fledge.domain.model.FamilyId
 import com.apptolast.fledge.domain.model.FoundationAction
+import com.apptolast.fledge.domain.model.InterestSettings
 import com.apptolast.fledge.domain.model.LedgerActor
 import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
@@ -134,6 +135,10 @@ internal fun Family.toFirestoreMap(): Map<String, Any?> = mapOf(
     "currency" to currency.value,
     "timeZone" to timeZone.value,
     "moneySettingsLocked" to moneySettingsLocked,
+    "interestEnabled" to interestSettings.enabled,
+    "interestAnnualRateBasisPoints" to interestSettings.annualRateBasisPoints,
+    "interestPostingDayOfMonth" to interestSettings.postingDayOfMonth,
+    "interestLastPostedPeriodKey" to interestSettings.lastPostedPeriodKey,
 )
 
 internal fun DocumentSnapshot.toFamily(): Family = Family(
@@ -142,6 +147,21 @@ internal fun DocumentSnapshot.toFamily(): Family = Family(
     currency = CurrencyCode(requiredString("currency")),
     timeZone = TimeZoneId(requiredString("timeZone")),
     moneySettingsLocked = optionalBoolean("moneySettingsLocked") ?: true,
+    interestSettings = toInterestSettings(),
+)
+
+internal fun InterestSettings.toFirestorePatch(): Map<String, Any?> = mapOf(
+    "interestEnabled" to enabled,
+    "interestAnnualRateBasisPoints" to annualRateBasisPoints,
+    "interestPostingDayOfMonth" to postingDayOfMonth,
+    "interestLastPostedPeriodKey" to lastPostedPeriodKey,
+)
+
+internal fun DocumentSnapshot.toInterestSettings(): InterestSettings = InterestSettings(
+    enabled = optionalBoolean("interestEnabled") ?: false,
+    annualRateBasisPoints = optionalInt("interestAnnualRateBasisPoints") ?: 0,
+    postingDayOfMonth = optionalInt("interestPostingDayOfMonth") ?: 1,
+    lastPostedPeriodKey = optionalString("interestLastPostedPeriodKey"),
 )
 
 internal fun ChildProfile.toFirestoreMap(familyId: FamilyId): Map<String, Any?> = mapOf(

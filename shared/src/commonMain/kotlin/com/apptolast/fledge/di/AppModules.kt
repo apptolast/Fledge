@@ -39,6 +39,7 @@ import com.apptolast.fledge.presentation.foundation.childpin.ChildPinResetViewMo
 import com.apptolast.fledge.presentation.foundation.childpin.ChildPinViewModel
 import com.apptolast.fledge.presentation.foundation.childsetup.ChildProfileSetupViewModel
 import com.apptolast.fledge.presentation.foundation.familysetup.FamilySetupViewModel
+import com.apptolast.fledge.presentation.foundation.interest.ParentInterestViewModel
 import com.apptolast.fledge.presentation.foundation.manualadjustment.ManualAdjustmentViewModel
 import com.apptolast.fledge.presentation.foundation.pairing.PairingViewModel
 import com.apptolast.fledge.presentation.foundation.parentalgate.ParentalGateViewModel
@@ -106,6 +107,7 @@ val presentationModule = module {
     viewModelOf(::ChildHomeViewModel)
     viewModelOf(::AllowanceRuleViewModel)
     viewModelOf(::CashOutRequestViewModel)
+    viewModelOf(::ParentInterestViewModel)
     viewModelOf(::ManualAdjustmentViewModel)
     viewModelOf(::PairingViewModel)
     viewModelOf(::ParentalGateViewModel)
