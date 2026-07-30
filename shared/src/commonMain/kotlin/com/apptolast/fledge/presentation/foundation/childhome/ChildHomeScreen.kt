@@ -56,6 +56,7 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.model.TransactionId
 import com.apptolast.fledge.domain.model.VirtualAccountType
+import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
 import com.apptolast.fledge.domain.service.SavingsGoalProjection
 import com.apptolast.fledge.domain.service.SavingsGoalProjectionStatus
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
@@ -84,6 +85,8 @@ import fledge.shared.generated.resources.child_home_body
 import fledge.shared.generated.resources.child_home_cash_out
 import fledge.shared.generated.resources.child_home_external_link
 import fledge.shared.generated.resources.child_home_goal_balance
+import fledge.shared.generated.resources.child_home_goal_completion_body
+import fledge.shared.generated.resources.child_home_goal_completion_title
 import fledge.shared.generated.resources.child_home_ledger_empty
 import fledge.shared.generated.resources.child_home_ledger_title
 import fledge.shared.generated.resources.child_home_main_balance
@@ -242,6 +245,14 @@ fun ChildHomeContent(
                                 onWithdrawSavingsGoal(childProfileId, goal.id)
                             }
                         },
+                    )
+                }
+            }
+            state.activeSavingsGoalCompletionNotice?.let { notice ->
+                item {
+                    ChildGoalCompletionNoticeCard(
+                        notice = notice,
+                        currencyCode = state.currencyCode,
                     )
                 }
             }
@@ -514,6 +525,37 @@ private fun ChildTaskInstanceRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ChildGoalCompletionNoticeCard(notice: SavingsGoalCompletionNotice, currencyCode: String) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.child_home_goal_completion_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(
+                    Res.string.child_home_goal_completion_body,
+                    notice.goalTitle,
+                    formatCents(notice.currentCents.value, currencyCode),
+                    formatCents(notice.targetCents.value, currencyCode),
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -948,6 +990,16 @@ fun PreviewChildHomeContent() {
                     estimatedDaysRemaining = 19,
                     estimatedCompletionAt = Clock.System.now().plus(19.days),
                     status = SavingsGoalProjectionStatus.OnTrack,
+                ),
+                activeSavingsGoalCompletionNotice = SavingsGoalCompletionNotice(
+                    goalId = SavingsGoalId("goal-1"),
+                    familyId = FamilyId("family-1"),
+                    childProfileId = ChildProfileId("child-1"),
+                    childName = "Lucas",
+                    goalTitle = "Bici nueva",
+                    currentCents = BalanceCents(4_200),
+                    targetCents = MoneyCents(4_000),
+                    completedAt = Clock.System.now(),
                 ),
                 ledgerTransactions = listOf(
                     LedgerTransaction(

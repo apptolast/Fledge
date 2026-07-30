@@ -391,6 +391,71 @@ class ChildHomeViewModelTest {
         assertEquals(8, projection?.estimatedDaysRemaining)
     }
 
+    @Test
+    fun `FLE-40 AC-02 child home exposes celebration notice for completed active goal`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        val goal = savingsGoalRepository.saveGoal(
+            SavingsGoalDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                title = "Bici nueva",
+                targetCents = MoneyCents(4_000),
+                iconKey = "bike",
+            ),
+            createdAt = Clock.System.now().minus(2.days),
+        )
+        ledgerRepository.appendTransaction(
+            LedgerTransactionDraft(
+                familyId = family.id,
+                childProfileId = child.id,
+                accountType = VirtualAccountType.Goal,
+                type = LedgerTransactionType.GoalTransfer,
+                amountCents = MoneyCents(4_200),
+                concept = LedgerConcept("Ahorro bici"),
+                createdBy = LedgerActor.Child,
+                transferGroupId = LedgerTransferGroupId("transfer-1"),
+            ),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        val notice = viewModel.uiState.value.activeSavingsGoalCompletionNotice
+        assertEquals(goal.id, notice?.goalId)
+        assertEquals(child.id, notice?.childProfileId)
+        assertEquals("Lucas", notice?.childName)
+        assertEquals("Bici nueva", notice?.goalTitle)
+        assertEquals(BalanceCents(4_200), notice?.currentCents)
+        assertEquals(MoneyCents(4_000), notice?.targetCents)
+    }
+
     private fun taskInstance(
         id: String,
         familyId: FamilyId,

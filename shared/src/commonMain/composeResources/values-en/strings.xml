@@ -208,6 +208,8 @@
     <string name="child_home_active_goal_completed_body">You already have enough in GOAL for this target.</string>
     <string name="child_home_active_goal_deposit">Add money</string>
     <string name="child_home_active_goal_withdraw">Take money out</string>
+    <string name="child_home_goal_completion_title">Great saving</string>
+    <string name="child_home_goal_completion_body">%1$s: you have %2$s of %3$s. You can show your family.</string>
     <string name="child_home_tasks_title">Today's tasks</string>
     <string name="child_home_tasks_empty">You have no pending tasks right now.</string>
     <string name="child_home_task_reward">Earn %1$s</string>
@@ -258,4 +260,6 @@
     <string name="ledger_type_reversal">Correction</string>
     <string name="ledger_reversal_of">Corrects movement %1$s</string>
     <string name="empty_children">No child profiles yet.</string>
+    <string name="parent_home_goal_completion_title">%1$s completed a goal</string>
+    <string name="parent_home_goal_completion_body">%1$s: %2$s of %3$s. Good moment to recognize the effort.</string>
 </resources>

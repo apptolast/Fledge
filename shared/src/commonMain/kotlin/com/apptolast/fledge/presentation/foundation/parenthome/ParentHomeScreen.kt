@@ -51,6 +51,7 @@ import com.apptolast.fledge.domain.model.TaskInstance
 import com.apptolast.fledge.domain.model.TaskInstanceId
 import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
+import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -71,6 +72,8 @@ import fledge.shared.generated.resources.parent_home_create_task
 import fledge.shared.generated.resources.parent_home_gate
 import fledge.shared.generated.resources.parent_home_gate_setup
 import fledge.shared.generated.resources.parent_home_goal_balance
+import fledge.shared.generated.resources.parent_home_goal_completion_body
+import fledge.shared.generated.resources.parent_home_goal_completion_title
 import fledge.shared.generated.resources.parent_home_main_balance
 import fledge.shared.generated.resources.parent_home_pairing
 import fledge.shared.generated.resources.parent_home_pending_count
@@ -194,6 +197,17 @@ fun ParentHomeContent(
                     currencyCode = state.currencyCode,
                 )
             }
+            if (state.goalCompletionNotices.isNotEmpty()) {
+                items(
+                    items = state.goalCompletionNotices,
+                    key = { "${it.childProfileId.value}-${it.goalId.value}" },
+                ) { notice ->
+                    ParentGoalCompletionNoticeCard(
+                        notice = notice,
+                        currencyCode = state.currencyCode,
+                    )
+                }
+            }
             item {
                 Button(
                     onClick = onCreateTask,
@@ -316,6 +330,38 @@ fun ParentHomeContent(
             items(state.setupActions, key = { it.id }) { action ->
                 SetupActionRow(action = action, onRequireParentalGate = onRequireParentalGate)
             }
+        }
+    }
+}
+
+@Composable
+private fun ParentGoalCompletionNoticeCard(notice: SavingsGoalCompletionNotice, currencyCode: String) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.parent_home_goal_completion_title, notice.childName),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = stringResource(
+                    Res.string.parent_home_goal_completion_body,
+                    notice.goalTitle,
+                    formatCents(notice.currentCents.value, currencyCode),
+                    formatCents(notice.targetCents.value, currencyCode),
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
         }
     }
 }
@@ -709,6 +755,18 @@ fun PreviewParentHomeContent() {
                         displayName = "Lucas",
                         birthYear = 2017,
                         avatarKey = "rocket",
+                    ),
+                ),
+                goalCompletionNotices = listOf(
+                    SavingsGoalCompletionNotice(
+                        goalId = com.apptolast.fledge.domain.model.SavingsGoalId("goal-1"),
+                        familyId = FamilyId("family-1"),
+                        childProfileId = ChildProfileId("child-1"),
+                        childName = "Lucas",
+                        goalTitle = "Bici nueva",
+                        currentCents = BalanceCents(4_200),
+                        targetCents = MoneyCents(4_000),
+                        completedAt = kotlin.time.Clock.System.now(),
                     ),
                 ),
                 pendingSettlements = listOf(
