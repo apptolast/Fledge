@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -41,6 +43,8 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.SavingsGoal
+import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementReminderAudience
 import com.apptolast.fledge.domain.model.SettlementReminderLevel
@@ -61,6 +65,9 @@ import fledge.shared.generated.resources.cash_out_mark_received
 import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
+import fledge.shared.generated.resources.child_home_active_goal_amount
+import fledge.shared.generated.resources.child_home_active_goal_progress
+import fledge.shared.generated.resources.child_home_active_goal_title
 import fledge.shared.generated.resources.child_home_body
 import fledge.shared.generated.resources.child_home_cash_out
 import fledge.shared.generated.resources.child_home_external_link
@@ -197,6 +204,15 @@ fun ChildHomeContent(
             }
             item {
                 ChildBalanceCard(state = state)
+            }
+            state.activeSavingsGoal?.let { goal ->
+                item {
+                    ActiveSavingsGoalCard(
+                        goal = goal,
+                        currentCents = state.balances?.goal?.value ?: 0L,
+                        currencyCode = state.currencyCode,
+                    )
+                }
             }
             item {
                 Text(
@@ -472,6 +488,82 @@ private fun ChildTaskInstanceRow(
 }
 
 @Composable
+private fun ActiveSavingsGoalCard(goal: SavingsGoal, currentCents: Long, currencyCode: String) {
+    val progress = (currentCents.toFloat() / goal.targetCents.value.toFloat()).coerceIn(0f, 1f)
+    val progressPercent = (progress * 100).toInt()
+
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.child_home_active_goal_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = goal.iconKey?.firstOrNull()?.uppercaseChar()?.toString().orEmpty(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onTertiary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = goal.title,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(
+                            Res.string.child_home_active_goal_amount,
+                            formatCents(currentCents, currencyCode),
+                            formatCents(goal.targetCents.value, currencyCode),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = stringResource(Res.string.child_home_active_goal_progress, progressPercent),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun TaskStatusPill(status: TaskInstanceStatus) {
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -676,7 +768,17 @@ fun PreviewChildHomeContent() {
                 balances = ChildLedgerBalances(
                     childProfileId = ChildProfileId("child-1"),
                     main = BalanceCents(550),
-                    goal = BalanceCents(0),
+                    goal = BalanceCents(1_230),
+                ),
+                activeSavingsGoal = SavingsGoal(
+                    id = SavingsGoalId("goal-1"),
+                    familyId = FamilyId("family-1"),
+                    childProfileId = ChildProfileId("child-1"),
+                    title = "Bici nueva",
+                    targetCents = MoneyCents(4_000),
+                    iconKey = "bike",
+                    createdAt = Clock.System.now(),
+                    updatedAt = Clock.System.now(),
                 ),
                 ledgerTransactions = listOf(
                     LedgerTransaction(

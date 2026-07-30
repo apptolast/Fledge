@@ -26,6 +26,9 @@ import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
+import com.apptolast.fledge.domain.model.SavingsGoal
+import com.apptolast.fledge.domain.model.SavingsGoalId
+import com.apptolast.fledge.domain.model.SavingsGoalStatus
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
 import com.apptolast.fledge.domain.model.TaskAssignment
@@ -234,6 +237,33 @@ internal fun DocumentSnapshot.toAllowanceRule(): AllowanceRule = AllowanceRule(
     timeZone = TimeZoneId(requiredString("timeZone")),
     nextRunAt = requiredTimestamp("nextRunAt"),
     active = optionalBoolean("active") ?: true,
+    createdAt = requiredTimestamp("createdAt"),
+    updatedAt = requiredTimestamp("updatedAt"),
+)
+
+internal fun SavingsGoal.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "childProfileId" to childProfileId.value,
+    "title" to title,
+    "targetCents" to targetCents.value,
+    "accountType" to accountType.name,
+    "iconKey" to iconKey,
+    "imageUri" to imageUri,
+    "status" to status.name,
+    "createdAt" to createdAt.toFirestoreTimestamp(),
+    "updatedAt" to updatedAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toSavingsGoal(): SavingsGoal = SavingsGoal(
+    id = SavingsGoalId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    childProfileId = ChildProfileId(requiredString("childProfileId")),
+    title = requiredString("title"),
+    targetCents = MoneyCents(requiredLong("targetCents")),
+    accountType = VirtualAccountType.valueOf(requiredString("accountType")),
+    iconKey = optionalString("iconKey"),
+    imageUri = optionalString("imageUri"),
+    status = SavingsGoalStatus.valueOf(requiredString("status")),
     createdAt = requiredTimestamp("createdAt"),
     updatedAt = requiredTimestamp("updatedAt"),
 )

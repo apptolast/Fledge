@@ -66,6 +66,7 @@ import fledge.shared.generated.resources.parent_home_add_child
 import fledge.shared.generated.resources.parent_home_adjustment
 import fledge.shared.generated.resources.parent_home_allowance
 import fledge.shared.generated.resources.parent_home_children
+import fledge.shared.generated.resources.parent_home_create_goal
 import fledge.shared.generated.resources.parent_home_create_task
 import fledge.shared.generated.resources.parent_home_gate
 import fledge.shared.generated.resources.parent_home_gate_setup
@@ -98,6 +99,7 @@ fun ParentHomeScreen(
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
+    onCreateSavingsGoal: (ChildProfileId) -> Unit,
     onCreateTask: () -> Unit,
     onRequireParentalGate: () -> Unit,
     viewModel: ParentHomeViewModel = koinViewModel(),
@@ -110,6 +112,7 @@ fun ParentHomeScreen(
         onPairChild = onPairChild,
         onConfigureAllowance = onConfigureAllowance,
         onAdjustChild = onAdjustChild,
+        onCreateSavingsGoal = onCreateSavingsGoal,
         onCreateTask = onCreateTask,
         onMarkSettlementPaid = { settlementId ->
             scope.launch {
@@ -144,6 +147,7 @@ fun ParentHomeContent(
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
+    onCreateSavingsGoal: (ChildProfileId) -> Unit,
     onCreateTask: () -> Unit,
     onMarkSettlementPaid: (SettlementId) -> Unit,
     onUpdateApprovalAmount: (TaskInstanceId, String) -> Unit,
@@ -266,6 +270,7 @@ fun ParentHomeContent(
                         onPairChild = onPairChild,
                         onConfigureAllowance = onConfigureAllowance,
                         onAdjustChild = onAdjustChild,
+                        onCreateSavingsGoal = onCreateSavingsGoal,
                     )
                 }
             }
@@ -471,6 +476,7 @@ private fun ChildProfileRow(
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
+    onCreateSavingsGoal: (ChildProfileId) -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -549,14 +555,28 @@ private fun ChildProfileRow(
                     Text(stringResource(Res.string.parent_home_allowance))
                 }
             }
-            Button(
-                onClick = { onAdjustChild(child.id) },
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(Res.string.parent_home_adjustment))
+                OutlinedButton(
+                    onClick = { onCreateSavingsGoal(child.id) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text(stringResource(Res.string.parent_home_create_goal))
+                }
+                Button(
+                    onClick = { onAdjustChild(child.id) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text(stringResource(Res.string.parent_home_adjustment))
+                }
             }
         }
     }
@@ -727,6 +747,7 @@ fun PreviewParentHomeContent() {
             onPairChild = {},
             onConfigureAllowance = {},
             onAdjustChild = {},
+            onCreateSavingsGoal = {},
             onCreateTask = {},
             onMarkSettlementPaid = {},
             onUpdateApprovalAmount = { _, _ -> },

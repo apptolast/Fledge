@@ -13,6 +13,9 @@ import com.apptolast.fledge.domain.model.LedgerConcept
 import com.apptolast.fledge.domain.model.LedgerTransaction
 import com.apptolast.fledge.domain.model.LedgerTransactionType
 import com.apptolast.fledge.domain.model.MoneyCents
+import com.apptolast.fledge.domain.model.SavingsGoal
+import com.apptolast.fledge.domain.model.SavingsGoalId
+import com.apptolast.fledge.domain.model.SavingsGoalStatus
 import com.apptolast.fledge.domain.model.TaskAssignment
 import com.apptolast.fledge.domain.model.TaskAssignmentId
 import com.apptolast.fledge.domain.model.TaskInstance
@@ -119,6 +122,39 @@ class FirestoreRepositorySupportTest {
         assertEquals(500L, data["amountCents"])
         assertEquals("Europe/Madrid", data["timeZone"])
         assertIs<Timestamp>(data["nextRunAt"])
+    }
+
+    @Test
+    fun `FLE-36 savings goal document stores child target and goal account`() {
+        // Given
+        val goal = SavingsGoal(
+            id = SavingsGoalId("goal-1"),
+            familyId = FamilyId("family-1"),
+            childProfileId = ChildProfileId("child-1"),
+            title = "Bici nueva",
+            targetCents = MoneyCents(4_000),
+            accountType = VirtualAccountType.Goal,
+            iconKey = "bike",
+            imageUri = null,
+            status = SavingsGoalStatus.Active,
+            createdAt = Instant.fromEpochSeconds(1_700_000_000),
+            updatedAt = Instant.fromEpochSeconds(1_700_000_000),
+        )
+
+        // When
+        val data = goal.toFirestoreMap()
+
+        // Then
+        assertEquals("family-1", data["familyId"])
+        assertEquals("child-1", data["childProfileId"])
+        assertEquals("Bici nueva", data["title"])
+        assertEquals(4_000L, data["targetCents"])
+        assertEquals("Goal", data["accountType"])
+        assertEquals("bike", data["iconKey"])
+        assertEquals(null, data["imageUri"])
+        assertEquals("Active", data["status"])
+        assertIs<Timestamp>(data["createdAt"])
+        assertIs<Timestamp>(data["updatedAt"])
     }
 
     @Test
