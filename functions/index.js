@@ -1,7 +1,9 @@
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { DateTime } from "luxon";
 
@@ -16,6 +18,17 @@ export const runAllowanceRules = makeRunAllowanceRules(getFirestore(), "runAllow
 export const runAllowanceRulesDebug = makeRunAllowanceRules(getFirestore("debug"), "runAllowanceRulesDebug");
 export const runTaskAssignments = makeRunTaskAssignments(getFirestore(), "runTaskAssignments");
 export const runTaskAssignmentsDebug = makeRunTaskAssignments(getFirestore("debug"), "runTaskAssignmentsDebug");
+export const processAccountDeletionRequests = makeProcessAccountDeletionRequests(
+  getFirestore(),
+  getAuth(),
+  "processAccountDeletionRequests",
+);
+export const processAccountDeletionRequestsDebug = makeProcessAccountDeletionRequests(
+  getFirestore("debug"),
+  getAuth(),
+  "processAccountDeletionRequestsDebug",
+  "debug",
+);
 
 function makeRunAllowanceRules(database, functionName) {
   return onSchedule(
@@ -41,6 +54,108 @@ function makeRunTaskAssignments(database, functionName) {
       logger.info(`${functionName} completed`, { processed });
     },
   );
+}
+
+function makeProcessAccountDeletionRequests(database, auth, functionName, databaseId = null) {
+  const trigger = databaseId
+    ? { document: "families/{familyId}", database: databaseId }
+    : "families/{familyId}";
+  return onDocumentUpdated(trigger, async (event) => {
+    const result = await processAccountDeletionRequest({
+      database,
+      auth,
+      familyId: event.params.familyId,
+      familyRef: event.data.after.ref,
+      before: event.data.before.data(),
+      after: event.data.after.data(),
+      nowDate: new Date(),
+    });
+    logger.info(`${functionName} completed`, { familyId: event.params.familyId, ...result });
+  });
+}
+
+export async function processAccountDeletionRequest({
+  database,
+  auth,
+  familyId,
+  familyRef,
+  before,
+  after,
+  nowDate,
+}) {
+  if (!shouldProcessAccountDeletion(before, after)) {
+    return { status: "skipped" };
+  }
+
+  const now = Timestamp.fromDate(nowDate);
+  try {
+    await familyRef.update({
+      accountDeletionStatus: "Deleting",
+      accountDeletionUpdatedAt: now,
+      accountDeletionFailureReason: null,
+    });
+    const authDeleteStatus = await deleteAuthUser(auth, familyId);
+    await database.recursiveDelete(familyRef);
+    await writeAccountDeletionAudit(database, familyId, {
+      status: "Completed",
+      requestedAt: after.accountDeletionRequestedAt ?? null,
+      completedAt: now,
+      authDeleteStatus,
+    });
+    return { status: "completed", authDeleteStatus };
+  } catch (error) {
+    const reason = errorReason(error);
+    logger.error("processAccountDeletionRequest failed", { familyId, reason });
+    await markAccountDeletionFailed(database, familyRef, familyId, after, now, reason);
+    return { status: "failed", reason };
+  }
+}
+
+function shouldProcessAccountDeletion(before, after) {
+  return after?.accountDeletionStatus === "Requested" && before?.accountDeletionStatus !== "Requested";
+}
+
+async function deleteAuthUser(auth, uid) {
+  try {
+    await auth.deleteUser(uid);
+    return "Deleted";
+  } catch (error) {
+    if (isAuthUserNotFound(error)) return "AlreadyDeleted";
+    throw error;
+  }
+}
+
+function isAuthUserNotFound(error) {
+  const code = error?.code ?? error?.errorInfo?.code;
+  return code === "auth/user-not-found" || String(error?.message).includes("auth/user-not-found");
+}
+
+async function markAccountDeletionFailed(database, familyRef, familyId, after, failedAt, reason) {
+  await familyRef.update({
+    accountDeletionStatus: "Failed",
+    accountDeletionUpdatedAt: failedAt,
+    accountDeletionFailureReason: reason,
+  }).catch((error) => {
+    logger.warn("Could not mark account deletion as failed", { familyId, error: errorReason(error) });
+  });
+  await writeAccountDeletionAudit(database, familyId, {
+    status: "Failed",
+    requestedAt: after?.accountDeletionRequestedAt ?? null,
+    failedAt,
+    failureReason: reason,
+  });
+}
+
+async function writeAccountDeletionAudit(database, familyId, data) {
+  await database.collection("accountDeletionAudit").doc(familyId).set({
+    familyId,
+    updatedAt: data.completedAt ?? data.failedAt,
+    ...data,
+  });
+}
+
+function errorReason(error) {
+  return error?.message ? String(error.message) : String(error);
 }
 
 export async function processDueAllowanceRules(database, nowDate) {

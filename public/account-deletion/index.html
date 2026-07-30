@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fledge account deletion</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f9f8;
+        --ink: #17211f;
+        --muted: #50605a;
+        --surface: #ffffff;
+        --line: #d8e1dd;
+        --green: #4f7a5a;
+        --red: #c45151;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 40px 20px 56px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 5vw, 3.25rem);
+        line-height: 1;
+      }
+      h2 {
+        margin: 28px 0 8px;
+        font-size: 1.25rem;
+      }
+      p,
+      li {
+        color: var(--muted);
+      }
+      .panel {
+        margin-top: 24px;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+      .warning {
+        border-color: #f3b9b9;
+        background: #fcebeb;
+      }
+      .warning strong {
+        color: var(--red);
+      }
+      a.button {
+        display: inline-block;
+        min-height: 48px;
+        margin-top: 10px;
+        padding: 13px 18px;
+        border-radius: 24px;
+        background: var(--green);
+        color: white;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: #eef4f2;
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Fledge account deletion</h1>
+      <p>
+        This page explains how a parent or guardian can request deletion of a Fledge account and the
+        family data linked to that account.
+      </p>
+
+      <section class="panel">
+        <h2>Delete from the app</h2>
+        <p>In the Fledge app, sign in with the parent account and open:</p>
+        <p><code>Parent home</code> -> <code>Account and data</code> -> <code>Delete account</code></p>
+        <p>
+          Type the confirmation phrase shown in the app and submit the request. Fledge will process
+          deletion of the parent login, family profile, child profiles, linked devices, virtual
+          ledger, goals, allowances, tasks, cash-outs and push tokens.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>Request deletion by email</h2>
+        <p>
+          If you cannot access the app, send the request from the email address used for the parent
+          account. Include "Fledge account deletion" in the subject.
+        </p>
+        <a class="button" href="mailto:privacy@apptolast.com?subject=Fledge%20account%20deletion%20request">
+          Email privacy support
+        </a>
+      </section>
+
+      <section class="panel warning">
+        <h2>Virtual money only</h2>
+        <p>
+          <strong>Fledge does not move, hold, transfer, invest or store real money.</strong> It only
+          records virtual family balances. Any real-world payment is handled outside the app by the
+          adult or guardian.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
