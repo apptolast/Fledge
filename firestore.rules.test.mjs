@@ -99,6 +99,10 @@ function settlementPath(settlementId = "settlement-1", familyId = FAMILY_ID) {
   return `${familyPath(familyId)}/settlements/${settlementId}`;
 }
 
+function pushRegistrationPath(registrationId = "push-1", familyId = FAMILY_ID) {
+  return `${familyPath(familyId)}/pushRegistrations/${registrationId}`;
+}
+
 function familyData(familyId = FAMILY_ID) {
   return {
     familyId,
@@ -265,6 +269,28 @@ function settlementData({
   };
 }
 
+function pushRegistrationData({
+  familyId = FAMILY_ID,
+  childProfileId = null,
+  installationId = "install-1",
+  token = "fcm-token-1",
+  platform = "Android",
+  role = "Parent",
+  status = "Active",
+  updatedAt = NOW,
+} = {}) {
+  return {
+    familyId,
+    childProfileId,
+    installationId,
+    token,
+    platform,
+    role,
+    status,
+    updatedAt,
+  };
+}
+
 describe("FLE-83 Firestore membership rules", () => {
   test("a parent can manage its family and another user cannot read or write it", async () => {
     const parent = parentDb();
@@ -408,6 +434,76 @@ describe("FLE-83 Firestore membership rules", () => {
     await assertFails(setDoc(doc(child, savingsGoalPath("child-write")), savingsGoalData()));
     await assertFails(updateDoc(doc(child, savingsGoalPath("own-goal")), {
       title: "Hack",
+      updatedAt: LATER,
+    }));
+  });
+
+  test("push registrations are private by role and child ownership", async () => {
+    await seed(familyPath(), familyData());
+    await seed(pushRegistrationPath("parent-token"), pushRegistrationData());
+    await seed(
+      pushRegistrationPath("child-token"),
+      pushRegistrationData({
+        childProfileId: CHILD_ID,
+        role: "Child",
+      }),
+    );
+    await seed(
+      pushRegistrationPath("sibling-token"),
+      pushRegistrationData({
+        childProfileId: SIBLING_ID,
+        role: "Child",
+      }),
+    );
+
+    const parent = parentDb();
+    const otherParent = parentDb(OTHER_FAMILY_ID);
+    const child = childDb();
+
+    await assertSucceeds(getDoc(doc(parent, pushRegistrationPath("parent-token"))));
+    await assertSucceeds(setDoc(doc(parent, pushRegistrationPath("new-parent-token")), pushRegistrationData()));
+    await assertSucceeds(updateDoc(doc(parent, pushRegistrationPath("parent-token")), {
+      token: "fcm-token-rotated",
+      updatedAt: LATER,
+    }));
+
+    await assertFails(getDoc(doc(otherParent, pushRegistrationPath("parent-token"))));
+    await assertFails(getDoc(doc(child, pushRegistrationPath("parent-token"))));
+    await assertSucceeds(getDoc(doc(child, pushRegistrationPath("child-token"))));
+    await assertFails(getDoc(doc(child, pushRegistrationPath("sibling-token"))));
+    await assertSucceeds(setDoc(
+      doc(child, pushRegistrationPath("new-child-token")),
+      pushRegistrationData({
+        childProfileId: CHILD_ID,
+        role: "Child",
+      }),
+    ));
+    await assertFails(setDoc(
+      doc(child, pushRegistrationPath("child-as-parent")),
+      pushRegistrationData({
+        role: "Parent",
+      }),
+    ));
+    await assertFails(setDoc(
+      doc(child, pushRegistrationPath("child-sibling-token")),
+      pushRegistrationData({
+        childProfileId: SIBLING_ID,
+        role: "Child",
+      }),
+    ));
+    await assertFails(setDoc(
+      doc(parent, pushRegistrationPath("sensitive-token-doc")),
+      {
+        ...pushRegistrationData(),
+        childName: "Mateo",
+      },
+    ));
+    await assertFails(updateDoc(doc(child, pushRegistrationPath("child-token")), {
+      childProfileId: SIBLING_ID,
+      updatedAt: LATER,
+    }));
+    await assertSucceeds(updateDoc(doc(child, pushRegistrationPath("child-token")), {
+      token: "child-token-rotated",
       updatedAt: LATER,
     }));
   });
