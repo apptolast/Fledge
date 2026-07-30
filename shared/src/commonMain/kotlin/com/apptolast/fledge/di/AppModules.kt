@@ -10,6 +10,7 @@ import com.apptolast.fledge.data.remote.firebase.firebaseEnvironmentOf
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestorePushRegistrationRepository
 import com.apptolast.fledge.data.repository.FirestoreSavingsGoalRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskAssignmentRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskInstanceRepository
@@ -17,6 +18,7 @@ import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.PushRegistrationRepository
 import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskAssignmentRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
@@ -60,6 +62,7 @@ val dataModule = module {
     single { FirestoreFamilyFoundationRepository(get(), get()) } bind FamilyFoundationRepository::class
     single { FirestoreLedgerRepository(get(), get()) } bind LedgerRepository::class
     single { FirestoreMoneyFlowRepository(get(), get()) } bind MoneyFlowRepository::class
+    single { FirestorePushRegistrationRepository(get(), get()) } bind PushRegistrationRepository::class
     single { FirestoreSavingsGoalRepository(get(), get()) } bind SavingsGoalRepository::class
     single { FirestoreTaskAssignmentRepository(get(), get(), get()) } bind TaskAssignmentRepository::class
     single { FirestoreTaskInstanceRepository(get(), get()) } bind TaskInstanceRepository::class

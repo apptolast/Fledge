@@ -66,6 +66,18 @@ service cloud.firestore {
         && request.resource.data[field] == resource.data[field];
     }
 
+    function requestKeepsNullableField(field) {
+      return (
+          !request.resource.data.keys().hasAny([field])
+          && !resource.data.keys().hasAny([field])
+        )
+        || (
+          request.resource.data.keys().hasAny([field])
+          && resource.data.keys().hasAny([field])
+          && request.resource.data[field] == resource.data[field]
+        );
+    }
+
     function settlementRequestIsValid(familyId) {
       return request.resource.data.keys().hasAll([
           "familyId",
@@ -191,6 +203,63 @@ service cloud.firestore {
         && request.resource.data.status in ["Active", "Completed", "Archived"]
         && request.resource.data.createdAt is timestamp
         && request.resource.data.updatedAt is timestamp;
+    }
+
+    function pushRegistrationKeys() {
+      return [
+        "familyId",
+        "childProfileId",
+        "installationId",
+        "token",
+        "platform",
+        "role",
+        "status",
+        "updatedAt",
+      ];
+    }
+
+    function pushRegistrationWriteIsValid(familyId) {
+      return request.resource.data.keys().hasOnly(pushRegistrationKeys())
+        && request.resource.data.keys().hasAll([
+          "familyId",
+          "installationId",
+          "token",
+          "platform",
+          "role",
+          "status",
+          "updatedAt",
+        ])
+        && requestMatchesFamily(familyId)
+        && hasNonBlankText("installationId")
+        && hasNonBlankText("token")
+        && request.resource.data.platform in ["Android", "Ios"]
+        && request.resource.data.role in ["Parent", "Child"]
+        && request.resource.data.status in ["Active", "Inactive"]
+        && request.resource.data.updatedAt is timestamp
+        && (
+          (request.resource.data.role == "Parent" && nullOrAbsent("childProfileId"))
+          || (request.resource.data.role == "Child" && hasNonBlankText("childProfileId"))
+        );
+    }
+
+    function pushRegistrationRoutingIsUnchanged() {
+      return requestKeepsField("familyId")
+        && requestKeepsNullableField("childProfileId")
+        && requestKeepsField("installationId")
+        && requestKeepsField("platform")
+        && requestKeepsField("role");
+    }
+
+    function childPushRegistrationIsOwner(familyId) {
+      return isChild(familyId)
+        && request.resource.data.role == "Child"
+        && request.resource.data.childProfileId == authChildProfileId();
+    }
+
+    function existingChildPushRegistrationIsOwner(familyId) {
+      return isChild(familyId)
+        && resource.data.role == "Child"
+        && resource.data.childProfileId == authChildProfileId();
     }
 
     function childSettlementRequestIsValid(familyId) {
@@ -379,6 +448,21 @@ service cloud.firestore {
         allow read: if isParent(familyId)
           || (isChild(familyId) && resource.data.childProfileId == authChildProfileId());
         allow create, update: if isParent(familyId) && requestMatchesFamily(familyId);
+        allow delete: if false;
+      }
+
+      match /pushRegistrations/{registrationId} {
+        allow read: if isParent(familyId)
+          || existingChildPushRegistrationIsOwner(familyId);
+        allow create: if isParent(familyId) && pushRegistrationWriteIsValid(familyId);
+        allow create: if childPushRegistrationIsOwner(familyId) && pushRegistrationWriteIsValid(familyId);
+        allow update: if isParent(familyId)
+          && pushRegistrationWriteIsValid(familyId)
+          && pushRegistrationRoutingIsUnchanged();
+        allow update: if existingChildPushRegistrationIsOwner(familyId)
+          && childPushRegistrationIsOwner(familyId)
+          && pushRegistrationWriteIsValid(familyId)
+          && pushRegistrationRoutingIsUnchanged();
         allow delete: if false;
       }
 

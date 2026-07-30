@@ -19,6 +19,7 @@ import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
+import com.apptolast.fledge.data.repository.FirestorePushRegistrationRepository
 import com.apptolast.fledge.data.repository.FirestoreSavingsGoalRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskAssignmentRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskInstanceRepository
@@ -26,6 +27,7 @@ import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
+import com.apptolast.fledge.domain.repository.PushRegistrationRepository
 import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskAssignmentRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
@@ -62,6 +64,7 @@ class AppModulesTest {
         assertNotNull(application.koin.get<RoleSelectorViewModel>())
         assertNotNull(application.koin.get<LedgerRepository>())
         assertNotNull(application.koin.get<MoneyFlowRepository>())
+        assertNotNull(application.koin.get<PushRegistrationRepository>())
         assertNotNull(application.koin.get<SavingsGoalRepository>())
         assertNotNull(application.koin.get<TaskAssignmentRepository>())
         assertNotNull(application.koin.get<TaskInstanceRepository>())
@@ -124,6 +127,7 @@ class AppModulesTest {
         val familyFoundation = application.koin.get<FamilyFoundationRepository>()
         val ledger = application.koin.get<LedgerRepository>()
         val moneyFlow = application.koin.get<MoneyFlowRepository>()
+        val pushRegistrations = application.koin.get<PushRegistrationRepository>()
         val savingsGoals = application.koin.get<SavingsGoalRepository>()
         val taskAssignments = application.koin.get<TaskAssignmentRepository>()
         val taskInstances = application.koin.get<TaskInstanceRepository>()
@@ -133,6 +137,7 @@ class AppModulesTest {
         assertIs<FirestoreFamilyFoundationRepository>(familyFoundation)
         assertIs<FirestoreLedgerRepository>(ledger)
         assertIs<FirestoreMoneyFlowRepository>(moneyFlow)
+        assertIs<FirestorePushRegistrationRepository>(pushRegistrations)
         assertIs<FirestoreSavingsGoalRepository>(savingsGoals)
         assertIs<FirestoreTaskAssignmentRepository>(taskAssignments)
         assertIs<FirestoreTaskInstanceRepository>(taskInstances)

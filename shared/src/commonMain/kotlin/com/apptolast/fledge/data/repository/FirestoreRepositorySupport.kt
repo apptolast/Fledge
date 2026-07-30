@@ -27,11 +27,18 @@ import com.apptolast.fledge.domain.model.MoneyCents
 import com.apptolast.fledge.domain.model.PairingCode
 import com.apptolast.fledge.domain.model.PairingSession
 import com.apptolast.fledge.domain.model.ParentalGateRequest
+import com.apptolast.fledge.domain.model.PushInstallationId
+import com.apptolast.fledge.domain.model.PushPlatform
+import com.apptolast.fledge.domain.model.PushRegistration
+import com.apptolast.fledge.domain.model.PushRegistrationId
+import com.apptolast.fledge.domain.model.PushRegistrationStatus
+import com.apptolast.fledge.domain.model.PushToken
 import com.apptolast.fledge.domain.model.SavingsGoal
 import com.apptolast.fledge.domain.model.SavingsGoalId
 import com.apptolast.fledge.domain.model.SavingsGoalStatus
 import com.apptolast.fledge.domain.model.SettlementId
 import com.apptolast.fledge.domain.model.SettlementStatus
+import com.apptolast.fledge.domain.model.SharedDeviceRole
 import com.apptolast.fledge.domain.model.TaskAssignment
 import com.apptolast.fledge.domain.model.TaskAssignmentId
 import com.apptolast.fledge.domain.model.TaskInstance
@@ -294,6 +301,29 @@ internal fun DocumentSnapshot.toCashOutSettlement(): CashOutSettlement = CashOut
     paidByParentAt = optionalTimestamp("paidByParentAt"),
     confirmedByChildAt = optionalTimestamp("confirmedByChildAt"),
     settlementTransactionId = optionalString("settlementTransactionId")?.let(::TransactionId),
+)
+
+internal fun PushRegistration.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "familyId" to familyId.value,
+    "childProfileId" to childProfileId?.value,
+    "installationId" to installationId.value,
+    "token" to token.value,
+    "platform" to platform.name,
+    "role" to role.name,
+    "status" to status.name,
+    "updatedAt" to updatedAt.toFirestoreTimestamp(),
+)
+
+internal fun DocumentSnapshot.toPushRegistration(): PushRegistration = PushRegistration(
+    id = PushRegistrationId(id),
+    familyId = FamilyId(requiredString("familyId")),
+    childProfileId = optionalString("childProfileId")?.let(::ChildProfileId),
+    installationId = PushInstallationId(requiredString("installationId")),
+    token = PushToken(requiredString("token")),
+    platform = PushPlatform.valueOf(requiredString("platform")),
+    role = SharedDeviceRole.valueOf(requiredString("role")),
+    status = PushRegistrationStatus.valueOf(requiredString("status")),
+    updatedAt = requiredTimestamp("updatedAt"),
 )
 
 internal fun TaskTemplate.toFirestoreMap(): Map<String, Any?> = mapOf(
