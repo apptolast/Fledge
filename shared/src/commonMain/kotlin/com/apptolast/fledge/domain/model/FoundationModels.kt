@@ -83,6 +83,12 @@ enum class FamilyAdminInviteStatus {
 }
 
 @Serializable
+enum class FamilyGuestInviteStatus {
+    Active,
+    Revoked,
+}
+
+@Serializable
 data class FamilyAdminInvite(
     val familyId: FamilyId,
     val email: String,
@@ -100,6 +106,29 @@ data class FamilyAdminInviteDraft(val email: String) {
     }
 }
 
+@Serializable
+data class FamilyGuestInvite(
+    val familyId: FamilyId,
+    val email: String,
+    val childProfileIds: List<ChildProfileId>,
+    val status: FamilyGuestInviteStatus = FamilyGuestInviteStatus.Active,
+    val invitedAt: Instant? = null,
+    val invitedByUid: String? = null,
+    val revokedAt: Instant? = null,
+) {
+    init {
+        require(childProfileIds.isNotEmpty()) { "Guest invite must sponsor at least one child." }
+        normalizeFamilyGuestEmail(email)
+    }
+}
+
+@Serializable
+data class FamilyGuestInviteDraft(val email: String) {
+    init {
+        normalizeFamilyGuestEmail(email)
+    }
+}
+
 fun normalizeFamilyAdminEmail(email: String): String {
     val normalized = email.trim().lowercase()
     require(normalized.matches(Regex("^[^@\\s/]+@[^@\\s/]+\\.[^@\\s/]+$"))) {
@@ -107,6 +136,8 @@ fun normalizeFamilyAdminEmail(email: String): String {
     }
     return normalized
 }
+
+fun normalizeFamilyGuestEmail(email: String): String = normalizeFamilyAdminEmail(email)
 
 @Serializable
 data class InterestSettings(

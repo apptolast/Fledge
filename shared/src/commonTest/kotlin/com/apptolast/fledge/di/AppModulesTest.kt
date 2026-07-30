@@ -18,6 +18,7 @@ import com.apptolast.fledge.data.remote.firebase.FirebaseInitializer
 import com.apptolast.fledge.data.remote.firebase.FirestoreProvider
 import com.apptolast.fledge.data.repository.FirestoreAccountDeletionRepository
 import com.apptolast.fledge.data.repository.FirestoreFamilyFoundationRepository
+import com.apptolast.fledge.data.repository.FirestoreGuestSponsorRepository
 import com.apptolast.fledge.data.repository.FirestoreLedgerRepository
 import com.apptolast.fledge.data.repository.FirestoreMoneyFlowRepository
 import com.apptolast.fledge.data.repository.FirestorePushRegistrationRepository
@@ -27,6 +28,7 @@ import com.apptolast.fledge.data.repository.FirestoreTaskInstanceRepository
 import com.apptolast.fledge.data.repository.FirestoreTaskTemplateRepository
 import com.apptolast.fledge.domain.repository.AccountDeletionRepository
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.domain.repository.GuestSponsorRepository
 import com.apptolast.fledge.domain.repository.LedgerRepository
 import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.repository.PushRegistrationRepository
@@ -41,6 +43,8 @@ import com.apptolast.fledge.domain.service.SavingsGoalWithdrawalProcessor
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.presentation.foundation.accountdeletion.AccountDeletionViewModel
 import com.apptolast.fledge.presentation.foundation.admin.SecondaryAdminViewModel
+import com.apptolast.fledge.presentation.foundation.guest.GuestHomeViewModel
+import com.apptolast.fledge.presentation.foundation.guest.GuestSponsorInviteViewModel
 import com.apptolast.fledge.presentation.foundation.interest.ParentInterestViewModel
 import com.apptolast.fledge.presentation.foundation.match.ParentMatchViewModel
 import com.apptolast.fledge.presentation.foundation.roles.RoleSelectorViewModel
@@ -68,6 +72,7 @@ class AppModulesTest {
         // When / Then
         assertNotNull(application.koin.get<FoundationRouteDecider>())
         assertNotNull(application.koin.get<AccountDeletionRepository>())
+        assertNotNull(application.koin.get<GuestSponsorRepository>())
         assertNotNull(application.koin.get<AccountDeletionViewModel>())
         assertNotNull(application.koin.get<RoleSelectorViewModel>())
         assertNotNull(application.koin.get<LedgerRepository>())
@@ -84,6 +89,8 @@ class AppModulesTest {
         assertNotNull(application.koin.get<ParentInterestViewModel>())
         assertNotNull(application.koin.get<ParentMatchViewModel>())
         assertNotNull(application.koin.get<SecondaryAdminViewModel>())
+        assertNotNull(application.koin.get<GuestSponsorInviteViewModel>())
+        assertNotNull(application.koin.get<GuestHomeViewModel>())
         assertNotNull(application.koin.get<SavingsGoalSetupViewModel>())
         assertNotNull(application.koin.get<SavingsGoalDepositViewModel>())
         assertNotNull(application.koin.get<SavingsGoalWithdrawalViewModel>())
@@ -137,6 +144,7 @@ class AppModulesTest {
         // When
         val familyFoundation = application.koin.get<FamilyFoundationRepository>()
         val accountDeletion = application.koin.get<AccountDeletionRepository>()
+        val guestSponsor = application.koin.get<GuestSponsorRepository>()
         val ledger = application.koin.get<LedgerRepository>()
         val moneyFlow = application.koin.get<MoneyFlowRepository>()
         val pushRegistrations = application.koin.get<PushRegistrationRepository>()
@@ -148,6 +156,7 @@ class AppModulesTest {
         // Then production bindings now point to Firestore-backed repositories
         assertIs<FirestoreAccountDeletionRepository>(accountDeletion)
         assertIs<FirestoreFamilyFoundationRepository>(familyFoundation)
+        assertIs<FirestoreGuestSponsorRepository>(guestSponsor)
         assertIs<FirestoreLedgerRepository>(ledger)
         assertIs<FirestoreMoneyFlowRepository>(moneyFlow)
         assertIs<FirestorePushRegistrationRepository>(pushRegistrations)

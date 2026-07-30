@@ -80,6 +80,7 @@ import fledge.shared.generated.resources.parent_home_gate_setup
 import fledge.shared.generated.resources.parent_home_goal_balance
 import fledge.shared.generated.resources.parent_home_goal_completion_body
 import fledge.shared.generated.resources.parent_home_goal_completion_title
+import fledge.shared.generated.resources.parent_home_invite_guest
 import fledge.shared.generated.resources.parent_home_main_balance
 import fledge.shared.generated.resources.parent_home_pairing
 import fledge.shared.generated.resources.parent_home_parent_interest
@@ -120,6 +121,7 @@ fun ParentHomeScreen(
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
     onCreateSavingsGoal: (ChildProfileId) -> Unit,
+    onInviteGuest: (ChildProfileId) -> Unit,
     onCreateTask: () -> Unit,
     onOpenParentInterest: () -> Unit,
     onOpenParentMatch: () -> Unit,
@@ -138,6 +140,7 @@ fun ParentHomeScreen(
         onConfigureAllowance = onConfigureAllowance,
         onAdjustChild = onAdjustChild,
         onCreateSavingsGoal = onCreateSavingsGoal,
+        onInviteGuest = onInviteGuest,
         onCreateTask = onCreateTask,
         onOpenParentInterest = onOpenParentInterest,
         onOpenParentMatch = onOpenParentMatch,
@@ -178,6 +181,7 @@ fun ParentHomeContent(
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
     onCreateSavingsGoal: (ChildProfileId) -> Unit,
+    onInviteGuest: (ChildProfileId) -> Unit,
     onCreateTask: () -> Unit,
     onOpenParentInterest: () -> Unit,
     onOpenParentMatch: () -> Unit,
@@ -348,6 +352,7 @@ fun ParentHomeContent(
                         onConfigureAllowance = onConfigureAllowance,
                         onAdjustChild = onAdjustChild,
                         onCreateSavingsGoal = onCreateSavingsGoal,
+                        onInviteGuest = onInviteGuest,
                     )
                 }
             }
@@ -614,6 +619,7 @@ private fun ChildProfileRow(
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
     onCreateSavingsGoal: (ChildProfileId) -> Unit,
+    onInviteGuest: (ChildProfileId) -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -714,6 +720,15 @@ private fun ChildProfileRow(
                 ) {
                     Text(stringResource(Res.string.parent_home_adjustment))
                 }
+            }
+            OutlinedButton(
+                onClick = { onInviteGuest(child.id) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.parent_home_invite_guest))
             }
         }
     }
@@ -996,6 +1011,7 @@ fun PreviewParentHomeContent() {
             onConfigureAllowance = {},
             onAdjustChild = {},
             onCreateSavingsGoal = {},
+            onInviteGuest = {},
             onCreateTask = {},
             onOpenParentInterest = {},
             onOpenParentMatch = {},
@@ -1026,6 +1042,7 @@ fun PreviewParentHomeFirstRunEmptyContent() {
             onConfigureAllowance = {},
             onAdjustChild = {},
             onCreateSavingsGoal = {},
+            onInviteGuest = {},
             onCreateTask = {},
             onOpenParentInterest = {},
             onOpenParentMatch = {},
@@ -1069,6 +1086,7 @@ fun PreviewParentHomeEmptyActivityContent() {
             onConfigureAllowance = {},
             onAdjustChild = {},
             onCreateSavingsGoal = {},
+            onInviteGuest = {},
             onCreateTask = {},
             onOpenParentInterest = {},
             onOpenParentMatch = {},

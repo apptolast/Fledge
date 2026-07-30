@@ -2,7 +2,13 @@ package com.apptolast.fledge.presentation.foundation.postlogin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apptolast.fledge.domain.model.ChildProfile
+import com.apptolast.fledge.domain.model.Family
+import com.apptolast.fledge.domain.model.GuestSponsorAccess
+import com.apptolast.fledge.domain.model.VirtualMoneyConsent
 import com.apptolast.fledge.domain.repository.FamilyFoundationRepository
+import com.apptolast.fledge.domain.repository.GuestSponsorRepository
+import com.apptolast.fledge.domain.repository.RepositorySyncStatus
 import com.apptolast.fledge.navigation.FoundationRouteDecider
 import com.apptolast.fledge.navigation.PostLoginNavigationTarget
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +21,7 @@ data class PostLoginUiState(val target: PostLoginNavigationTarget = PostLoginNav
 
 class PostLoginViewModel(
     private val repository: FamilyFoundationRepository,
+    private val guestSponsorRepository: GuestSponsorRepository,
     private val routeDecider: FoundationRouteDecider,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(PostLoginUiState())
@@ -23,16 +30,28 @@ class PostLoginViewModel(
     init {
         viewModelScope.launch {
             combine(
-                repository.activeFamily,
-                repository.virtualMoneyConsent,
-                repository.children,
-                repository.syncStatus,
-            ) { family, consent, children, syncStatus ->
+                combine(
+                    repository.activeFamily,
+                    repository.virtualMoneyConsent,
+                    repository.children,
+                    repository.syncStatus,
+                ) { family, consent, children, syncStatus ->
+                    FamilyPostLoginSnapshot(family, consent, children, syncStatus)
+                },
+                combine(
+                    guestSponsorRepository.activeGuestAccess,
+                    guestSponsorRepository.syncStatus,
+                ) { access, syncStatus ->
+                    GuestPostLoginSnapshot(access, syncStatus)
+                },
+            ) { familySnapshot, guestSnapshot ->
                 routeDecider.postLoginTarget(
-                    hasFamily = family != null,
-                    hasVirtualMoneyConsent = consent != null,
-                    hasChildProfiles = children.isNotEmpty(),
-                    syncStatus = syncStatus,
+                    hasFamily = familySnapshot.family != null,
+                    hasGuestAccess = guestSnapshot.access != null,
+                    hasVirtualMoneyConsent = familySnapshot.consent != null,
+                    hasChildProfiles = familySnapshot.children.isNotEmpty(),
+                    syncStatus = familySnapshot.syncStatus,
+                    guestSyncStatus = guestSnapshot.syncStatus,
                 )
             }.collect { target ->
                 mutableUiState.update { it.copy(target = target) }
@@ -40,3 +59,12 @@ class PostLoginViewModel(
         }
     }
 }
+
+private data class FamilyPostLoginSnapshot(
+    val family: Family?,
+    val consent: VirtualMoneyConsent?,
+    val children: List<ChildProfile>,
+    val syncStatus: RepositorySyncStatus,
+)
+
+private data class GuestPostLoginSnapshot(val access: GuestSponsorAccess?, val syncStatus: RepositorySyncStatus)
