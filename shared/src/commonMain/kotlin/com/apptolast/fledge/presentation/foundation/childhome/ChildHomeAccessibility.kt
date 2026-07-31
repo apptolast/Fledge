@@ -39,6 +39,8 @@ enum class ChildHomeIconKey(val symbol: String) {
     Check("✓"),
     Alert("!"),
     Trophy("🏆"),
+    Flame("🔥"),
+    Lock("🔒"),
     Bike("🚲"),
     Game("🎮"),
     Book("📚"),

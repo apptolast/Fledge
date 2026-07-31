@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.CashOutSettlement
+import com.apptolast.fledge.domain.model.ChildAchievementSummary
 import com.apptolast.fledge.domain.model.ChildLedgerBalances
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FoundationAction
@@ -21,6 +22,7 @@ import com.apptolast.fledge.domain.repository.MoneyFlowRepository
 import com.apptolast.fledge.domain.repository.SavingsGoalRepository
 import com.apptolast.fledge.domain.repository.TaskInstanceRepository
 import com.apptolast.fledge.domain.service.CashOutProcessor
+import com.apptolast.fledge.domain.service.ChildAchievementCalculator
 import com.apptolast.fledge.domain.service.CompoundInterestProjection
 import com.apptolast.fledge.domain.service.CompoundInterestProjectionCalculator
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
@@ -48,6 +50,7 @@ data class ChildHomeUiState(
     val settlements: List<CashOutSettlement> = emptyList(),
     val settlementReminders: List<SettlementReminder> = emptyList(),
     val taskInstances: List<TaskInstance> = emptyList(),
+    val achievementSummary: ChildAchievementSummary = ChildAchievementSummary.empty(),
     val activeSavingsGoal: SavingsGoal? = null,
     val activeSavingsGoalProjection: SavingsGoalProjection? = null,
     val activeSavingsGoalCompletionNotice: SavingsGoalCompletionNotice? = null,
@@ -76,6 +79,7 @@ class ChildHomeViewModel(
     private val savingsGoalProjectionCalculator = SavingsGoalProjectionCalculator()
     private val savingsGoalCompletionNotifier = SavingsGoalCompletionNotifier()
     private val compoundInterestProjectionCalculator = CompoundInterestProjectionCalculator()
+    private val childAchievementCalculator = ChildAchievementCalculator()
     private val mutableUiState = MutableStateFlow(ChildHomeUiState())
     val uiState: StateFlow<ChildHomeUiState> = mutableUiState
 
@@ -98,6 +102,7 @@ class ChildHomeViewModel(
         viewModelScope.launch {
             repository.activeFamily.collect { family ->
                 mutableUiState.update { it.copy(currencyCode = family?.currency?.value ?: "EUR") }
+                refreshAchievementState()
                 refreshCompoundInterestState()
             }
         }
@@ -134,6 +139,7 @@ class ChildHomeViewModel(
         refreshMoneyState()
         refreshGoalState()
         refreshTaskState()
+        refreshAchievementState()
         refreshCompoundInterestState()
     }
 
@@ -223,8 +229,26 @@ class ChildHomeViewModel(
 
     private fun refreshTaskState() {
         val childProfileId = mutableUiState.value.childProfileId ?: return
+        val taskInstances = taskInstanceRepository.instancesForChild(childProfileId).sortedForChildHome()
         mutableUiState.update {
-            it.copy(taskInstances = taskInstanceRepository.instancesForChild(childProfileId).sortedForChildHome())
+            it.copy(taskInstances = taskInstances)
+        }
+        refreshAchievementState()
+    }
+
+    private fun refreshAchievementState() {
+        val childProfileId = mutableUiState.value.childProfileId ?: return
+        val family = repository.activeFamily.value
+        val timeZone = family?.timeZone ?: return
+        mutableUiState.update {
+            it.copy(
+                achievementSummary = childAchievementCalculator.calculate(
+                    childProfileId = childProfileId,
+                    taskInstances = taskInstanceRepository.instancesForChild(childProfileId),
+                    timeZoneId = timeZone,
+                    now = Clock.System.now(),
+                ),
+            )
         }
     }
 

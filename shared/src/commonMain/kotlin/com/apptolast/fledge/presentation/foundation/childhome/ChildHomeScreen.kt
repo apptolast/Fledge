@@ -39,6 +39,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.apptolast.fledge.domain.model.BalanceCents
 import com.apptolast.fledge.domain.model.CashOutSettlement
+import com.apptolast.fledge.domain.model.ChildAchievementBadgeId
+import com.apptolast.fledge.domain.model.ChildAchievementBadgeProgress
+import com.apptolast.fledge.domain.model.ChildAchievementSummary
 import com.apptolast.fledge.domain.model.ChildLedgerBalances
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.FamilyId
@@ -75,6 +78,18 @@ import fledge.shared.generated.resources.cash_out_mark_received
 import fledge.shared.generated.resources.cash_out_status_confirmed
 import fledge.shared.generated.resources.cash_out_status_paid_by_parent
 import fledge.shared.generated.resources.cash_out_status_requested
+import fledge.shared.generated.resources.child_home_achievement_approved_total
+import fledge.shared.generated.resources.child_home_achievement_badge_first_task
+import fledge.shared.generated.resources.child_home_achievement_badge_progress
+import fledge.shared.generated.resources.child_home_achievement_badge_three_day_streak
+import fledge.shared.generated.resources.child_home_achievement_badge_three_tasks
+import fledge.shared.generated.resources.child_home_achievement_badge_unlocked
+import fledge.shared.generated.resources.child_home_achievement_best_streak
+import fledge.shared.generated.resources.child_home_achievement_current_active
+import fledge.shared.generated.resources.child_home_achievement_current_empty
+import fledge.shared.generated.resources.child_home_achievement_current_label
+import fledge.shared.generated.resources.child_home_achievement_subtitle
+import fledge.shared.generated.resources.child_home_achievement_title
 import fledge.shared.generated.resources.child_home_action_cd_cash_out
 import fledge.shared.generated.resources.child_home_action_cd_cash_out_disabled
 import fledge.shared.generated.resources.child_home_action_cd_empty_goal
@@ -315,6 +330,11 @@ fun ChildHomeContent(
                         projection = projection,
                         currencyCode = state.currencyCode,
                     )
+                }
+            }
+            if (state.taskInstances.isNotEmpty() || state.achievementSummary.hasApprovedActivity) {
+                item {
+                    ChildAchievementSummaryCard(summary = state.achievementSummary)
                 }
             }
             item {
@@ -1257,6 +1277,181 @@ private fun ChildMoneyPot(label: String, amount: Long, currencyCode: String, mod
 }
 
 @Composable
+private fun ChildAchievementSummaryCard(summary: ChildAchievementSummary) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ChildHomeIcon(
+                    iconKey = ChildHomeIconKey.Flame,
+                    modifier = Modifier.size(44.dp),
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.child_home_achievement_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = stringResource(Res.string.child_home_achievement_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = stringResource(
+                            Res.string.child_home_achievement_best_streak,
+                            summary.bestStreakDays,
+                        ),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(width = 104.dp, height = 84.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = summary.currentStreakDays.toString(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = stringResource(Res.string.child_home_achievement_current_label),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = if (summary.currentStreakDays > 0) {
+                            stringResource(Res.string.child_home_achievement_current_active)
+                        } else {
+                            stringResource(Res.string.child_home_achievement_current_empty)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(
+                            Res.string.child_home_achievement_approved_total,
+                            summary.approvedTaskCount,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                summary.badges.forEach { badge ->
+                    ChildAchievementBadgeChip(
+                        badge = badge,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChildAchievementBadgeChip(badge: ChildAchievementBadgeProgress, modifier: Modifier = Modifier) {
+    val containerColor = when {
+        badge.unlocked && badge.id == ChildAchievementBadgeId.ThreeDayStreak ->
+            MaterialTheme.colorScheme.tertiaryContainer
+        badge.unlocked -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val iconKey = when {
+        !badge.unlocked -> ChildHomeIconKey.Lock
+        badge.id == ChildAchievementBadgeId.ThreeDayStreak -> ChildHomeIconKey.Flame
+        else -> ChildHomeIconKey.Check
+    }
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = containerColor,
+        modifier = modifier.heightIn(min = 78.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ChildHomeInlineIcon(
+                iconKey = iconKey,
+                contentColor = if (badge.unlocked) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+            Text(
+                text = childAchievementBadgeTitle(badge.id),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = if (badge.unlocked) {
+                    stringResource(Res.string.child_home_achievement_badge_unlocked)
+                } else {
+                    stringResource(
+                        Res.string.child_home_achievement_badge_progress,
+                        badge.progress,
+                        badge.target,
+                    )
+                },
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun ChildSettlementRow(
     settlement: CashOutSettlement,
     currencyCode: String,
@@ -1429,6 +1624,16 @@ private fun childHomeEmptyStateBody(kind: ChildHomeEmptyStateKind): String = whe
     ChildHomeEmptyStateKind.SavingsGoal -> stringResource(Res.string.child_home_empty_goal_body)
     ChildHomeEmptyStateKind.Settlements -> stringResource(Res.string.child_home_empty_settlements_body)
     ChildHomeEmptyStateKind.Ledger -> stringResource(Res.string.child_home_empty_ledger_body)
+}
+
+@Composable
+private fun childAchievementBadgeTitle(id: ChildAchievementBadgeId): String = when (id) {
+    ChildAchievementBadgeId.FirstApprovedTask ->
+        stringResource(Res.string.child_home_achievement_badge_first_task)
+    ChildAchievementBadgeId.ThreeApprovedTasks ->
+        stringResource(Res.string.child_home_achievement_badge_three_tasks)
+    ChildAchievementBadgeId.ThreeDayStreak ->
+        stringResource(Res.string.child_home_achievement_badge_three_day_streak)
 }
 
 @Composable
@@ -1616,6 +1821,28 @@ fun PreviewChildHomeContent() {
                         createdAt = Clock.System.now(),
                         updatedAt = Clock.System.now(),
                         submittedAt = Clock.System.now(),
+                    ),
+                ),
+                achievementSummary = ChildAchievementSummary(
+                    currentStreakDays = 3,
+                    bestStreakDays = 5,
+                    approvedTaskCount = 8,
+                    badges = listOf(
+                        ChildAchievementBadgeProgress(
+                            id = ChildAchievementBadgeId.FirstApprovedTask,
+                            progress = 1,
+                            target = 1,
+                        ),
+                        ChildAchievementBadgeProgress(
+                            id = ChildAchievementBadgeId.ThreeApprovedTasks,
+                            progress = 3,
+                            target = 3,
+                        ),
+                        ChildAchievementBadgeProgress(
+                            id = ChildAchievementBadgeId.ThreeDayStreak,
+                            progress = 3,
+                            target = 3,
+                        ),
                     ),
                 ),
                 syncNotice = null,
