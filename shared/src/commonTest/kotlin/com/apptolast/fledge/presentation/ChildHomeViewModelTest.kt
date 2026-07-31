@@ -6,6 +6,7 @@ import com.apptolast.fledge.data.repository.InMemoryMoneyFlowRepository
 import com.apptolast.fledge.data.repository.InMemorySavingsGoalRepository
 import com.apptolast.fledge.data.repository.InMemoryTaskInstanceRepository
 import com.apptolast.fledge.domain.model.BalanceCents
+import com.apptolast.fledge.domain.model.ChildAchievementBadgeId
 import com.apptolast.fledge.domain.model.ChildPin
 import com.apptolast.fledge.domain.model.ChildProfileId
 import com.apptolast.fledge.domain.model.CurrencyCode
@@ -720,6 +721,78 @@ class ChildHomeViewModelTest {
 
         // Then
         assertEquals(null, disabledInterestViewModel.uiState.value.compoundInterestProjection)
+    }
+
+    @Test
+    fun `FLE-57 AC-03 child home exposes achievement summary before task list`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Lucas",
+            birthYear = 2017,
+            avatarKey = "rocket",
+            pin = ChildPin("1234"),
+        )
+        val now = Clock.System.now()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository(
+            listOf(
+                taskInstance(
+                    id = "approved-1",
+                    familyId = family.id,
+                    childProfileId = child.id,
+                    status = TaskInstanceStatus.Approved,
+                    submittedAt = now.minus(2.days),
+                    reviewedAt = now.minus(2.days),
+                ),
+                taskInstance(
+                    id = "approved-2",
+                    familyId = family.id,
+                    childProfileId = child.id,
+                    status = TaskInstanceStatus.Approved,
+                    submittedAt = now.minus(1.days),
+                    reviewedAt = now.minus(1.days),
+                ),
+                taskInstance(
+                    id = "approved-3",
+                    familyId = family.id,
+                    childProfileId = child.id,
+                    status = TaskInstanceStatus.Approved,
+                    submittedAt = now,
+                    reviewedAt = now,
+                ),
+            ),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        val summary = viewModel.uiState.value.achievementSummary
+        assertEquals(3, summary.currentStreakDays)
+        assertEquals(3, summary.bestStreakDays)
+        assertEquals(3, summary.approvedTaskCount)
+        assertEquals(
+            true,
+            summary.badges.first { it.id == ChildAchievementBadgeId.ThreeApprovedTasks }.unlocked,
+        )
     }
 
     private fun taskInstance(
