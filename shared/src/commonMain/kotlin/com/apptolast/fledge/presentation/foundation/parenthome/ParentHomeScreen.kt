@@ -82,6 +82,7 @@ import fledge.shared.generated.resources.parent_home_goal_completion_body
 import fledge.shared.generated.resources.parent_home_goal_completion_title
 import fledge.shared.generated.resources.parent_home_invite_guest
 import fledge.shared.generated.resources.parent_home_main_balance
+import fledge.shared.generated.resources.parent_home_open_child_profile
 import fledge.shared.generated.resources.parent_home_pairing
 import fledge.shared.generated.resources.parent_home_parent_interest
 import fledge.shared.generated.resources.parent_home_parent_interest_review
@@ -123,6 +124,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun ParentHomeScreen(
     onAddChild: () -> Unit,
+    onOpenChildProfile: (ChildProfileId) -> Unit,
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
@@ -144,6 +146,7 @@ fun ParentHomeScreen(
     ParentHomeContent(
         state = state,
         onAddChild = onAddChild,
+        onOpenChildProfile = onOpenChildProfile,
         onPairChild = onPairChild,
         onConfigureAllowance = onConfigureAllowance,
         onAdjustChild = onAdjustChild,
@@ -187,6 +190,7 @@ fun ParentHomeScreen(
 fun ParentHomeContent(
     state: ParentHomeUiState,
     onAddChild: () -> Unit,
+    onOpenChildProfile: (ChildProfileId) -> Unit,
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
@@ -366,6 +370,7 @@ fun ParentHomeContent(
                         mainBalance = state.mainBalances[child.id] ?: BalanceCents(0),
                         goalBalance = state.goalBalances[child.id] ?: BalanceCents(0),
                         currencyCode = state.currencyCode,
+                        onOpenChildProfile = onOpenChildProfile,
                         onPairChild = onPairChild,
                         onConfigureAllowance = onConfigureAllowance,
                         onAdjustChild = onAdjustChild,
@@ -703,6 +708,7 @@ private fun ChildProfileRow(
     mainBalance: BalanceCents,
     goalBalance: BalanceCents,
     currencyCode: String,
+    onOpenChildProfile: (ChildProfileId) -> Unit,
     onPairChild: (ChildProfileId) -> Unit,
     onConfigureAllowance: (ChildProfileId) -> Unit,
     onAdjustChild: (ChildProfileId) -> Unit,
@@ -762,6 +768,15 @@ private fun ChildProfileRow(
                     ),
                     style = MaterialTheme.typography.titleMedium,
                 )
+            }
+            Button(
+                onClick = { onOpenChildProfile(child.id) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.parent_home_open_child_profile))
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1095,6 +1110,7 @@ fun PreviewParentHomeContent() {
                 syncNotice = null,
             ),
             onAddChild = {},
+            onOpenChildProfile = {},
             onPairChild = {},
             onConfigureAllowance = {},
             onAdjustChild = {},
@@ -1128,6 +1144,7 @@ fun PreviewParentHomeFirstRunEmptyContent() {
                 syncNotice = null,
             ),
             onAddChild = {},
+            onOpenChildProfile = {},
             onPairChild = {},
             onConfigureAllowance = {},
             onAdjustChild = {},
@@ -1174,6 +1191,7 @@ fun PreviewParentHomeEmptyActivityContent() {
                 syncNotice = null,
             ),
             onAddChild = {},
+            onOpenChildProfile = {},
             onPairChild = {},
             onConfigureAllowance = {},
             onAdjustChild = {},

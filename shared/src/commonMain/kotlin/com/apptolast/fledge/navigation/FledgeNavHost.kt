@@ -119,6 +119,7 @@ fun FledgeNavHost(modifier: Modifier = Modifier) {
         composable<ParentHomeRoute> {
             ParentHomeScreen(
                 onAddChild = { navController.navigate(ChildProfileSetupRoute) },
+                onOpenChildProfile = { childId -> navController.navigate(parentChildHomeRoute(childId)) },
                 onPairChild = { childId -> navController.navigate(PairingRoute(childId.value)) },
                 onConfigureAllowance = { childId -> navController.navigate(AllowanceRuleRoute(childId.value)) },
                 onAdjustChild = { childId -> navController.navigate(ManualAdjustmentRoute(childId.value)) },

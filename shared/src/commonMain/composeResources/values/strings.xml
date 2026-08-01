@@ -74,6 +74,7 @@
     <string name="parent_home_adjustment">Ajuste</string>
     <string name="parent_home_create_goal">Objetivo</string>
     <string name="parent_home_create_task">Nueva tarea</string>
+    <string name="parent_home_open_child_profile">Ver perfil</string>
     <string name="parent_home_settlements_title">Retiradas pendientes</string>
     <string name="parent_home_settlements_empty">No hay retiradas pendientes.</string>
     <string name="parent_home_gate">Parental gate</string>
@@ -316,7 +317,7 @@
     <string name="parental_gate_confirm">Confirmar</string>
     <string name="parental_gate_error_wrong">Respuesta incorrecta.</string>
     <string name="parental_gate_error_missing">No hay ninguna accion pendiente.</string>
-    <string name="child_home_title">Hola, Lucas</string>
+    <string name="child_home_title">Hola, %1$s</string>
     <string name="child_home_body">Aqui puedes ver tus saldos y movimientos de dinero virtual.</string>
     <string name="child_home_main_balance">Saldo principal: %1$s</string>
     <string name="child_home_goal_balance">Objetivo: %1$s</string>
