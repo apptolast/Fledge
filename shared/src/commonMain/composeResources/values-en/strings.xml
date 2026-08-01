@@ -138,7 +138,7 @@
     <string name="parent_interest_no_last_posted">There are no automatic credits yet.</string>
     <string name="parent_interest_enable_label">Enable interest</string>
     <string name="parent_interest_enable_body">Fledge calculates interest on positive balances and prevents monthly duplicates.</string>
-    <string name="parent_interest_rate_label">Annual rate (%%)</string>
+    <string name="parent_interest_rate_label">Annual rate (%)</string>
     <string name="parent_interest_rate_support">Between 0.01 and 50.00 when enabled.</string>
     <string name="parent_interest_posting_day_label">Posting day</string>
     <string name="parent_interest_posting_day_support">Use a day from 1 to 28 to avoid short months.</string>
@@ -156,7 +156,7 @@
     <string name="parent_match_enable_label">Enable match</string>
     <string name="parent_match_enable_body">Fledge adds the match automatically when the child deposits into Save or Give.</string>
     <string name="parent_match_rate_label">Match percentage</string>
-    <string name="parent_match_percent_suffix">%%</string>
+    <string name="parent_match_percent_suffix">%</string>
     <string name="parent_match_rate_support">Use 50 to add half or 100 to match the full contribution.</string>
     <string name="parent_match_cap_label">Cap per contribution</string>
     <string name="parent_match_cap_support">Limit the automatic incentive to avoid overly large matches.</string>

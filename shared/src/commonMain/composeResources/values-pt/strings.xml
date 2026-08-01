@@ -139,7 +139,7 @@
     <string name="parent_interest_no_last_posted">Ainda nao ha creditos automaticos.</string>
     <string name="parent_interest_enable_label">Ativar juros</string>
     <string name="parent_interest_enable_body">Fledge calcula juros sobre saldo positivo e evita duplicados por mes.</string>
-    <string name="parent_interest_rate_label">Taxa anual (%%)</string>
+    <string name="parent_interest_rate_label">Taxa anual (%)</string>
     <string name="parent_interest_rate_support">Entre 0,01 e 50,00 quando estiver ativado.</string>
     <string name="parent_interest_posting_day_label">Dia de credito</string>
     <string name="parent_interest_posting_day_support">Use um dia de 1 a 28 para evitar meses curtos.</string>
@@ -157,7 +157,7 @@
     <string name="parent_match_enable_label">Ativar match</string>
     <string name="parent_match_enable_body">Fledge adiciona o match automaticamente quando o filho deposita em Poupar ou Doar.</string>
     <string name="parent_match_rate_label">Percentual de match</string>
-    <string name="parent_match_percent_suffix">%%</string>
+    <string name="parent_match_percent_suffix">%</string>
     <string name="parent_match_rate_support">Use 50 para aportar metade ou 100 para igualar a contribuicao completa.</string>
     <string name="parent_match_cap_label">Maximo por contribuicao</string>
     <string name="parent_match_cap_support">Limita o incentivo automatico para evitar matches muito grandes.</string>
