@@ -2,7 +2,9 @@ package com.apptolast.fledge.presentation.foundation.parenthome
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,7 +28,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +58,7 @@ import com.apptolast.fledge.domain.model.TaskInstanceStatus
 import com.apptolast.fledge.domain.model.TaskTemplateId
 import com.apptolast.fledge.domain.service.SavingsGoalCompletionNotice
 import com.apptolast.fledge.presentation.foundation.components.ActionableEmptyStateCard
+import com.apptolast.fledge.presentation.foundation.components.FledgeHomeTabBar
 import com.apptolast.fledge.presentation.foundation.components.SyncNoticeBanner
 import com.apptolast.fledge.presentation.theme.FledgeTheme
 import fledge.shared.generated.resources.Res
@@ -69,8 +75,6 @@ import fledge.shared.generated.resources.parent_home_add_child
 import fledge.shared.generated.resources.parent_home_adjustment
 import fledge.shared.generated.resources.parent_home_allowance
 import fledge.shared.generated.resources.parent_home_children
-import fledge.shared.generated.resources.parent_home_children_empty_body
-import fledge.shared.generated.resources.parent_home_children_empty_title
 import fledge.shared.generated.resources.parent_home_create_goal
 import fledge.shared.generated.resources.parent_home_create_task
 import fledge.shared.generated.resources.parent_home_first_run_empty_body
@@ -80,6 +84,8 @@ import fledge.shared.generated.resources.parent_home_gate_setup
 import fledge.shared.generated.resources.parent_home_goal_balance
 import fledge.shared.generated.resources.parent_home_goal_completion_body
 import fledge.shared.generated.resources.parent_home_goal_completion_title
+import fledge.shared.generated.resources.parent_home_goal_missing
+import fledge.shared.generated.resources.parent_home_goal_ready
 import fledge.shared.generated.resources.parent_home_invite_guest
 import fledge.shared.generated.resources.parent_home_main_balance
 import fledge.shared.generated.resources.parent_home_open_child_profile
@@ -102,6 +108,7 @@ import fledge.shared.generated.resources.parent_home_setup
 import fledge.shared.generated.resources.parent_home_statement_export
 import fledge.shared.generated.resources.parent_home_statement_export_body
 import fledge.shared.generated.resources.parent_home_statement_export_review
+import fledge.shared.generated.resources.parent_home_tab_settings_reports
 import fledge.shared.generated.resources.parent_home_task_approval_amount
 import fledge.shared.generated.resources.parent_home_task_approval_approve
 import fledge.shared.generated.resources.parent_home_task_approval_error_amount
@@ -142,9 +149,12 @@ fun ParentHomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    var selectedTab by rememberSaveable { mutableStateOf(ParentHomeTab.Home) }
 
     ParentHomeContent(
         state = state,
+        selectedTab = selectedTab,
+        onTabSelected = { selectedTab = it },
         onAddChild = onAddChild,
         onOpenChildProfile = onOpenChildProfile,
         onPairChild = onPairChild,
@@ -189,6 +199,8 @@ fun ParentHomeScreen(
 @Composable
 fun ParentHomeContent(
     state: ParentHomeUiState,
+    selectedTab: ParentHomeTab = ParentHomeTab.Home,
+    onTabSelected: (ParentHomeTab) -> Unit = {},
     onAddChild: () -> Unit,
     onOpenChildProfile: (ChildProfileId) -> Unit,
     onPairChild: (ChildProfileId) -> Unit,
@@ -210,245 +222,446 @@ fun ParentHomeContent(
     onRejectTask: (TaskInstanceId) -> Unit,
     onRequireParentalGate: (FoundationAction) -> Unit,
 ) {
+    val sections = parentHomeSectionsFor(selectedTab)
     Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize(),
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item {
-                ParentHomeHeader(
-                    title = state.familyName.ifBlank { stringResource(Res.string.parent_home_title) },
-                    pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
-                    currencyCode = state.currencyCode,
-                )
-            }
-            state.syncNotice?.let { notice ->
-                item {
-                    SyncNoticeBanner(notice = notice)
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 112.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                if (ParentHomeSection.Header in sections) {
+                    item {
+                        ParentHomeHeader(
+                            title = state.familyName.ifBlank { stringResource(Res.string.parent_home_title) },
+                            pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
+                            currencyCode = state.currencyCode,
+                        )
+                    }
                 }
-            }
-            state.operationError?.let {
-                item {
-                    Text(
-                        text = stringResource(Res.string.operation_error_sync),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-            if (state.children.isEmpty()) {
-                item {
-                    ParentHomeEmptyStateCard(
-                        emptyState = state.emptyState(ParentHomeEmptyStateKind.FirstRun)
-                            ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.FirstRun),
-                        onAddChild = onAddChild,
-                        onCreateTask = onCreateTask,
-                        onCreateSavingsGoal = onCreateSavingsGoal,
-                    )
-                }
-            } else {
-                item {
-                    SummaryCard(
-                        pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
-                        pendingCount = state.pendingSettlements.size,
-                        currencyCode = state.currencyCode,
-                    )
-                }
-                item {
-                    WeeklyDigestPromptCard(onOpenWeeklyDigest = onOpenWeeklyDigest)
-                }
-                item {
-                    StatementExportPromptCard(onOpenStatementExport = onOpenStatementExport)
-                }
-            }
-            if (state.goalCompletionNotices.isNotEmpty()) {
-                items(
-                    items = state.goalCompletionNotices,
-                    key = { "${it.childProfileId.value}-${it.goalId.value}" },
-                ) { notice ->
-                    ParentGoalCompletionNoticeCard(
-                        notice = notice,
-                        currencyCode = state.currencyCode,
-                    )
-                }
-            }
-            item {
-                when (state.primaryAction) {
-                    ParentHomePrimaryAction.AddChild -> {
-                        Button(
-                            onClick = onAddChild,
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                        ) {
-                            Text(stringResource(Res.string.parent_home_add_child))
+                if (ParentHomeSection.Sync in sections) {
+                    state.syncNotice?.let { notice ->
+                        item { SyncNoticeBanner(notice = notice) }
+                    }
+                    state.operationError?.let {
+                        item {
+                            Text(
+                                text = stringResource(Res.string.operation_error_sync),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                            )
                         }
                     }
+                }
+                if (state.children.isEmpty()) {
+                    if (ParentHomeSection.FirstRun in sections) {
+                        item {
+                            ParentHomeEmptyStateCard(
+                                emptyState = state.emptyState(ParentHomeEmptyStateKind.FirstRun)
+                                    ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.FirstRun),
+                                onAddChild = onAddChild,
+                                onCreateTask = onCreateTask,
+                                onCreateSavingsGoal = onCreateSavingsGoal,
+                            )
+                        }
+                    }
+                } else {
+                    if (ParentHomeSection.Summary in sections) {
+                        item {
+                            SummaryCard(
+                                pendingTotal = state.pendingSettlements.sumOf { it.amountCents.value },
+                                pendingCount = state.pendingSettlements.size,
+                                currencyCode = state.currencyCode,
+                            )
+                        }
+                    }
+                    if (ParentHomeSection.GoalNotices in sections && state.goalCompletionNotices.isNotEmpty()) {
+                        items(
+                            items = state.goalCompletionNotices,
+                            key = { "${it.childProfileId.value}-${it.goalId.value}-${selectedTab.name}" },
+                        ) { notice ->
+                            ParentGoalCompletionNoticeCard(
+                                notice = notice,
+                                currencyCode = state.currencyCode,
+                            )
+                        }
+                    }
+                    if (ParentHomeSection.ChildOverview in sections) {
+                        item {
+                            Text(
+                                text = stringResource(Res.string.parent_home_children),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                        items(state.children, key = { "overview-${it.id.value}" }) { child ->
+                            ChildOverviewRow(
+                                child = child,
+                                mainBalance = state.mainBalances[child.id] ?: BalanceCents(0),
+                                goalBalance = state.goalBalances[child.id] ?: BalanceCents(0),
+                                currencyCode = state.currencyCode,
+                                onOpenChildProfile = onOpenChildProfile,
+                            )
+                        }
+                    }
+                    if (ParentHomeSection.Settlements in sections && state.pendingSettlements.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(Res.string.parent_home_settlements_title),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                        items(
+                            items = state.pendingSettlements.sortedByDescending { it.requestedAt },
+                            key = { "home-settlement-${it.id.value}" },
+                        ) { settlement ->
+                            ParentSettlementRow(
+                                settlement = settlement,
+                                childName =
+                                state.children.firstOrNull { it.id == settlement.childProfileId }?.displayName
+                                    ?: settlement.childProfileId.value,
+                                currencyCode = state.currencyCode,
+                                reminderLevel = state.settlementReminders.firstOrNull {
+                                    it.settlementId == settlement.id &&
+                                        it.audience == SettlementReminderAudience.Parent
+                                }?.level,
+                                onMarkSettlementPaid = onMarkSettlementPaid,
+                                isBusy = state.isBusy,
+                            )
+                        }
+                    }
+                    if (ParentHomeSection.CreateTask in sections) {
+                        item {
+                            Button(
+                                onClick = onCreateTask,
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                            ) {
+                                Text(stringResource(Res.string.parent_home_create_task))
+                            }
+                        }
+                    }
+                    if (ParentHomeSection.TaskApprovals in sections) {
+                        item {
+                            Text(
+                                text = stringResource(Res.string.parent_home_task_approvals_title),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                        state.taskApprovalError?.let { error ->
+                            item {
+                                Text(
+                                    text = taskApprovalErrorText(error),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
+                        if (state.pendingTaskApprovals.isEmpty()) {
+                            item {
+                                ParentHomeEmptyStateCard(
+                                    emptyState = state.emptyState(ParentHomeEmptyStateKind.TaskApprovals)
+                                        ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.TaskApprovals),
+                                    onAddChild = onAddChild,
+                                    onCreateTask = onCreateTask,
+                                    onCreateSavingsGoal = onCreateSavingsGoal,
+                                )
+                            }
+                        } else {
+                            items(state.pendingTaskApprovals, key = { it.id.value }) { instance ->
+                                ParentTaskApprovalRow(
+                                    instance = instance,
+                                    childName = state.children.firstOrNull { it.id == instance.childProfileId }
+                                        ?.displayName
+                                        ?: instance.childProfileId.value,
+                                    currencyCode = state.currencyCode,
+                                    amountInput = state.approvalAmountInputs[instance.id].orEmpty(),
+                                    rejectionReason = state.rejectionReasonInputs[instance.id].orEmpty(),
+                                    onUpdateApprovalAmount = { onUpdateApprovalAmount(instance.id, it) },
+                                    onUpdateRejectionReason = { onUpdateRejectionReason(instance.id, it) },
+                                    onApproveTask = { onApproveTask(instance.id) },
+                                    onRejectTask = { onRejectTask(instance.id) },
+                                    isBusy = state.isBusy,
+                                )
+                            }
+                        }
+                    }
+                    if (ParentHomeSection.GoalOverview in sections) {
+                        item {
+                            Text(
+                                text = stringResource(Res.string.parent_home_savings_goals_title),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                        items(state.children, key = { "goal-${it.id.value}" }) { child ->
+                            ChildGoalOverviewRow(
+                                child = child,
+                                goalBalance = state.goalBalances[child.id] ?: BalanceCents(0),
+                                currencyCode = state.currencyCode,
+                                hasActiveGoal = child.id in state.activeSavingsGoalChildIds,
+                                onCreateSavingsGoal = onCreateSavingsGoal,
+                            )
+                        }
+                    }
+                    if (ParentHomeSection.GoalSetup in sections) {
+                        state.emptyState(ParentHomeEmptyStateKind.SavingsGoal)?.let { emptyState ->
+                            item {
+                                ParentHomeEmptyStateCard(
+                                    emptyState = emptyState,
+                                    onAddChild = onAddChild,
+                                    onCreateTask = onCreateTask,
+                                    onCreateSavingsGoal = onCreateSavingsGoal,
+                                )
+                            }
+                        }
+                    }
+                    if (ParentHomeSection.SavingsRules in sections) {
+                        items(
+                            items = state.setupActions.filter { it.id in parentSavingsSetupActionIds },
+                            key = { "savings-${it.id}" },
+                        ) { action ->
+                            SetupActionRow(
+                                action = action,
+                                firstChildId = state.children.firstOrNull()?.id,
+                                onAddChild = onAddChild,
+                                onPairChild = onPairChild,
+                                onOpenParentInterest = onOpenParentInterest,
+                                onOpenParentMatch = onOpenParentMatch,
+                                onOpenSecondaryAdmin = onOpenSecondaryAdmin,
+                                onOpenAccountDeletion = onOpenAccountDeletion,
+                                onRequireParentalGate = onRequireParentalGate,
+                            )
+                        }
+                    }
+                    if (ParentHomeSection.ChildManagement in sections) {
+                        item {
+                            Text(
+                                text = stringResource(Res.string.parent_home_children),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                        items(state.children, key = { "manage-${it.id.value}" }) { child ->
+                            ChildProfileRow(
+                                child = child,
+                                mainBalance = state.mainBalances[child.id] ?: BalanceCents(0),
+                                goalBalance = state.goalBalances[child.id] ?: BalanceCents(0),
+                                currencyCode = state.currencyCode,
+                                onOpenChildProfile = onOpenChildProfile,
+                                onPairChild = onPairChild,
+                                onConfigureAllowance = onConfigureAllowance,
+                                onAdjustChild = onAdjustChild,
+                                onCreateSavingsGoal = onCreateSavingsGoal,
+                                onInviteGuest = onInviteGuest,
+                            )
+                        }
+                        item {
+                            Button(
+                                onClick = onAddChild,
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                            ) {
+                                Text(stringResource(Res.string.parent_home_add_child))
+                            }
+                        }
+                    }
+                    if (ParentHomeSection.FamilySettings in sections) {
+                        val generalActions = state.setupActions.filter { it.id in parentGeneralSetupActionIds }
+                        if (generalActions.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = stringResource(Res.string.parent_home_setup),
+                                    style = MaterialTheme.typography.titleLarge,
+                                )
+                            }
+                            items(generalActions, key = { "settings-${it.id}" }) { action ->
+                                SetupActionRow(
+                                    action = action,
+                                    firstChildId = state.children.firstOrNull()?.id,
+                                    onAddChild = onAddChild,
+                                    onPairChild = onPairChild,
+                                    onOpenParentInterest = onOpenParentInterest,
+                                    onOpenParentMatch = onOpenParentMatch,
+                                    onOpenSecondaryAdmin = onOpenSecondaryAdmin,
+                                    onOpenAccountDeletion = onOpenAccountDeletion,
+                                    onRequireParentalGate = onRequireParentalGate,
+                                )
+                            }
+                        }
+                    }
+                    if (ParentHomeSection.Reports in sections) {
+                        item {
+                            Text(
+                                text = stringResource(Res.string.parent_home_tab_settings_reports),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                        item { WeeklyDigestPromptCard(onOpenWeeklyDigest = onOpenWeeklyDigest) }
+                        item { StatementExportPromptCard(onOpenStatementExport = onOpenStatementExport) }
+                    }
+                }
+            }
+            FledgeHomeTabBar(
+                tabs = parentHomeTabs,
+                selectedTab = selectedTab,
+                onTabSelected = onTabSelected,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+}
 
-                    ParentHomePrimaryAction.CreateTask -> {
-                        Button(
-                            onClick = onCreateTask,
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                        ) {
-                            Text(stringResource(Res.string.parent_home_create_task))
-                        }
-                    }
-                }
-            }
-            item {
-                Text(
-                    text = stringResource(Res.string.parent_home_task_approvals_title),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            }
-            state.taskApprovalError?.let { error ->
-                item {
+private val parentSavingsSetupActionIds = setOf("parent-interest", "parent-match")
+private val parentGeneralSetupActionIds = setOf("secondary-admin", "account-deletion")
+
+@Composable
+private fun ChildOverviewRow(
+    child: ChildProfile,
+    mainBalance: BalanceCents,
+    goalBalance: BalanceCents,
+    currencyCode: String,
+    onOpenChildProfile: (ChildProfileId) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ChildAvatar(child = child)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = child.displayName, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = taskApprovalErrorText(error),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        text = stringResource(
+                            Res.string.parent_home_goal_balance,
+                            formatCents(goalBalance.value, currencyCode),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            if (state.pendingTaskApprovals.isEmpty()) {
-                item {
-                    ParentHomeEmptyStateCard(
-                        emptyState = state.emptyState(ParentHomeEmptyStateKind.TaskApprovals)
-                            ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.TaskApprovals),
-                        onAddChild = onAddChild,
-                        onCreateTask = onCreateTask,
-                        onCreateSavingsGoal = onCreateSavingsGoal,
-                    )
-                }
-            } else {
-                items(state.pendingTaskApprovals, key = { it.id.value }) { instance ->
-                    ParentTaskApprovalRow(
-                        instance = instance,
-                        childName = state.children.firstOrNull { it.id == instance.childProfileId }?.displayName
-                            ?: instance.childProfileId.value,
-                        currencyCode = state.currencyCode,
-                        amountInput = state.approvalAmountInputs[instance.id].orEmpty(),
-                        rejectionReason = state.rejectionReasonInputs[instance.id].orEmpty(),
-                        onUpdateApprovalAmount = { onUpdateApprovalAmount(instance.id, it) },
-                        onUpdateRejectionReason = { onUpdateRejectionReason(instance.id, it) },
-                        onApproveTask = { onApproveTask(instance.id) },
-                        onRejectTask = { onRejectTask(instance.id) },
-                        isBusy = state.isBusy,
-                    )
-                }
-            }
-            item {
                 Text(
-                    text = stringResource(Res.string.parent_home_children),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = stringResource(
+                        Res.string.parent_home_main_balance,
+                        formatCents(mainBalance.value, currencyCode),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
-            if (state.children.isEmpty()) {
-                item {
-                    ActionableEmptyStateCard(
-                        title = stringResource(Res.string.parent_home_children_empty_title),
-                        body = stringResource(Res.string.parent_home_children_empty_body),
-                        actionLabel = stringResource(Res.string.parent_home_add_child),
-                        onAction = onAddChild,
-                    )
-                }
-            } else {
-                items(state.children, key = { it.id.value }) { child ->
-                    ChildProfileRow(
-                        child = child,
-                        mainBalance = state.mainBalances[child.id] ?: BalanceCents(0),
-                        goalBalance = state.goalBalances[child.id] ?: BalanceCents(0),
-                        currencyCode = state.currencyCode,
-                        onOpenChildProfile = onOpenChildProfile,
-                        onPairChild = onPairChild,
-                        onConfigureAllowance = onConfigureAllowance,
-                        onAdjustChild = onAdjustChild,
-                        onCreateSavingsGoal = onCreateSavingsGoal,
-                        onInviteGuest = onInviteGuest,
-                    )
-                }
+            Button(
+                onClick = { onOpenChildProfile(child.id) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.parent_home_open_child_profile))
             }
-            state.emptyState(ParentHomeEmptyStateKind.SavingsGoal)?.let { emptyState ->
-                item {
-                    Text(
-                        text = stringResource(Res.string.parent_home_savings_goals_title),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                }
-                item {
-                    ParentHomeEmptyStateCard(
-                        emptyState = emptyState,
-                        onAddChild = onAddChild,
-                        onCreateTask = onCreateTask,
-                        onCreateSavingsGoal = onCreateSavingsGoal,
-                    )
-                }
-            }
-            item {
+        }
+    }
+}
+
+@Composable
+private fun ChildGoalOverviewRow(
+    child: ChildProfile,
+    goalBalance: BalanceCents,
+    currencyCode: String,
+    hasActiveGoal: Boolean,
+    onCreateSavingsGoal: (ChildProfileId) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            ChildAvatar(child = child)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(text = child.displayName, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = stringResource(Res.string.parent_home_settlements_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = stringResource(
+                        Res.string.parent_home_goal_balance,
+                        formatCents(goalBalance.value, currencyCode),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            if (state.pendingSettlements.isEmpty()) {
-                item {
-                    ParentHomeEmptyStateCard(
-                        emptyState = state.emptyState(ParentHomeEmptyStateKind.Settlements)
-                            ?: ParentHomeEmptyState(kind = ParentHomeEmptyStateKind.Settlements),
-                        onAddChild = onAddChild,
-                        onCreateTask = onCreateTask,
-                        onCreateSavingsGoal = onCreateSavingsGoal,
-                    )
-                }
-            } else {
-                items(
-                    items = state.pendingSettlements.sortedByDescending { it.requestedAt },
-                    key = { it.id.value },
-                ) { settlement ->
-                    ParentSettlementRow(
-                        settlement = settlement,
-                        childName = state.children.firstOrNull { it.id == settlement.childProfileId }?.displayName
-                            ?: settlement.childProfileId.value,
-                        currencyCode = state.currencyCode,
-                        reminderLevel = state.settlementReminders.firstOrNull {
-                            it.settlementId == settlement.id &&
-                                it.audience == SettlementReminderAudience.Parent
-                        }?.level,
-                        onMarkSettlementPaid = onMarkSettlementPaid,
-                        isBusy = state.isBusy,
-                    )
-                }
-            }
-            item {
                 Text(
-                    text = stringResource(Res.string.parent_home_setup),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = if (hasActiveGoal) {
+                        stringResource(Res.string.parent_home_goal_ready)
+                    } else {
+                        stringResource(Res.string.parent_home_goal_missing)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (hasActiveGoal) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
-            items(state.setupActions, key = { it.id }) { action ->
-                SetupActionRow(
-                    action = action,
-                    firstChildId = state.children.firstOrNull()?.id,
-                    onAddChild = onAddChild,
-                    onPairChild = onPairChild,
-                    onOpenParentInterest = onOpenParentInterest,
-                    onOpenParentMatch = onOpenParentMatch,
-                    onOpenSecondaryAdmin = onOpenSecondaryAdmin,
-                    onOpenAccountDeletion = onOpenAccountDeletion,
-                    onRequireParentalGate = onRequireParentalGate,
-                )
+            OutlinedButton(
+                onClick = { onCreateSavingsGoal(child.id) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(Res.string.parent_home_create_goal))
             }
+        }
+    }
+}
+
+@Composable
+private fun ChildAvatar(child: ChildProfile) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.size(44.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = child.displayName.firstOrNull()?.uppercaseChar()?.toString().orEmpty(),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondary,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }
