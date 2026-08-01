@@ -139,7 +139,7 @@
     <string name="parent_interest_no_last_posted">Aun no hay abonos automaticos.</string>
     <string name="parent_interest_enable_label">Activar interes</string>
     <string name="parent_interest_enable_body">Fledge calcula el interes sobre saldo positivo y evita duplicados por mes.</string>
-    <string name="parent_interest_rate_label">Tipo anual (%%)</string>
+    <string name="parent_interest_rate_label">Tipo anual (%)</string>
     <string name="parent_interest_rate_support">Entre 0,01 y 50,00 cuando este activado.</string>
     <string name="parent_interest_posting_day_label">Dia de abono</string>
     <string name="parent_interest_posting_day_support">Usa un dia del 1 al 28 para evitar meses cortos.</string>
@@ -157,7 +157,7 @@
     <string name="parent_match_enable_label">Activar match</string>
     <string name="parent_match_enable_body">Fledge anade el match automaticamente cuando el hijo deposita en Ahorrar o Donar.</string>
     <string name="parent_match_rate_label">Porcentaje de match</string>
-    <string name="parent_match_percent_suffix">%%</string>
+    <string name="parent_match_percent_suffix">%</string>
     <string name="parent_match_rate_support">Usa 50 para aportar la mitad o 100 para igualar la aportacion completa.</string>
     <string name="parent_match_cap_label">Maximo por aportacion</string>
     <string name="parent_match_cap_support">Limita el incentivo automatico para evitar matches demasiado grandes.</string>
