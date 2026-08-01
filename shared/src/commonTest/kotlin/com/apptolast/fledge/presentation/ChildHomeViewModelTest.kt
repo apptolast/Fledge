@@ -45,6 +45,43 @@ import kotlinx.coroutines.test.runTest
 class ChildHomeViewModelTest {
 
     @Test
+    fun `FLE-96 AC-01 child home greets the active child profile`() = runTest {
+        // Given
+        val foundationRepository = InMemoryFamilyFoundationRepository()
+        val ledgerRepository = InMemoryLedgerRepository()
+        val moneyFlowRepository = InMemoryMoneyFlowRepository()
+        val savingsGoalRepository = InMemorySavingsGoalRepository()
+        val taskInstanceRepository = InMemoryTaskInstanceRepository()
+        val family = foundationRepository.createFamily(
+            "Familia Garcia",
+            CurrencyCode("EUR"),
+            TimeZoneId("Europe/Madrid"),
+        )
+        foundationRepository.recordVirtualMoneyConsent()
+        val child = foundationRepository.addChildProfile(
+            familyId = family.id,
+            displayName = "Elisa",
+            birthYear = 2018,
+            avatarKey = "star",
+            pin = ChildPin("1234"),
+        )
+        val viewModel = ChildHomeViewModel(
+            foundationRepository,
+            ledgerRepository,
+            moneyFlowRepository,
+            savingsGoalRepository,
+            taskInstanceRepository,
+            CashOutProcessor(moneyFlowRepository, ledgerRepository),
+        )
+
+        // When
+        viewModel.load(child.id)
+
+        // Then
+        assertEquals("Elisa", viewModel.uiState.value.childDisplayName)
+    }
+
+    @Test
     fun `FLE-43 AC-04 AC-05 child empty home asks for adult help and explains ledger`() = runTest {
         // Given
         val foundationRepository = InMemoryFamilyFoundationRepository()

@@ -259,7 +259,10 @@ fun ChildHomeContent(
         ) {
             item {
                 Text(
-                    text = stringResource(Res.string.child_home_title),
+                    text = stringResource(
+                        Res.string.child_home_title,
+                        state.childDisplayName.ifBlank { state.childProfileId?.value.orEmpty() },
+                    ),
                     style = MaterialTheme.typography.headlineMedium,
                 )
             }
@@ -1722,6 +1725,7 @@ fun PreviewChildHomeContent() {
         ChildHomeContent(
             state = ChildHomeUiState(
                 childProfileId = ChildProfileId("child-1"),
+                childDisplayName = "Lucia",
                 balances = ChildLedgerBalances(
                     childProfileId = ChildProfileId("child-1"),
                     main = BalanceCents(550),

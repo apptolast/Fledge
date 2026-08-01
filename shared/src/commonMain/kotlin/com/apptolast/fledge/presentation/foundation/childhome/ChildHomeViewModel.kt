@@ -45,6 +45,7 @@ import kotlinx.datetime.toLocalDateTime
 
 data class ChildHomeUiState(
     val childProfileId: ChildProfileId? = null,
+    val childDisplayName: String = "",
     val balances: ChildLedgerBalances? = null,
     val ledgerTransactions: List<LedgerTransaction> = emptyList(),
     val settlements: List<CashOutSettlement> = emptyList(),
@@ -108,6 +109,7 @@ class ChildHomeViewModel(
         }
         viewModelScope.launch {
             repository.children.collect {
+                refreshChildProfileState()
                 refreshSavingsGoalDerivedState()
                 refreshCompoundInterestState()
             }
@@ -136,6 +138,7 @@ class ChildHomeViewModel(
 
     fun load(childProfileId: ChildProfileId) {
         mutableUiState.update { it.copy(childProfileId = childProfileId) }
+        refreshChildProfileState()
         refreshMoneyState()
         refreshGoalState()
         refreshTaskState()
@@ -225,6 +228,14 @@ class ChildHomeViewModel(
         }
         refreshSavingsGoalDerivedState()
         refreshCompoundInterestState()
+    }
+
+    private fun refreshChildProfileState() {
+        val childProfileId = mutableUiState.value.childProfileId ?: return
+        val child = repository.children.value.firstOrNull { it.id == childProfileId }
+        mutableUiState.update {
+            it.copy(childDisplayName = child?.displayName.orEmpty())
+        }
     }
 
     private fun refreshTaskState() {

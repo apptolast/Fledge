@@ -73,6 +73,7 @@
     <string name="parent_home_allowance">Allowance</string>
     <string name="parent_home_adjustment">Adjust</string>
     <string name="parent_home_create_goal">Goal</string>
+    <string name="parent_home_open_child_profile">View profile</string>
     <string name="parent_home_settlements_title">Pending cash-outs</string>
     <string name="parent_home_settlements_empty">There are no pending cash-outs.</string>
     <string name="parent_home_gate">Parental gate</string>
@@ -315,7 +316,7 @@
     <string name="parental_gate_confirm">Confirm</string>
     <string name="parental_gate_error_wrong">Incorrect answer.</string>
     <string name="parental_gate_error_missing">There is no pending action.</string>
-    <string name="child_home_title">Hi, Lucas</string>
+    <string name="child_home_title">Hi, %1$s</string>
     <string name="child_home_body">Here you can see your virtual money balances and movements.</string>
     <string name="child_home_main_balance">Main balance: %1$s</string>
     <string name="child_home_goal_balance">Goal: %1$s</string>
